@@ -67,6 +67,24 @@ describe("module-complete", () => {
     expect(isModuleComplete(withLessons({ "m1.a": complete(), "m1.b": complete() }), catalog, "m1")).toBe(false);
     expect(isModuleComplete(emptyProgress(), catalog, "nope")).toBe(false);
   });
+  describe("a module that is still being written (inProgress)", () => {
+    const wip: Catalog = { ...catalog, inProgressModules: ["m1"] };
+    it("is NOT completed by finishing the lessons that exist so far", () => {
+      const s = withLessons({ "m1.a": complete(), "m1.b": complete(), "m1.cap": complete() });
+      expect(isModuleComplete(s, wip, "m1")).toBe(false);
+    });
+    it("can still be completed by the test-out", () => {
+      expect(isModuleComplete(withLessons({ "m1.testout": complete() }), wip, "m1")).toBe(true);
+    });
+    it("only affects the modules listed", () => {
+      expect(isModuleComplete(withLessons({ "m2.a": complete() }), wip, "m2")).toBe(true);
+    });
+    it("its module-complete badge is 'coming soon' (not available) until the module is finished", () => {
+      expect(isAvailable({ type: "module-complete", module: "m1" }, wip)).toBe(false);
+      expect(isAvailable({ type: "module-complete", module: "m1" }, catalog)).toBe(true);
+      expect(isAvailable({ type: "all", rules: [{ type: "module-complete", module: "m1" }] }, wip)).toBe(false);
+    });
+  });
 });
 
 describe("tier-complete, first-try, persistence", () => {

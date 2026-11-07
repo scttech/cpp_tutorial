@@ -70,6 +70,7 @@ export function Home() {
               )}
             </h2>
             {m.summary && <p className="muted">{m.summary}</p>}
+            {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
             <ul className="lesson-list">
               {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
               {regular.map((l) => (

@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Run the tests. The four functions are independent, so fix them one at a time. For `transpose`, draw the 2x3 matrix on paper and write down where the element in row 0, column 2 ends up."
+  - level: 2
+    text: "transpose: a double loop over the rows and columns of the INPUT, writing to result[c][r]. sum_range: a plain loop from 0 to count. at_or and index_of: think about which index values are valid for a 6-element array, and what an unsigned index does with -1."
+  - level: 3
+    text: "For sum_range, the type of the running total matters: three values near INT_MAX do not fit in an int. For at_or, one comparison against a.size() handles every bad index, because std::size_t cannot be negative. index_of returns a.size() as its 'not found' value, the same convention as the standard algorithms use for 'end'."
+  - level: 4
+    text: |
+      transpose: Matrix3x2 result{}; for r in 0..m.size(), for c in 0..m[r].size(): result[c][r] = m[r][c]; return result.
+      sum_range: long long total = 0; for i in 0..count: total += data[i]; return total.
+      at_or: if (index >= a.size()) return fallback; return a[index];
+      index_of: loop i over 0..a.size(), return i when a[i] == value; after the loop return a.size().

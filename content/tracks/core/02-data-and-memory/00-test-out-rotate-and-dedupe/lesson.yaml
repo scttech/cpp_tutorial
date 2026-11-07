@@ -1,0 +1,15 @@
+id: core.data-and-memory.test-out
+title: "Test-out: Rotate and dedupe"
+module: core.data-and-memory
+type: test-out
+estimatedMinutes: 20
+concepts: [vector, rotation, modulo-with-negatives, dedupe-preserving-order, complexity]
+prerequisites: [core.foundations.capstone-unit-converter]
+files:
+  editable: [main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [modulo-negative, empty-input, quadratic-dedupe]

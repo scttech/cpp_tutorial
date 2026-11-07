@@ -41,5 +41,7 @@ export interface Module {
   title: string;
   summary?: string;
   order: number;
+  /** Content is still being written: finishing the lessons that exist does not complete the module. */
+  inProgress?: boolean;
   lessons: Lesson[];
 }

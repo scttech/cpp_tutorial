@@ -23,7 +23,7 @@
   category: progress
   icon: "🧱"
   description: "Complete Module 2: Data and Memory."
-  rule: { type: module-complete, module: core.data-memory }
+  rule: { type: module-complete, module: core.data-and-memory }
 
 - id: module-master-3
   name: "Module Master III"
@@ -90,7 +90,7 @@
     type: all
     rules:
       - { type: module-complete, module: core.foundations }
-      - { type: module-complete, module: core.data-memory }
+      - { type: module-complete, module: core.data-and-memory }
       - { type: module-complete, module: core.classes }
       - { type: module-complete, module: core.ownership }
       - { type: module-complete, module: core.generics }

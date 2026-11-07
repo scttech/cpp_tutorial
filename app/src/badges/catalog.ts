@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import { allLessons } from "../content/loader";
+import { allLessons, modules } from "../content/loader";
 import type { BadgeDef, Catalog } from "./engine";
 
 // Badge definitions are data: content/badges/*.yaml. Adding a badge needs no code change.
@@ -14,4 +14,5 @@ export const badgeById = (id: string) => badgeDefs.find((b) => b.id === id);
 /** What the engine needs to know about the course content. */
 export const catalog: Catalog = {
   lessons: allLessons.map((l) => ({ id: l.meta.id, module: l.meta.module, type: l.meta.type, tiers: l.meta.tiers })),
+  inProgressModules: modules.filter((m) => m.inProgress).map((m) => m.id),
 };

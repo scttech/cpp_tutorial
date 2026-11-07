@@ -13,8 +13,10 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Badges | 42 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
 | Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
+| Module 2 Data and Memory | **In progress**: test-out, arrays, `std::vector` (first lesson with a Fast tier, scored by counting heap allocations). 5 lessons + capstone to go |
+| Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
 | WASM runner for the static build | Spiked ([spike/](spike/)); not wired into the app yet |
-| AI tutor, Modules 2-10, domain tracks | Planned (see the spec) |
+| AI tutor, Modules 3-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
 
@@ -62,9 +64,9 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ## Verify everything
 
 ```bash
-cd app && npm test                                   # 95 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
-cd tools/validate-content && npm install && npm run validate   # every lesson (starter fails, solution passes, mutants fail) + every friendly rule vs real Clang
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (3 scripts)
+cd app && npm test                                   # 99 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
+cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (4 scripts)
 ```
 
 The validator and e2e need the runner (`docker compose up -d runner`); e2e also needs the dev server. Set `SHOTS=<dir>` to save screenshots.
@@ -74,6 +76,8 @@ The validator and e2e need the runner (`docker compose up -d runner`); e2e also 
 - **A badge**: add an entry to a file in [content/badges/](content/badges/). Rules are data (`lesson-count`, `module-complete`, `tier-complete`, `streak-days`, ...), so no code change is needed. Badges whose rules refer to content that does not exist yet appear under "coming soon".
 - **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
 - **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a `mutants/` folder of plausible wrong solutions that the tests must reject.
+  - Memory lessons: put `#define ZTH_TRACK_ALLOCATIONS` at the top of `tests/test.cpp`, then use `zth::mem::Scope` with `ZTH_EXPECT_NO_MEMORY_BUGS(scope)` / `ZTH_EXPECT_ALLOCS_AT_MOST(scope, n)`, and `zth::Tracked` to count copies and moves. See [runner-image/include/zth_test.hpp](runner-image/include/zth_test.hpp).
+  - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can).
 
 Backend tests (need Docker):
 

@@ -133,10 +133,11 @@ try {
   // ---------------- course map ----------------
   await page.goto(`${APP}/#/`);
   await page.getByRole("link", { name: /I\/O basics/ }).waitFor();
-  const links = await page.locator(".lesson-list a").count();
-  check(links === 9, `course map lists test-out + 7 lessons + capstone (${links})`);
-  check((await page.locator(".lesson-list li").first().getAttribute("class"))?.includes("test-out"), "the test-out is listed first");
-  check((await page.locator("h2 .badge.ok").first().textContent())?.includes("tested out"), "passing the test-out marks the module complete (tested out)");
+  const module1 = page.locator("section.module").first();
+  const links = await module1.locator(".lesson-list a").count();
+  check(links === 9, `course map lists test-out + 7 lessons + capstone in Module 1 (${links})`);
+  check((await module1.locator(".lesson-list li").first().getAttribute("class"))?.includes("test-out"), "the test-out is listed first");
+  check((await module1.locator("h2 .badge.ok").first().textContent())?.includes("tested out"), "passing the test-out marks the module complete (tested out)");
   await shot("m1-home");
 } catch (e) {
   failures++;

@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Run the tests and look at which tier fails. Works covers the plain cases; Robust covers the awkward values of k, the empty vector, and a big input. Work out one failing example by hand on paper first."
+  - level: 2
+    text: "Split the job in two helper steps in your head: (1) turn any k into a shift between 0 and size-1, (2) build the rotated copy. Then dedupe the rotated copy. For the shift, remember that % can return a negative number, and that a division by size is a problem when the size is 0."
+  - level: 3
+    text: "std::rotate(first, middle, last) makes `middle` the new first element, so a left rotation by `shift` uses begin() + shift as the middle. For the duplicates, an std::unordered_set<int> remembers what you have seen: `seen.insert(x).second` is true only the first time."
+  - level: 4
+    text: |
+      if empty: return {}
+      n = size as long long; shift = (long long)k % n; if shift < 0, shift += n
+      copy the input, std::rotate(copy.begin(), copy.begin() + shift, copy.end())
+      for each x in the rotated copy: if seen.insert(x).second, push_back(x) onto the result

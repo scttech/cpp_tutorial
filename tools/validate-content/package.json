@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "node validate.mjs && node friendly-check.mjs"
+    "validate": "node harness-selftest.mjs && node validate.mjs && node friendly-check.mjs"
   },
   "dependencies": {
     "yaml": "^2.9.1"

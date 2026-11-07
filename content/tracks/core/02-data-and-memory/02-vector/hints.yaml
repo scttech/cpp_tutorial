@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Run the starter first and read the capacity output: each growth is a heap allocation plus a copy of everything. Then run the tests and fix one function at a time; encode and decode are the heart of it."
+  - level: 2
+    text: "encode: walk the input once. If the last run already has this value, bump its count; otherwise start a new run. Look at `runs.back()`, and remember `back()` is only valid if the vector is not empty. decode: for each run, push the value `count` times."
+  - level: 3
+    text: "Fast tier: before filling a vector, work out how many elements it will end up with (for decode, add up the counts that are > 0) and call reserve once. For remove_evens, std::erase_if(v, predicate) removes in place without allocating; a hand-written erase inside a loop skips elements and is undefined behavior. For squares: `i * i` is computed in int before it is widened."
+  - level: 4
+    text: |
+      encode: if (!runs.empty() && runs.back().value == x) ++runs.back().count; else runs.push_back({x, 1});
+      decode: total = sum of counts > 0; out.reserve(total); then a nested loop pushing r.value r.count times.
+      squares: if n <= 0 return {}; out.reserve(n); push_back(static_cast<long long>(i) * i).
+      make_buffer: v.reserve(n) (not resize).
+      remove_evens: std::erase_if(v, [](int x) { return x % 2 == 0; });

@@ -48,6 +48,8 @@ export interface CatalogLesson {
 }
 export interface Catalog {
   lessons: CatalogLesson[];
+  /** Modules whose content is still being written (finishing the lessons that exist is not enough). */
+  inProgressModules?: string[];
 }
 
 // ---- evaluation ---------------------------------------------------------------------------------
@@ -74,12 +76,17 @@ function matches(l: CatalogLesson, p: LessonProgress, w: Where): boolean {
   return true;
 }
 
-/** A module is complete when its test-out is passed, or when every other lesson in it is complete. */
+/**
+ * A module is complete when its test-out is passed, or when every other lesson in it is complete.
+ * While a module is still being written (`inProgressModules`), only the test-out counts: finishing the
+ * lessons that exist so far must not complete a module that has more to come.
+ */
 export function isModuleComplete(state: Progress, catalog: Catalog, moduleId: string): boolean {
   const inModule = catalog.lessons.filter((l) => l.module === moduleId);
   if (inModule.length === 0) return false;
   const done = (l: CatalogLesson) => prog(state, l.id).status === "complete";
   if (inModule.some((l) => l.type === "test-out" && done(l))) return true;
+  if (catalog.inProgressModules?.includes(moduleId)) return false;
   const regular = inModule.filter((l) => l.type !== "test-out");
   return regular.length > 0 && regular.every(done);
 }
@@ -159,7 +166,7 @@ export function isAvailable(rule: Rule, catalog: Catalog): boolean {
     case "lesson-complete":
       return catalog.lessons.some((l) => l.id === rule.lesson);
     case "module-complete":
-      return catalog.lessons.some((l) => l.module === rule.module);
+      return catalog.lessons.some((l) => l.module === rule.module) && !catalog.inProgressModules?.includes(rule.module);
     case "lesson-count":
     case "same-day-count":
       if (rule.where.module !== undefined && !catalog.lessons.some((l) => l.module === rule.where.module)) return false;
