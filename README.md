@@ -1,0 +1,61 @@
+# CPP: From Zero to Hero
+
+An interactive C++ course: write code in the browser, run it against real unit tests, get immediate feedback.
+Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets/CPP_From_Zero_to_Hero_SPEC.md).
+
+## Two ways to run it
+
+| | **Static build** (GitHub Pages) | **Full build** (docker-compose) |
+|---|---|---|
+| Compiler | Clang compiled to WebAssembly, in your browser | Real Clang 18 / GCC 14 in a sandbox container |
+| Exceptions (`try`/`catch`) | No | Yes |
+| Threads / concurrency | No | Yes |
+| Sanitizers (ASan/UBSan/TSan) | No | Planned |
+| First load | ~90 MB toolchain download (cached) | Nothing to download |
+| Lessons needing the server | Shown greyed out, marked "server needed" | Available |
+
+The static build is a self-contained demo and is frozen at its last release; ongoing development continues in the
+docker-compose version. Both share the same UI, lesson format and `Runner` interface.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `app/` | Vite + React + TypeScript front end |
+| `runner-service/` | Node/Fastify API: validates requests, runs each job in a fresh sandbox container |
+| `runner-image/` | The sandbox image (Clang, GCC, and the in-container job runner) |
+| `spike/` | M0 feasibility spike for the WASM (browsercc) runner |
+| `docker-compose.yml` | Runner service + Docker socket proxy |
+
+## Run the backend
+
+```bash
+docker compose --profile build-only build   # builds zth-sandbox and the runner
+docker compose up -d runner                 # API on http://localhost:8080
+curl localhost:8080/healthz
+```
+
+Tests (need Docker):
+
+```bash
+cd runner-service
+npm test                    # fast unit tests
+npm run test:integration    # "attack" tests: fork bomb, memory hog, huge output, network, read-only fs...
+```
+
+## Security model
+
+Untrusted code is compiled and run inside a **new container per job**, with: no network, read-only root filesystem,
+size-capped tmpfs for `/work` and `/tmp`, all Linux capabilities dropped, `no-new-privileges`, non-root user (10001),
+PID / memory / CPU limits, no swap, a wall-clock timeout and an output cap. The container is always removed afterwards.
+The API additionally allow-lists compiler flags, validates file names and sizes, clamps limits to server ceilings,
+rate-limits clients and bounds the job queue.
+
+**Residual risks (read before exposing this to anyone you don't trust):**
+- The runner talks to Docker through `tecnativa/docker-socket-proxy`, which filters by URL path only. Because the
+  runner must be allowed to create containers, a *compromised runner service* could ask Docker for a privileged
+  container, which is host-root equivalent. The runner is hardened (read-only, no capabilities, validated input), but
+  this is the weakest link. Mitigations for a real deployment: rootless Docker, Sysbox, or an authorization plugin.
+- Standard containers share the host kernel. For stronger isolation of the *sandboxes*, set `SANDBOX_RUNTIME=runsc`
+  to run them under [gVisor](https://gvisor.dev) (Linux hosts; not tested on Docker Desktop for Windows).
+- This is designed for local / trusted use. Do not put it on the public internet as-is.

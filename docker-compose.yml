@@ -1,0 +1,55 @@
+# CPP: Zero to Hero - full-fidelity backend (exceptions, threads, sanitizers).
+#   docker compose build          # builds the sandbox image and the runner service
+#   docker compose up -d runner   # starts the API on http://localhost:8080
+#
+# Security model: the runner service never touches the Docker socket directly. It talks to a
+# socket proxy that only permits the handful of API calls needed to create, run and delete
+# throwaway sandbox containers. Untrusted code runs only inside those sandboxes (see
+# runner-service/src/sandbox.ts for the per-container hardening).
+name: cpp-zero-to-hero
+
+services:
+  # Builds the sandbox image so `docker compose build` produces it. Never runs as a service.
+  sandbox-image:
+    build: ./runner-image
+    image: zth-sandbox
+    profiles: ["build-only"]
+
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      CONTAINERS: 1   # create / start / wait / logs / attach / delete containers
+      POST: 1         # allow write methods...
+      IMAGES: 0       # ...but not image management
+      NETWORKS: 0
+      VOLUMES: 0
+      EXEC: 0
+      SERVICES: 0
+      SWARM: 0
+      SECRETS: 0
+      INFO: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [control]
+    restart: unless-stopped
+
+  runner:
+    build: ./runner-service
+    depends_on: [docker-proxy]
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+      SANDBOX_IMAGE: zth-sandbox
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      MAX_CONCURRENT: ${MAX_CONCURRENT:-4}
+    ports:
+      - "127.0.0.1:8080:8080"   # localhost only
+    networks: [control, default]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+networks:
+  control:
+    internal: true   # the proxy has no route to the outside world

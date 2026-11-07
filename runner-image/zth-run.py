@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reads one job (JSON) on stdin, compiles + runs it, writes one JSON result to stdout.
+"""Reads one job (a single JSON line) on stdin, compiles + runs it, writes one JSON result to stdout.
 
 job = {
   "files": {"main.cpp": "..."}, "testFiles": {...}, "flags": [...],
@@ -8,7 +8,7 @@ job = {
 }
 Runs inside a throwaway, network-less container; the work dir is a tmpfs.
 """
-import json, os, resource, signal, subprocess, sys, time
+import json, os, resource, selectors, signal, subprocess, sys, time
 
 WORK = "/work"
 DEFAULT_FLAGS = ["-std=c++20", "-Wall", "-Wextra"]
@@ -26,32 +26,76 @@ def write_files(files):
 
 
 def run_capped(cmd, stdin_data, timeout_s, max_out):
-    """Run cmd; capture stdout/stderr up to max_out bytes each; enforce wall time."""
+    """Run cmd; stream stdout/stderr keeping at most max_out bytes each.
+
+    Output beyond the cap is discarded and the process is killed, so a program
+    that prints gigabytes cannot exhaust this container's memory.
+    """
     def limits():
         os.setsid()
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         resource.setrlimit(resource.RLIMIT_FSIZE, (16 * 1024 * 1024,) * 2)
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, preexec_fn=limits, cwd=WORK)
-    timed_out = False
     try:
-        out, err = p.communicate(stdin_data.encode(), timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        os.killpg(p.pid, signal.SIGKILL)
-        out, err = p.communicate()
-    trunc = lambda b: b[:max_out].decode("utf-8", "replace") + (
-        "\n[output truncated]" if len(b) > max_out else "")
+        p.stdin.write(stdin_data.encode())
+        p.stdin.close()
+    except (BrokenPipeError, OSError):
+        pass
+    sel = selectors.DefaultSelector()
+    sel.register(p.stdout, selectors.EVENT_READ, "out")
+    sel.register(p.stderr, selectors.EVENT_READ, "err")
+    bufs = {"out": bytearray(), "err": bytearray()}
+    truncated = {"out": False, "err": False}
+    deadline = time.monotonic() + timeout_s
+    timed_out = False
+    killed_for_output = False
+    while sel.get_map():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            timed_out = True
+            break
+        for key, _ in sel.select(timeout=min(remaining, 0.2)):
+            chunk = os.read(key.fileobj.fileno(), 65536)
+            if not chunk:
+                sel.unregister(key.fileobj)
+                continue
+            buf = bufs[key.data]
+            room = max_out - len(buf)
+            if room > 0:
+                buf.extend(chunk[:room])
+            if len(chunk) > room:
+                truncated[key.data] = True
+        if any(truncated.values()):
+            killed_for_output = True
+            break
+    if timed_out or killed_for_output:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    p.wait()
+    text = lambda k: bufs[k].decode("utf-8", "replace") + (
+        "\n[output truncated]" if truncated[k] else "")
     code = p.returncode
     sig = -code if code is not None and code < 0 else None
-    return {"stdout": trunc(out), "stderr": trunc(err),
+    return {"stdout": text("out"), "stderr": text("err"),
             "exitCode": None if sig else code,
             "signal": signal.Signals(sig).name if sig else None,
             "timedOut": timed_out}
 
 
 def main():
-    job = json.load(sys.stdin)
+    # The job arrives as one line "@@JOB <json>". The docker client library can prepend its own
+    # attach options to stdin, so ignore anything before the marker. No EOF is needed (a hijacked
+    # docker socket cannot half-close).
+    marker = "@@JOB "
+    line = sys.stdin.readline()
+    while line and marker not in line:
+        line = sys.stdin.readline()
+    if not line:
+        raise SystemExit("no job received on stdin")
+    job = json.loads(line.split(marker, 1)[1])
     lim = job.get("limits", {})
     max_out = int(lim.get("maxOutputBytes", 65536))
     flags = job.get("flags") or DEFAULT_FLAGS
