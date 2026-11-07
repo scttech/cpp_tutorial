@@ -35,7 +35,27 @@ docker compose up -d runner                 # API on http://localhost:8080
 curl localhost:8080/healthz
 ```
 
-Tests (need Docker):
+## Run the front end
+
+```bash
+cd app
+npm install
+npm run dev          # http://localhost:5173  (expects the runner on http://localhost:8080)
+```
+
+Open the course map, pick **Hello, World**, edit the code, and use **Run** (Ctrl+Enter) or **Run Tests** (Ctrl+Shift+Enter).
+Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
+
+## Verify everything
+
+```bash
+cd tools/validate-content && npm install && node validate.mjs   # every lesson: starter fails, solution passes, 0 warnings
+cd tools/e2e && npm install && npx playwright install chromium && node run.mjs   # drives the real UI in a browser
+```
+
+The e2e script needs the runner (`docker compose up -d runner`) and the dev server running. Set `SHOTS=<dir>` to save screenshots.
+
+Backend tests (need Docker):
 
 ```bash
 cd runner-service
