@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Start with the failing test names in the Works tier. Then ask of safe_add: what are the two ways an int addition can go wrong, and how could you detect each one WITHOUT performing the addition first?"
+  - level: 2
+    text: "Signed overflow is undefined behavior, so `if (a + b < a)` is not a valid check. Rearrange the inequality so that no intermediate value leaves the int range, for example compare `a` against `INT_MAX - b`."
+  - level: 3
+    text: "The range check depends on the sign of `b`: a positive `b` can only overflow upward, a negative `b` only downward. For floor_mod, `%` can return a negative number; for is_power_of_two, think about what `x - 1` does to the bits of a power of two."
+  - level: 4
+    text: |
+      safe_add: if b > 0, fail when a > INT_MAX - b. If b < 0, fail when a < INT_MIN - b. Otherwise assign out = a + b.
+      floor_mod: compute r = a % m; if r is negative, add m.
+      is_power_of_two: x is nonzero and (x & (x - 1)) is zero.
+      count_set_bits: loop while x is nonzero, clearing the lowest set bit each time with x &= x - 1, counting iterations.

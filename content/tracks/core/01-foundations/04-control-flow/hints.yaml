@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Look at which tier is failing. Works tests use ordinary values; Robust uses edge inputs; Fast checks that your prime sieve is efficient. Which functions are still stubs?"
+  - level: 2
+    text: "For fizzbuzz, the order of your checks matters: a number divisible by both 3 and 5 must be handled before the single cases. For the sieve, think about what you can cross off once you know a number is prime."
+  - level: 3
+    text: "Sieve: keep a vector<bool> of size n + 1. For each i from 2, if i is not crossed off it is prime; then cross off i*i, i*i + i, i*i + 2i, ... up to n. Starting at i*i (not 2*i) is what keeps it fast. Mind the case n < 2."
+  - level: 4
+    text: |
+      fizzbuzz: test n % 15 first, then % 3, then % 5, else std::to_string(n).
+      day_type: switch (day) with stacked case labels 1..5 returning "weekday", 6 and 7 returning "weekend", and a default returning "invalid".
+      primes_up_to: if n < 2 return empty. Create composite flags for 0..n. Loop i from 2 to n; if not composite, record it and mark its multiples starting at i*i as composite.

@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -67,6 +68,12 @@ template <typename T>
 struct is_streamable<T, std::void_t<decltype(std::declval<std::ostream&>() << std::declval<const T&>())>>
     : std::true_type {};
 
+template <typename T, typename = void>
+struct is_range : std::false_type {};
+template <typename T>
+struct is_range<T, std::void_t<decltype(std::begin(std::declval<const T&>())), decltype(std::end(std::declval<const T&>()))>>
+    : std::true_type {};
+
 template <typename T>
 std::string show(const T& v) {
     if constexpr (std::is_same_v<T, bool>) {
@@ -80,6 +87,18 @@ std::string show(const T& v) {
         return "\"" + std::string(v) + "\"";
     } else if constexpr (std::is_enum_v<T>) {
         return std::to_string(static_cast<long long>(v));
+    } else if constexpr (is_range<T>::value) {  // containers: {1, 2, 3}
+        std::string out = "{";
+        std::size_t n = 0;
+        for (const auto& e : v) {
+            if (n++ > 0) out += ", ";
+            if (n > 16) {
+                out += "...";
+                break;
+            }
+            out += show(e);
+        }
+        return out + "}";
     } else if constexpr (is_streamable<T>::value) {
         std::ostringstream os;
         os << v;

@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Run the tests and compare 'expected' with 'got'. A function that returns exactly 0 for everything has not been implemented yet; one that is off by a factor of 5/9 has hit integer division."
+  - level: 2
+    text: "In C++, `5 / 9` divides two ints and the result is the int 0. If at least one operand is a double (`5.0 / 9.0`), you get floating-point division."
+  - level: 3
+    text: "For `average_of_two`, `(a + b) / 2` is integer division before it becomes a double. Convert one operand to double *before* dividing, for example with `static_cast<double>(a)` or by dividing by `2.0`."
+  - level: 4
+    text: |
+      1. celsius_to_fahrenheit: multiply by 9.0, divide by 5.0, add 32.
+      2. fahrenheit_to_celsius: subtract 32 first, then multiply by 5.0 and divide by 9.0.
+      3. km_to_miles: define `constexpr double kMilesPerKm = 0.621371;` and multiply.
+      4. minutes_to_seconds: multiply by 60.
+      5. average_of_two: add as doubles, then divide by 2.0.

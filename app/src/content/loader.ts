@@ -9,6 +9,7 @@ const eager = import.meta.glob(
     "../../../content/tracks/**/*.{yaml,md,cpp,hpp,h}",
     "!../../../content/tracks/**/tests/**",
     "!../../../content/tracks/**/solution/**",
+    "!../../../content/tracks/**/mutants/**",
   ],
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;

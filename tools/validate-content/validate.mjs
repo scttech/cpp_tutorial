@@ -82,7 +82,22 @@ async function validate(dir) {
   if (!st.compiled && !lesson.starterBroken) errors.push(`starter does not compile (set starterBroken: true if intended):\n${st.compileOutput}`);
   if (st.compiled && st.tests.length && st.tests.every((t) => t.status === "pass")) errors.push("starter already passes every test");
   if (st.compiled && !st.tests.length) errors.push("starter produced no test results");
-  return { lesson, errors, solMs: sol.timings?.compileMs };
+
+  // 3. mutants: plausible WRONG solutions (mutants/<name>/...) must each fail at least one test,
+  //    proving the tests actually catch the mistakes the lesson warns about.
+  const mutants = {};
+  try {
+    for (const m of await readdir(join(dir, "mutants"), { withFileTypes: true })) {
+      if (m.isDirectory()) mutants[m.name] = await readTree(join(dir, "mutants", m.name));
+    }
+  } catch { /* no mutants directory */ }
+  for (const [name, files] of Object.entries(mutants)) {
+    const r = await runTests(lesson, files, tests);
+    if (!r.compiled) errors.push(`mutant "${name}" does not compile:
+${r.compileOutput}`);
+    else if (r.tests.every((t) => t.status === "pass")) errors.push(`mutant "${name}" passes every test (the tests miss this mistake)`);
+  }
+  return { lesson, errors, mutantCount: Object.keys(mutants).length };
 }
 
 const lessonDirs = [];
@@ -95,9 +110,9 @@ for (const dir of lessonDirs) {
   if (filter && !rel.includes(filter)) continue;
   checked++;
   try {
-    const { lesson, errors } = await validate(dir);
+    const { lesson, errors, mutantCount } = await validate(dir);
     if (errors.length) { failed++; console.log(`FAIL  ${lesson?.id ?? rel}`); errors.forEach((e) => console.log("      - " + e.replaceAll("\n", "\n        "))); }
-    else console.log(`ok    ${lesson.id}`);
+    else console.log(`ok    ${lesson.id}${mutantCount ? `  (${mutantCount} mutants caught)` : ""}`);
   } catch (e) { failed++; console.log(`FAIL  ${rel}\n      - ${e.message}`); }
 }
 console.log(`\n${checked - failed}/${checked} lessons valid`);
