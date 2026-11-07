@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node run.mjs && node modules.mjs"
+    "test": "node run.mjs && node modules.mjs && node progress.mjs"
   },
   "devDependencies": {
     "playwright": "^1.65.0"

@@ -55,10 +55,10 @@ export function CodeEditor(p: Props) {
     for (const model of monaco.editor.getModels()) {
       const name = model.uri.path.replace(/^\//, "");
       const markers = p.diagnostics
-        .filter((d) => d.file === name)
+        .filter((d) => d.file === name && d.line > 0 && d.severity !== "note")
         .map((d) => ({
           severity: SEVERITY[d.severity],
-          message: d.friendly ?? d.message,
+          message: d.friendly ? `${d.friendly}\n\n${d.message}` : d.message,
           startLineNumber: d.line,
           startColumn: d.column,
           endLineNumber: d.line,

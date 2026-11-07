@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { modules } from "../content/loader";
 import type { Lesson } from "../content/types";
 import { runner } from "../runner";
-import { useAllProgress } from "../state/progress";
-import type { LessonProgress } from "../state/progress";
+import { catalog } from "../badges/catalog";
+import { isModuleComplete } from "../badges/engine";
+import type { LessonProgress } from "../state/model";
+import { useAllProgress } from "../state/store";
 
 export const isRunnable = (l: Lesson) => (l.meta.requires ?? []).every((c) => runner.capabilities.has(c));
 export const missingCaps = (l: Lesson) => (l.meta.requires ?? []).filter((c) => !runner.capabilities.has(c));
@@ -54,7 +56,7 @@ export function Home() {
         const done = regular.filter((l) => status(l) === "complete").length;
         // A module is complete when its test-out is passed, or when every other lesson is complete.
         const testedOut = testOut ? status(testOut) === "complete" : false;
-        const moduleComplete = testedOut || (regular.length > 0 && done === regular.length);
+        const moduleComplete = isModuleComplete(progress, catalog, m.id);
         return (
           <section key={m.id} className={moduleComplete ? "module complete" : "module"}>
             <h2>

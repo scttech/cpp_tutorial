@@ -1,0 +1,387 @@
+# Friendly compiler messages. Rules are tried IN ORDER; the first match wins, so keep specific rules
+# above general ones. The raw compiler message is always still shown (expandable) next to the friendly one.
+#
+#   id        unique name
+#   match     JavaScript regex tested against the compiler message ($1, $2... are substituted into `friendly`)
+#   fileMatch (optional) regex the diagnostic's file name must also match
+#   friendly  plain-language explanation
+#   lesson    (optional) lesson id with the full explanation
+#   trigger   a program (string = main.cpp) or {files:{...}, testFiles:{...}} that makes real Clang emit it.
+#             tools/validate-content/friendly-check.mjs compiles every trigger and checks the rule fires.
+#
+# In YAML single-quoted strings an apostrophe is written twice ('').
+
+# ---- includes and the std namespace -------------------------------------------------------------
+- id: std-stream-undeclared
+  match: 'use of undeclared identifier ''(cout|cin|cerr|clog|endl)'''
+  friendly: "`$1` lives in the `std` namespace: write `std::$1`, and make sure you have `#include <iostream>` at the top."
+  lesson: core.foundations.hello-world
+  trigger: |
+    int main() { cout << 1; }
+
+- id: std-stream-missing-include
+  match: 'no member named ''(cout|cin|cerr|clog|endl)'' in namespace ''std'''
+  friendly: "The compiler can't find `std::$1`. Add `#include <iostream>` at the top of your file."
+  lesson: core.foundations.hello-world
+  trigger: |
+    #include <string>
+    int main() { std::cout << 1; }
+
+- id: std-member-missing
+  match: 'no member named ''(\w+)'' in namespace ''std'''
+  friendly: "There is no `std::$1` available here. Either it is misspelled, or you forgot the header that declares it (for example `<algorithm>`, `<vector>`, `<string>`, `<map>`, `<numeric>`)."
+  lesson: core.foundations.hello-world
+  trigger: |
+    #include <iostream>
+    int main() { std::sort(1, 2); }
+
+- id: std-namespace-unknown
+  match: 'use of undeclared identifier ''std'''
+  friendly: "The `std` namespace is not known yet because no standard header has been included. Add the `#include` for what you use (for example `#include <vector>`, `#include <string>`, `#include <iostream>`)."
+  lesson: core.foundations.hello-world
+  trigger: |
+    int main() { std::string s; }
+
+- id: std-template-missing
+  match: 'no template named ''(\w+)'' in namespace ''std'''
+  friendly: "`std::$1` is not declared. You are probably missing `#include <$1>` (or the header that provides it)."
+  lesson: core.foundations.hello-world
+  trigger: |
+    #include <string>
+    int main() { std::map<int, int> m; }
+
+- id: cascade-expected-paren
+  match: 'expected ''\('' for function-style cast or type construction'
+  friendly: "This is almost always a follow-up to an earlier error, typically an unknown type name or a missing `#include`. Fix the FIRST error in the list and recompile; this one will usually disappear."
+  lesson: core.foundations.hello-world
+  trigger: |
+    #include <iostream>
+    int main() { std::vector<int> v; }
+
+- id: header-not-found
+  match: '''(.+?)'' file not found'
+  friendly: "The compiler can't find the file `$1`. Check the spelling, and the delimiters: `<...>` is for standard headers, `\"...\"` is for your own files in the project folder."
+  lesson: core.foundations.headers-and-build-model
+  trigger: |
+    #include "nope.hpp"
+    int main() {}
+
+# ---- names and types ----------------------------------------------------------------------------
+- id: undeclared-identifier
+  match: 'use of undeclared identifier ''(\w+)'''
+  friendly: "The compiler doesn't know the name `$1` at this point. Check: the spelling; that it is declared BEFORE this line (C++ reads top to bottom); a missing `#include`; a missing `std::` prefix."
+  lesson: core.foundations.functions
+  trigger: |
+    int main() { x = 1; }
+
+- id: unknown-type
+  match: 'unknown type name ''(\w+)'''
+  friendly: "`$1` is used as a type but the compiler has never heard of it. Check the spelling, a missing `#include`, or a missing `std::` prefix (for example `std::string`)."
+  trigger: |
+    int main() { Foo f; }
+
+- id: no-member
+  match: 'no member named ''(\w+)'' in ''(.+?)'''
+  friendly: "`$2` has no member called `$1`. Check the spelling, and whether it is a data member or a function (functions need parentheses)."
+  trigger: |
+    struct P { int x; };
+    int main() { P p; p.y = 1; }
+
+- id: type-specifier-required
+  match: 'a type specifier is required for all declarations'
+  friendly: "A declaration needs a type. Did you forget a function's return type (for example `int foo()`)?"
+  lesson: core.foundations.functions
+  trigger: |
+    foo() { return 1; }
+    int main() {}
+
+- id: incomplete-type
+  match: 'variable has incomplete type ''(.+?)'''
+  friendly: "`$1` is only declared (forward-declared) at this point, not defined, so an object of it can't be created. Include the header that defines it."
+  lesson: core.foundations.headers-and-build-model
+  trigger: |
+    struct A;
+    int main() { A a; }
+
+# ---- syntax -------------------------------------------------------------------------------------
+- id: missing-semicolon
+  match: 'expected '';'' (?:at end of declaration|after .+)'
+  friendly: "A statement or declaration is missing its closing semicolon. Look at the end of the line the error points to, or at the line just BEFORE it. (A `struct` or `class` definition must end with `};`.)"
+  lesson: core.foundations.hello-world
+  trigger: |
+    int main() { int x = 1
+      return 0; }
+
+- id: missing-closing-brace
+  match: 'expected ''}'''
+  friendly: "A closing brace is missing somewhere above this point. Check that every `{` has a matching `}`; your editor's bracket highlighting helps."
+  trigger: |
+    int main() { if (1) { return 0; }
+
+- id: extra-closing-brace
+  match: 'extraneous closing brace'
+  friendly: "There is one `}` too many (or an earlier `{` is missing)."
+  trigger: |
+    int main() { } }
+
+- id: expected-expression
+  match: 'expected expression'
+  friendly: "The compiler expected a value or expression here. Common causes: a missing operand (`int x = ;`), an unbalanced quote or parenthesis on an earlier line, or a stray keyword such as a lonely `else`."
+  trigger: |
+    int main() { int x = ; }
+
+- id: unterminated-string
+  match: 'missing terminating ''"'' character'
+  friendly: "A string literal is missing its closing double quote on this line."
+  lesson: core.foundations.hello-world
+  trigger: |
+    #include <iostream>
+    int main() { std::cout << "hi; }
+
+- id: main-must-return-int
+  match: '''main'' must return ''int'''
+  friendly: "`main` must be declared to return `int` (write `int main()`)."
+  lesson: core.foundations.hello-world
+  trigger: |
+    void main() {}
+
+# ---- conversions and initialization -------------------------------------------------------------
+- id: cannot-initialize
+  match: 'cannot initialize a variable of type ''(.+?)'' with an? (?:lvalue|rvalue) of type ''(.+?)'''
+  friendly: "You are putting a `$2` into a variable of type `$1`, and C++ will not convert between those automatically."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    int main() { int x = "s"; }
+
+- id: no-viable-conversion
+  match: 'no viable conversion from ''(.+?)'' to ''(.+?)'''
+  friendly: "There is no automatic conversion from `$1` to `$2`."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    #include <string>
+    int main() { std::string s = 5; }
+
+- id: narrowing
+  match: 'type ''(.+?)'' cannot be narrowed to ''(.+?)'' in initializer list'
+  friendly: "Brace initialization refuses conversions that might lose information (`$1` to `$2`). Use the right type, or convert explicitly with `static_cast<$2>(...)` if you really mean it."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    int main() { int x{3.9}; return x; }
+
+- id: literal-conversion
+  match: 'implicit conversion from ''(.+?)'' to ''(.+?)'' changes value'
+  friendly: "Converting `$1` to `$2` here changes the value (the fractional part is thrown away)."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    int main() { int x{3.9}; return x; }
+
+- id: uninitialized-variable
+  match: 'variable ''(\w+)'' is uninitialized when used here'
+  friendly: "`$1` is read before it is ever given a value. That is undefined behavior in C++ (not zero!). Always initialize variables, for example `int $1{};`."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    int main() { int x; return x + 1; }
+
+- id: const-assignment
+  match: 'cannot assign to variable ''(\w+)'' with const-qualified type'
+  friendly: "`$1` is `const`, so it can't be changed after it is initialized. Remove `const` if it is supposed to change."
+  trigger: |
+    int main() { const int x = 1; x = 2; }
+
+- id: const-method
+  match: '''this'' argument to member function ''(\w+)'' has type ''(.+?)'', but function is not marked const'
+  friendly: "You are calling `$1` on a `const` object, but `$1` is not declared `const`, so the compiler assumes it might modify the object. If it does not modify anything, add `const` after its parameter list."
+  trigger: |
+    struct A { int v; void set(int n) { v = n; } };
+    int main() { const A a{1}; a.set(2); }
+
+- id: invalid-operands
+  match: 'invalid operands to binary expression \((.+)\)'
+  friendly: "That operator can't be applied to these two types: $1. Check that you are not mixing unrelated types (for example a string and a number), or that an `operator` overload exists."
+  trigger: |
+    #include <string>
+    int main() { std::string s; int n = 1; auto r = s * n; }
+
+# ---- calls --------------------------------------------------------------------------------------
+- id: no-matching-function
+  match: 'no matching function for call to ''(.+?)'''
+  friendly: "None of the functions named `$1` accept the arguments you passed. Compare the number and types of your arguments with the function's parameters. The notes below list each candidate and why it was rejected."
+  lesson: core.foundations.functions
+  trigger: |
+    void f(int, int);
+    int main() { f("a"); }
+
+- id: candidate-argument-count
+  match: 'candidate function not viable: requires (\d+) arguments?, but (\d+) (?:was|were) provided'
+  friendly: "This candidate takes $1 argument(s), but you passed $2."
+  trigger: |
+    void f(int, int);
+    int main() { f("a"); }
+
+- id: candidate-conversion
+  match: 'candidate function not viable: no known conversion from ''(.+?)'' to ''(.+?)'' for (\d+)\w\w argument'
+  friendly: "Argument number $3 is a `$1`, but this candidate needs a `$2`."
+  trigger: |
+    void f(double, int);
+    int main() { f("x", 1); }
+
+- id: candidate-needs-lvalue
+  match: 'candidate function not viable: expects an lvalue for (\d+)\w\w argument'
+  friendly: "Argument number $1 must be a variable (an lvalue) because the parameter is a non-const reference, but you passed a temporary such as a literal. Pass a variable, or make the parameter `const T&`."
+  lesson: core.foundations.functions
+  trigger: |
+    void f(int& x);
+    int main() { f(5); }
+
+- id: too-few-arguments
+  match: 'too few arguments to function call'
+  friendly: "You passed fewer arguments than the function needs."
+  lesson: core.foundations.functions
+  trigger: |
+    #include <string>
+    int main() { std::string s; s.push_back(); }
+
+- id: too-many-arguments
+  match: 'too many arguments to function call'
+  friendly: "You passed more arguments than the function accepts."
+  lesson: core.foundations.functions
+  trigger: |
+    struct A { void f() {} };
+    int main() { A a; a.f(1); }
+
+- id: called-object-not-function
+  match: 'called object type ''(.+?)'' is not a function'
+  friendly: "You wrote `name(...)`, but that name is a `$1`, not a function."
+  trigger: |
+    int main() { int x = 1; x(); }
+
+- id: deleted-function
+  match: 'call to deleted (?:constructor|function) of ''(.+?)'''
+  friendly: "`$1` can't be copied: it is move-only. Transfer ownership with `std::move(...)`, or pass it by reference."
+  trigger: |
+    #include <memory>
+    int main() { std::unique_ptr<int> a(new int(1)); auto b = a; }
+
+# ---- functions and warnings ---------------------------------------------------------------------
+- id: missing-return
+  match: 'non-void function does not return a value|control reaches end of non-void function|control may reach end of non-void function'
+  friendly: "A function that promises to return a value must return one on every path. Falling off the end is undefined behavior (only `main` is exempt)."
+  lesson: core.foundations.functions
+  trigger: |
+    int f() { }
+    int main() { return f(); }
+
+- id: unused-variable
+  match: 'unused variable ''(\w+)'''
+  friendly: "`$1` is declared but never used. Remove it or use it. Warnings are worth fixing: they often reveal typos."
+  lesson: core.foundations.variables-and-types
+  trigger: |
+    int main() { int x = 1; }
+
+- id: unused-parameter
+  match: 'unused parameter ''(\w+)'''
+  friendly: "The parameter `$1` is never used. If that is intentional, leave its name out (just the type), or mark it `[[maybe_unused]]`."
+  lesson: core.foundations.functions
+  trigger: |
+    int f(int a) { return 0; }
+    int main() { return f(1); }
+
+- id: set-but-not-used
+  match: 'variable ''(\w+)'' set but not used'
+  friendly: "`$1` is assigned but its value is never read. Either use it or remove it."
+  trigger: |
+    int main() { int a; a = 1; }
+
+- id: signed-unsigned-compare
+  match: 'comparison of integers of different signs'
+  friendly: "You are comparing a signed and an unsigned number. A negative signed value silently becomes a huge unsigned one. `.size()` is unsigned (`std::size_t`): use `std::size_t` for indexes, or cast deliberately."
+  lesson: core.foundations.control-flow
+  trigger: |
+    #include <vector>
+    int main() { std::vector<int> v; for (int i = 0; i < v.size(); ++i) {} }
+
+- id: expression-result-unused
+  match: 'expression result unused'
+  friendly: "This expression has no effect. Did you mean an assignment (`=`), or to call a function (add `()`)?"
+  trigger: |
+    int main() { int a = 1; a + 1; }
+
+- id: comparison-result-unused
+  match: 'comparison result unused'
+  friendly: "The result of this comparison is thrown away. You probably meant an assignment (`=`) or an `if`."
+  trigger: |
+    int main() { int a = 1; a == 2; }
+
+- id: array-index-out-of-bounds
+  match: 'array index (\d+) is past the end of the array'
+  friendly: "Index $1 is outside the array. Valid indexes run from 0 to size-1; reading or writing outside is undefined behavior."
+  trigger: |
+    int main() { int a[3]; return a[5]; }
+
+- id: returned-address-of-local
+  match: 'address of stack memory associated with local variable ''(\w+)'' returned'
+  friendly: "You return the address of the local variable `$1`, which stops existing when the function returns: a dangling pointer. Using it is undefined behavior."
+  trigger: |
+    int* f() { int x = 1; return &x; }
+    int main() { f(); }
+
+# ---- classes ------------------------------------------------------------------------------------
+- id: private-member
+  match: '''(\w+)'' is a private member of ''(.+?)'''
+  friendly: "`$1` is private in `$2`, so code outside the class can't use it. Use a public member function, or change the access if that is appropriate."
+  trigger: |
+    class A { int x; };
+    int main() { A a; a.x = 1; }
+
+- id: abstract-class
+  match: 'variable type ''(.+?)'' is an abstract class'
+  friendly: "`$1` has pure virtual functions, so you can't create an object of it directly. Create a derived class that implements them."
+  trigger: |
+    struct A { virtual void f() = 0; };
+    int main() { A a; }
+
+# ---- build model (declared/defined, headers) -----------------------------------------------------
+- id: redefinition
+  match: 'redefinition of ''(.+?)'''
+  friendly: "`$1` is defined twice. If one of the places is a header, it probably needs an include guard (`#pragma once`); otherwise two definitions share a name."
+  lesson: core.foundations.headers-and-build-model
+  trigger: |
+    struct A {};
+    struct A {};
+    int main() {}
+
+- id: tests-need-function
+  match: 'undefined reference to .(.+).$'
+  fileMatch: '^test'
+  friendly: "The lesson's tests expect a function `$1` with exactly this name and parameter types, but your code does not define it. Compare your function signature with the one in the lesson text."
+  lesson: core.foundations.functions
+  trigger:
+    files:
+      main.cpp: "int main() {}"
+    testFiles:
+      test.cpp: "int needed(int);\nint main() { return needed(1); }"
+
+- id: undefined-reference
+  match: 'undefined reference to .(.+).$'
+  friendly: "The linker can't find a definition for `$1`. A declaration exists, but no source file defines it: you may have forgotten to write the function body, misspelled it, or its parameter types differ from the declaration."
+  lesson: core.foundations.headers-and-build-model
+  trigger: |
+    int f(int);
+    int main() { return f(1); }
+
+- id: multiple-definition
+  match: 'multiple definition of .(.+?).;'
+  friendly: "`$1` is defined in more than one place. Define each function once (in a `.cpp` file) and only declare it in headers, or mark header-defined functions `inline`."
+  lesson: core.foundations.headers-and-build-model
+  trigger:
+    files:
+      a.cpp: "int f() { return 1; }\nint main() { return f(); }"
+      b.cpp: "int f() { return 2; }"
+
+- id: linker-failed
+  match: 'linker command failed'
+  friendly: "The linker could not combine your files into a program. The messages above explain why (usually a missing or a duplicate definition)."
+  lesson: core.foundations.headers-and-build-model
+  trigger: |
+    int f(int);
+    int main() { return f(1); }

@@ -1,0 +1,109 @@
+- id: it-works-bronze
+  name: "It Works!"
+  category: mastery
+  tier: bronze
+  icon: "✅"
+  description: "Earn the Works tier on 1 lesson or challenge."
+  rule: { type: tier-complete, tier: works, atLeast: 1 }
+
+- id: it-works-silver
+  name: "It Works!"
+  category: mastery
+  tier: silver
+  icon: "✅"
+  description: "Earn the Works tier on 10 lessons or challenges."
+  rule: { type: tier-complete, tier: works, atLeast: 10 }
+
+- id: it-works-gold
+  name: "It Works!"
+  category: mastery
+  tier: gold
+  icon: "✅"
+  description: "Earn the Works tier on 30 lessons or challenges."
+  rule: { type: tier-complete, tier: works, atLeast: 30 }
+
+- id: bulletproof-bronze
+  name: "Bulletproof"
+  category: mastery
+  tier: bronze
+  icon: "🛡️"
+  description: "Earn the Robust tier on 1 lesson or challenge."
+  rule: { type: tier-complete, tier: robust, atLeast: 1 }
+
+- id: bulletproof-silver
+  name: "Bulletproof"
+  category: mastery
+  tier: silver
+  icon: "🛡️"
+  description: "Earn the Robust tier on 10 lessons or challenges."
+  rule: { type: tier-complete, tier: robust, atLeast: 10 }
+
+- id: bulletproof-gold
+  name: "Bulletproof"
+  category: mastery
+  tier: gold
+  icon: "🛡️"
+  description: "Earn the Robust tier on 30 lessons or challenges."
+  rule: { type: tier-complete, tier: robust, atLeast: 30 }
+
+- id: need-for-speed-bronze
+  name: "Need for Speed"
+  category: mastery
+  tier: bronze
+  icon: "🚀"
+  description: "Earn the Fast tier on 1 lesson or challenge."
+  rule: { type: tier-complete, tier: fast, atLeast: 1 }
+
+- id: need-for-speed-silver
+  name: "Need for Speed"
+  category: mastery
+  tier: silver
+  icon: "🚀"
+  description: "Earn the Fast tier on 10 lessons or challenges."
+  rule: { type: tier-complete, tier: fast, atLeast: 10 }
+
+- id: need-for-speed-gold
+  name: "Need for Speed"
+  category: mastery
+  tier: gold
+  icon: "🚀"
+  description: "Earn the Fast tier on 30 lessons or challenges."
+  rule: { type: tier-complete, tier: fast, atLeast: 30 }
+
+- id: squeaky-clean-bronze
+  name: "Squeaky Clean"
+  category: mastery
+  tier: bronze
+  icon: "✨"
+  description: "Earn the Clean tier on 1 lesson or challenge."
+  rule: { type: tier-complete, tier: clean, atLeast: 1 }
+
+- id: squeaky-clean-silver
+  name: "Squeaky Clean"
+  category: mastery
+  tier: silver
+  icon: "✨"
+  description: "Earn the Clean tier on 10 lessons or challenges."
+  rule: { type: tier-complete, tier: clean, atLeast: 10 }
+
+- id: squeaky-clean-gold
+  name: "Squeaky Clean"
+  category: mastery
+  tier: gold
+  icon: "✨"
+  description: "Earn the Clean tier on 30 lessons or challenges."
+  rule: { type: tier-complete, tier: clean, atLeast: 30 }
+
+- id: flawless
+  name: "Flawless"
+  category: mastery
+  icon: "💎"
+  description: "Earn all four tiers (Works, Robust, Fast, Clean) on a single challenge."
+  rule: { type: lesson-count, where: { allTiers: true }, atLeast: 1 }
+
+- id: perfectionist
+  name: "Perfectionist"
+  category: mastery
+  icon: "🏆"
+  description: "Be Flawless on 10 challenges."
+  rule: { type: lesson-count, where: { allTiers: true }, atLeast: 10 }

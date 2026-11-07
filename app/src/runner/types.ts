@@ -23,10 +23,14 @@ export interface RunRequest {
 export interface CompileDiagnostic {
   severity: "error" | "warning" | "note";
   file: string;
+  /** 1-based; 0 means "no line" (linker errors). */
   line: number;
   column: number;
   message: string;
+  /** Plain-language explanation, added client-side from content/diagnostics/friendly.yaml. */
   friendly?: string;
+  friendlyLesson?: string;
+  ruleId?: string;
 }
 
 export interface TestResult {

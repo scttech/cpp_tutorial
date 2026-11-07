@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { getLesson } from "../content/loader";
 import type { CompileDiagnostic, RunResult, Tier, TestResult } from "../runner/types";
 
 const TIERS: { id: Tier; label: string }[] = [
@@ -44,17 +46,33 @@ export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump 
       <div className="panel-body">
         {error && <p className="banner error" role="alert">{error}</p>}
         {!result && !error && <p className="muted">Press <b>Run Tests</b> (Ctrl+Shift+Enter) to check your solution, or <b>Run</b> (Ctrl+Enter) to just run it.</p>}
-        {result && tab === "tests" && <Tests result={result} kind={kind} declared={declaredTiers} nErr={nErr} />}
+        {result && tab === "tests" && <Tests result={result} kind={kind} declared={declaredTiers} nErr={nErr} onStart={() => setTab("problems")} />}
         {result && tab === "console" && <Console result={result} />}
-        {result && tab === "problems" && <Problems list={problems} onJump={onJump} raw={result.compileOutput} />}
+        {result && tab === "problems" && <Problems diags={result.diagnostics} onJump={onJump} raw={result.compileOutput} />}
       </div>
     </section>
   );
 }
 
-function Tests({ result, kind, declared, nErr }: { result: RunResult; kind: "run" | "test" | null; declared: Tier[]; nErr: number }) {
+function Tests({ result, kind, declared, nErr, onStart }: { result: RunResult; kind: "run" | "test" | null; declared: Tier[]; nErr: number; onStart(): void }) {
   if (!result.compiled) {
-    return <p className="banner error">Your code did not compile ({nErr} error{nErr === 1 ? "" : "s"}). See the <b>Problems</b> tab.</p>;
+    const first = result.diagnostics.find((d) => d.severity === "error");
+    return (
+      <>
+        <p className="banner error">
+          Your code did not compile ({nErr} error{nErr === 1 ? "" : "s"}). See the{" "}
+          <button className="link" onClick={onStart}>
+            Problems
+          </button>{" "}
+          tab.
+        </p>
+        {first?.friendly && (
+          <p className="start-here">
+            <b>Start with the first error:</b> <Inline text={first.friendly} />
+          </p>
+        )}
+      </>
+    );
   }
   if (kind !== "test") return <p className="muted">That was a plain run. Press <b>Run Tests</b> to grade it.</p>;
   if (result.tests.length === 0) return <p className="banner error">No test results were produced.{result.signal ? ` The program ended with ${result.signal}.` : ""}</p>;
@@ -109,19 +127,69 @@ function Console({ result }: { result: RunResult }) {
   );
 }
 
-function Problems({ list, onJump, raw }: { list: CompileDiagnostic[]; onJump(d: CompileDiagnostic): void; raw: string }) {
+/** Renders `backticked` spans as inline code (friendly messages are plain text, not full markdown). */
+function Inline({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("`").map((part, i) => (i % 2 === 1 ? <code key={i}>{part}</code> : part))}
+    </>
+  );
+}
+
+function LessonLink({ id }: { id?: string }) {
+  const lesson = id ? getLesson(id) : undefined;
+  if (!lesson) return null;
+  return (
+    <Link className="learn-more" to={`/lesson/${lesson.meta.id}`}>
+      Learn more: {lesson.meta.title}
+    </Link>
+  );
+}
+
+function Explained({ d }: { d: CompileDiagnostic }) {
+  return (
+    <>
+      <span className="ptext">{d.friendly ? <Inline text={d.friendly} /> : d.message}</span>
+      {d.friendly && (
+        <details className="raw">
+          <summary>Compiler message</summary>
+          <code>{d.message}</code>
+        </details>
+      )}
+    </>
+  );
+}
+
+function Problems({ diags, onJump, raw }: { diags: CompileDiagnostic[]; onJump(d: CompileDiagnostic): void; raw: string }) {
   const [showRaw, setShowRaw] = useState(false);
-  if (list.length === 0 && !raw.trim()) return <p className="muted">No compiler errors or warnings. ✔</p>;
+  // Notes explain the diagnostic before them ("candidate function not viable..."): nest them under it.
+  const groups: { main: CompileDiagnostic; notes: CompileDiagnostic[] }[] = [];
+  for (const d of diags) {
+    if (d.severity === "note" && groups.length > 0) groups[groups.length - 1]!.notes.push(d);
+    else if (d.severity !== "note") groups.push({ main: d, notes: [] });
+  }
+  if (groups.length === 0 && !raw.trim()) return <p className="muted">No compiler errors or warnings. ✔</p>;
   return (
     <>
       <ul className="problems">
-        {list.map((d, i) => (
+        {groups.map(({ main: d, notes }, i) => (
           <li key={i}>
             <button className={`prob ${d.severity}`} onClick={() => onJump(d)}>
               <span className="ico" aria-hidden="true">{d.severity === "error" ? "✘" : "⚠"}</span>
               <span className="sr">{d.severity}: </span>
-              <code>{d.file}:{d.line}:{d.column}</code> {d.friendly ?? d.message}
+              <code className="loc">{d.line > 0 ? `${d.file}:${d.line}:${d.column}` : d.file}</code>
+              <Explained d={d} />
             </button>
+            <LessonLink id={d.friendlyLesson} />
+            {notes.length > 0 && (
+              <ul className="notes">
+                {notes.map((n, j) => (
+                  <li key={j}>
+                    <Explained d={n} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
       </ul>

@@ -1,0 +1,101 @@
+# Badge definitions are data: add a badge by adding an entry, no code change needed.
+# Rule types: lesson-complete, lesson-count, module-complete, tier-complete, first-try, persistence,
+#             streak-days, custom-event, same-day-count, and the combinator `all`.
+# `hidden: true` shows "???" until earned. Badges whose rule references content that does not exist yet
+# are listed as "coming soon" automatically.
+
+- id: hello-world
+  name: "Hello, World"
+  category: progress
+  icon: "👋"
+  description: "Pass your first lesson."
+  rule: { type: lesson-count, where: { status: complete }, atLeast: 1 }
+
+- id: module-master-1
+  name: "Module Master I"
+  category: progress
+  icon: "🏗️"
+  description: "Complete Module 1: Foundations (by lessons or by test-out)."
+  rule: { type: module-complete, module: core.foundations }
+
+- id: module-master-2
+  name: "Module Master II"
+  category: progress
+  icon: "🧱"
+  description: "Complete Module 2: Data and Memory."
+  rule: { type: module-complete, module: core.data-memory }
+
+- id: module-master-3
+  name: "Module Master III"
+  category: progress
+  icon: "🧩"
+  description: "Complete Module 3: Classes and Objects."
+  rule: { type: module-complete, module: core.classes }
+
+- id: module-master-4
+  name: "Module Master IV"
+  category: progress
+  icon: "♻️"
+  description: "Complete Module 4: Ownership and RAII."
+  rule: { type: module-complete, module: core.ownership }
+
+- id: module-master-5
+  name: "Module Master V"
+  category: progress
+  icon: "🧬"
+  description: "Complete Module 5: Generic Programming."
+  rule: { type: module-complete, module: core.generics }
+
+- id: module-master-6
+  name: "Module Master VI"
+  category: progress
+  icon: "📚"
+  description: "Complete Module 6: The Standard Library."
+  rule: { type: module-complete, module: core.stdlib }
+
+- id: module-master-7
+  name: "Module Master VII"
+  category: progress
+  icon: "🌳"
+  description: "Complete Module 7: Inheritance and Polymorphism."
+  rule: { type: module-complete, module: core.polymorphism }
+
+- id: module-master-8
+  name: "Module Master VIII"
+  category: progress
+  icon: "🧵"
+  description: "Complete Module 8: Concurrency."
+  rule: { type: module-complete, module: core.concurrency }
+
+- id: module-master-9
+  name: "Module Master IX"
+  category: progress
+  icon: "⚡"
+  description: "Complete Module 9: Performance and Tooling."
+  rule: { type: module-complete, module: core.performance }
+
+- id: test-out-artist
+  name: "Test-Out Artist"
+  category: progress
+  icon: "🎯"
+  description: "Pass 3 test-outs."
+  rule: { type: lesson-count, where: { type: [test-out], status: complete }, atLeast: 3 }
+
+- id: zero-to-hero
+  name: "Zero to Hero"
+  category: progress
+  icon: "🦸"
+  description: "Complete all core modules and 3 Hero Projects."
+  rule:
+    type: all
+    rules:
+      - { type: module-complete, module: core.foundations }
+      - { type: module-complete, module: core.data-memory }
+      - { type: module-complete, module: core.classes }
+      - { type: module-complete, module: core.ownership }
+      - { type: module-complete, module: core.generics }
+      - { type: module-complete, module: core.stdlib }
+      - { type: module-complete, module: core.polymorphism }
+      - { type: module-complete, module: core.concurrency }
+      - { type: module-complete, module: core.performance }
+      - { type: lesson-count, where: { module: core.heroes, status: complete }, atLeast: 3 }

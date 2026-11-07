@@ -5,10 +5,11 @@ import { HintLadder } from "../components/HintLadder";
 import { Markdown } from "../components/Markdown";
 import { ResultsPanel } from "../components/ResultsPanel";
 import { getLesson } from "../content/loader";
+import { withFriendly } from "../diagnostics/friendly";
 import type { Lesson } from "../content/types";
 import { RunnerError, runner } from "../runner";
 import type { CompileDiagnostic, RunResult, Tier } from "../runner";
-import { update, useProgress } from "../state/progress";
+import { update, recordRun, revealHint, revealSolution, useAllProgress, useProgress } from "../state/store";
 import { isRunnable, missingCaps } from "./Home";
 
 const TIER_ORDER: Tier[] = ["works", "robust", "fast", "clean"];
@@ -51,7 +52,9 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const [kind, setKind] = useState<"run" | "test" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [leftTab, setLeftTab] = useState<LeftTab>("lesson");
+  const pace = useAllProgress().settings.pace;
+  // "Fast" pace (experienced programmers) opens the one-screen summary first
+  const [leftTab, setLeftTab] = useState<LeftTab>(pace === "fast" && lesson.fastMd ? "fast" : "lesson");
   const [solution, setSolution] = useState<Record<string, string> | null>(null);
   const [jump, setJump] = useState<{ file: string; line: number; column: number; nonce: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -90,26 +93,10 @@ function LessonView({ lesson }: { lesson: Lesson }) {
           },
           ctl.signal,
         );
-        setResult(res);
+        const shown: RunResult = { ...res, diagnostics: withFriendly(res.diagnostics) };
+        setResult(shown);
         setKind(mode);
-        update(meta.id, (p) => {
-          const earned = { ...p.bestTiers };
-          if (mode === "test" && res.compiled) {
-            for (const t of declared) {
-              const rows = res.tests.filter((r) => (r.tier ?? "works") === t);
-              if (rows.length > 0 && rows.every((r) => r.status === "pass")) earned[t] = true;
-            }
-          }
-          const complete = declared.every((t) => earned[t]);
-          return {
-            ...p,
-            attempts: p.attempts + 1,
-            testRuns: p.testRuns + (mode === "test" ? 1 : 0),
-            bestTiers: earned,
-            status: complete ? "complete" : "in_progress",
-            firstCompleteAt: complete && !p.firstCompleteAt ? new Date().toISOString() : p.firstCompleteAt,
-          };
-        });
+        recordRun({ lessonId: meta.id, mode, declaredTiers: declared, result: shown });
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") setError("Run cancelled.");
         else setError(e instanceof RunnerError ? e.message : `Unexpected error: ${String(e)}`);
@@ -123,7 +110,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
 
   const onJump = (d: CompileDiagnostic) => {
     if (files[d.file] !== undefined) setActive(d.file);
-    setJump({ file: d.file, line: d.line, column: d.column, nonce: Date.now() });
+    if (d.line > 0) setJump({ file: d.file, line: d.line, column: d.column, nonce: Date.now() });
   };
 
   const reset = () => {
@@ -139,7 +126,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const reveal = async () => {
     if (!confirm("Reveal the reference solution? The lesson stays completable, but some badges require not revealing it.")) return;
     setSolution(await lesson.loadSolution());
-    update(meta.id, (p) => ({ ...p, solutionRevealed: true }));
+    revealSolution(meta.id);
   };
 
   if (!isRunnable(lesson)) {
@@ -176,7 +163,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
               <HintLadder
                 hints={lesson.hints}
                 revealed={revealed}
-                onReveal={() => update(meta.id, (p) => ({ ...p, hintsUsed: p.hintsUsed + 1 }))}
+                onReveal={() => revealHint(meta.id)}
               />
               <hr />
               {solution ? (

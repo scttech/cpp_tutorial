@@ -26,6 +26,30 @@ describe("parseDiagnostics", () => {
   });
 });
 
+describe("parseDiagnostics: linker output", () => {
+  it("parses undefined reference, multiple definition and the final link failure", () => {
+    const raw = [
+      "/usr/bin/ld: /tmp/main-7f4a4e.o: in function `main':",
+      "main.cpp:(.text+0x15): undefined reference to `f(int)'",
+      "/usr/bin/ld: /tmp/b-a23990.o: in function `g()':",
+      "b.cpp:(.text+0x0): multiple definition of `g()'; /tmp/a-8161fb.o:a.cpp:(.text+0x0): first defined here",
+      "clang++: error: linker command failed with exit code 1 (use -v to see invocation)",
+    ].join("\n");
+    const d = parseDiagnostics(raw);
+    expect(d).toEqual([
+      { severity: "error", file: "main.cpp", line: 0, column: 0, message: "undefined reference to `f(int)'" },
+      {
+        severity: "error",
+        file: "b.cpp",
+        line: 0,
+        column: 0,
+        message: "multiple definition of `g()'; /tmp/a-8161fb.o:a.cpp:(.text+0x0): first defined here",
+      },
+      { severity: "error", file: "(linker)", line: 0, column: 0, message: "linker command failed with exit code 1 (use -v to see invocation)" },
+    ]);
+  });
+});
+
 describe("extractTestResults", () => {
   it("separates protocol lines from user output", () => {
     const out = [

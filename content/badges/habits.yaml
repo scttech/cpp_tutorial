@@ -1,0 +1,68 @@
+# Habit badges reward good habits and never penalize asking for help: they only unlock when the
+# stricter condition is met; using hints costs nothing.
+
+- id: self-reliant-bronze
+  name: "Self-Reliant"
+  category: habits
+  tier: bronze
+  icon: "🧠"
+  description: "Complete 1 lesson or challenge with zero hints and no revealed solution."
+  rule: { type: lesson-count, where: { status: complete, hintsUsed: 0, aiHelpUsed: 0, solutionRevealed: false }, atLeast: 1 }
+
+- id: self-reliant-silver
+  name: "Self-Reliant"
+  category: habits
+  tier: silver
+  icon: "🧠"
+  description: "Complete 10 lessons or challenges with zero hints and no revealed solution."
+  rule: { type: lesson-count, where: { status: complete, hintsUsed: 0, aiHelpUsed: 0, solutionRevealed: false }, atLeast: 10 }
+
+- id: self-reliant-gold
+  name: "Self-Reliant"
+  category: habits
+  tier: gold
+  icon: "🧠"
+  description: "Complete 25 lessons or challenges with zero hints and no revealed solution."
+  rule: { type: lesson-count, where: { status: complete, hintsUsed: 0, aiHelpUsed: 0, solutionRevealed: false }, atLeast: 25 }
+
+- id: first-try
+  name: "First Try"
+  category: habits
+  icon: "🎯"
+  description: "Pass a lesson on your very first test run."
+  rule: { type: first-try, atLeast: 1 }
+
+- id: persistence
+  name: "Persistence"
+  category: habits
+  icon: "🪨"
+  description: "Pass a lesson after 15 or more failed test runs, without revealing the solution."
+  rule: { type: persistence, failedRunsAtLeast: 15 }
+
+- id: fast-learner
+  name: "Fast Learner"
+  category: habits
+  icon: "⏩"
+  description: "Pass 3 test-outs in a single day."
+  rule: { type: same-day-count, where: { type: [test-out] }, atLeast: 3 }
+
+- id: on-a-roll
+  name: "On a Roll"
+  category: consistency
+  icon: "🔥"
+  description: "Reach a 3-day streak. (One missed day per week is forgiven.)"
+  rule: { type: streak-days, atLeast: 3 }
+
+- id: habit-formed
+  name: "Habit Formed"
+  category: consistency
+  icon: "📆"
+  description: "Reach a 7-day streak."
+  rule: { type: streak-days, atLeast: 7 }
+
+- id: dedicated
+  name: "Dedicated"
+  category: consistency
+  icon: "🏅"
+  description: "Reach a 30-day streak."
+  rule: { type: streak-days, atLeast: 30 }

@@ -7,8 +7,8 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
+import { runJob } from "./runner-client.mjs";
 
-const RUNNER = process.env.RUNNER_URL ?? "http://localhost:8080";
 const ROOT = resolve(fileURLToPath(new URL("../../content", import.meta.url)));
 const filter = process.argv[2];
 
@@ -28,19 +28,13 @@ async function readTree(dir) {
 }
 
 async function runTests(lesson, userFiles, testFiles) {
-  const res = await fetch(`${RUNNER}/run`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      mode: "test",
-      userFiles,
-      testFiles,
-      flags: lesson.flags ?? ["-std=c++20", "-Wall", "-Wextra"],
-      limits: lesson.limits ?? {},
-    }),
+  return runJob({
+    mode: "test",
+    userFiles,
+    testFiles,
+    flags: lesson.flags ?? ["-std=c++20", "-Wall", "-Wextra"],
+    limits: lesson.limits ?? {},
   });
-  if (!res.ok) throw new Error(`runner HTTP ${res.status}: ${await res.text()}`);
-  return res.json();
 }
 
 async function validate(dir) {

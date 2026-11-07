@@ -1,0 +1,39 @@
+- id: segfault-survivor
+  name: "Segfault Survivor"
+  category: fun
+  hidden: true
+  icon: "💥"
+  description: "Crash your program with a segmentation fault. Everyone does, once."
+  rule: { type: custom-event, event: segfault, atLeast: 1 }
+
+- id: infinite-loop
+  name: "Infinite Loop"
+  category: fun
+  hidden: true
+  icon: "♾️"
+  description: "Write a program that never finishes (and get it stopped by the timeout)."
+  rule: { type: custom-event, event: timeout, atLeast: 1 }
+
+- id: it-compiles
+  name: "It Compiles!"
+  category: fun
+  hidden: true
+  icon: "🎉"
+  description: "Get a clean compile after 10 or more compiler errors in one session."
+  rule: { type: custom-event, event: compiled-after-many-errors, atLeast: 1 }
+
+- id: night-owl
+  name: "Night Owl"
+  category: fun
+  hidden: true
+  icon: "🦉"
+  description: "Complete a lesson between midnight and 4am."
+  rule: { type: custom-event, event: completed-at-night, atLeast: 1 }
+
+- id: early-bird
+  name: "Early Bird"
+  category: fun
+  hidden: true
+  icon: "🐦"
+  description: "Complete a lesson between 4am and 6am."
+  rule: { type: custom-event, event: completed-early-morning, atLeast: 1 }

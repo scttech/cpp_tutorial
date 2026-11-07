@@ -8,10 +8,13 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Area | State |
 |---|---|
 | Runner (Docker sandbox + API) | Working, with attack tests |
-| Front end (lesson page, editor, tiers, hints, progress) | Working, local storage progress |
+| Front end (lesson page, editor, tiers, hints) | Working |
+| Progress persistence | IndexedDB (localStorage fallback), export/import JSON, migration from the first release, streaks |
+| Badges | 42 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
+| Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | WASM runner for the static build | Spiked ([spike/](spike/)); not wired into the app yet |
-| Friendly compiler errors, badges, AI tutor, Modules 2-10, domain tracks | Planned (see the spec) |
+| AI tutor, Modules 2-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
 
@@ -59,11 +62,18 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ## Verify everything
 
 ```bash
-cd tools/validate-content && npm install && node validate.mjs   # every lesson: starter fails, solution passes, 0 warnings
-cd tools/e2e && npm install && npx playwright install chromium && node run.mjs   # drives the real UI in a browser
+cd app && npm test                                   # 95 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
+cd tools/validate-content && npm install && npm run validate   # every lesson (starter fails, solution passes, mutants fail) + every friendly rule vs real Clang
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (3 scripts)
 ```
 
-The e2e script needs the runner (`docker compose up -d runner`) and the dev server running. Set `SHOTS=<dir>` to save screenshots.
+The validator and e2e need the runner (`docker compose up -d runner`); e2e also needs the dev server. Set `SHOTS=<dir>` to save screenshots.
+
+## Authoring content
+
+- **A badge**: add an entry to a file in [content/badges/](content/badges/). Rules are data (`lesson-count`, `module-complete`, `tier-complete`, `streak-days`, ...), so no code change is needed. Badges whose rules refer to content that does not exist yet appear under "coming soon".
+- **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
+- **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a `mutants/` folder of plausible wrong solutions that the tests must reject.
 
 Backend tests (need Docker):
 
