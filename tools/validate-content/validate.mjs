@@ -59,11 +59,13 @@ async function validate(dir) {
   }
 
   const [starter, solution, tests] = await Promise.all(["starter", "solution", "tests"].map((d) => readTree(join(dir, d))));
+  // Files the learner is given but may not edit are supplied alongside every solution and mutant.
+  const starterReadonly = Object.fromEntries((lesson.files?.readonly ?? []).filter((f) => f in starter).map((f) => [f, starter[f]]));
   if (!Object.keys(tests).length) errors.push("tests/: no test files");
   if (errors.length) return { lesson, errors };
 
   // 1. solution
-  const sol = await runTests(lesson, solution, tests);
+  const sol = await runTests(lesson, { ...starterReadonly, ...solution }, tests);
   if (!sol.compiled) errors.push(`solution does not compile:\n${sol.compileOutput}`);
   else {
     if (sol.compileOutput.trim()) errors.push(`solution compiles with diagnostics (must be zero):\n${sol.compileOutput}`);
@@ -92,8 +94,14 @@ async function validate(dir) {
     }
   } catch { /* no mutants directory */ }
   for (const [name, files] of Object.entries(mutants)) {
-    const r = await runTests(lesson, files, tests);
-    if (!r.compiled) errors.push(`mutant "${name}" does not compile:
+    // A file named EXPECT_COMPILE_FAIL marks a mutant that must be rejected by the build itself
+    // (e.g. a missing include guard or a definition in a header causing a link error).
+    const expectBuildFail = "EXPECT_COMPILE_FAIL" in files;
+    delete files.EXPECT_COMPILE_FAIL;
+    const r = await runTests(lesson, { ...starterReadonly, ...files }, tests);
+    if (expectBuildFail) {
+      if (r.compiled) errors.push(`mutant "${name}" was expected to fail to build but compiled`);
+    } else if (!r.compiled) errors.push(`mutant "${name}" does not compile:
 ${r.compileOutput}`);
     else if (r.tests.every((t) => t.status === "pass")) errors.push(`mutant "${name}" passes every test (the tests miss this mistake)`);
   }

@@ -1,1 +1,12 @@
-{"name":"zth-e2e","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node run.mjs"},"devDependencies":{"playwright":"^1.65.0"}}
+{
+  "name": "zth-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run.mjs && node modules.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0"
+  }
+}

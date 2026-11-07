@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Your program is tested through its input and output only. Use the stdin box and Run to try a few lines yourself, then compare with the test failure messages (they show the exact input behavior expected)."
+  - level: 2
+    text: "Read with `while (std::getline(std::cin, line))`, so you handle every line and stop cleanly at the end of input, even when the last line has no newline. Parsing each line yourself avoids the `>>` / `getline` newline trap and the stuck-fail-state problem."
+  - level: 3
+    text: "Find the last token with `find_last_of`, then the name is everything before it (trimmed). Convert the token with std::from_chars and require BOTH that it reported no error AND that it consumed the whole token; also check the 0..150 range."
+  - level: 4
+    text: |
+      For each line:
+        1. If it is empty or only whitespace, continue (do not count it).
+        2. Trim it. Find the last whitespace; if there is none, it is invalid.
+        3. The token after it is the age text; the trimmed text before it is the name. If the name is empty it is invalid.
+        4. from_chars the age text into an int. It is valid only if ec == std::errc{}, ptr == end of the token, and 0 <= age <= 150.
+        5. Valid: print "<name> is <age> years old" and count it. Otherwise print "Invalid line: " followed by the ORIGINAL line, and count it.
+      After the loop print "Valid: V, Invalid: I".

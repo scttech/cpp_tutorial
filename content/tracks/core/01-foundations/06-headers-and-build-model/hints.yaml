@@ -1,0 +1,11 @@
+ladder:
+  - level: 1
+    text: "Read the FIRST compiler error only. The build is failing before any test can run; later errors are usually fallout from the first one."
+  - level: 2
+    text: "main.cpp includes circle.hpp directly AND through shapes.hpp, so the compiler sees the contents of circle.hpp twice in one translation unit. What mechanism prevents a header from being processed twice?"
+  - level: 3
+    text: "If you get 'multiple definition of ...' from the linker, a function body is ending up in more than one translation unit: you probably defined it in the header. The header should only DECLARE the functions; put the bodies in circle.cpp and #include \"circle.hpp\" at the top of circle.cpp."
+  - level: 4
+    text: |
+      circle.hpp: an include guard (#ifndef NAME / #define NAME ... #endif), then struct Circle { double radius; }; then three function declarations ending in semicolons, no bodies.
+      circle.cpp: #include "circle.hpp" and <numbers>; define area (pi * r * r), circumference (2 * pi * r), and contains (compare dx*dx + dy*dy with r*r using <=, so boundary points count as inside).

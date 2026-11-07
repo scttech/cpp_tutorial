@@ -25,6 +25,21 @@ export function CodeEditor(p: Props) {
   // Keep latest callbacks reachable from Monaco commands registered once at mount.
   const cb = useRef({ run: p.onRun, tests: p.onRunTests });
   cb.current = { run: p.onRun, tests: p.onRunTests };
+  const latest = useRef(p);
+  latest.current = p;
+
+  // Which file does a change belong to? Ask the editor's CURRENT model rather than trusting the
+  // `active` prop captured by a render: when the user switches tabs Monaco swaps models and emits a
+  // change event, and attributing that to the previously active file would overwrite it with the
+  // new file's text. Events that do not actually change the file's text are ignored.
+  const handleChange = (value: string | undefined) => {
+    const name = editorRef.current?.getModel()?.uri.path.replace(/^\//, "");
+    const cur = latest.current;
+    if (!name || value === undefined || cur.files[name] === undefined) return;
+    if (cur.files[name] === value) return;
+    if (cur.readonlyFiles.includes(name)) return;
+    cur.onChange(name, value);
+  };
 
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -78,7 +93,7 @@ export function CodeEditor(p: Props) {
         language="cpp"
         path={p.active}
         value={p.files[p.active] ?? ""}
-        onChange={(v) => p.onChange(p.active, v ?? "")}
+        onChange={handleChange}
         onMount={onMount}
         options={{
           readOnly: p.readonlyFiles.includes(p.active),

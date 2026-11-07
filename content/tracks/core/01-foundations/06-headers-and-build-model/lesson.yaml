@@ -1,0 +1,16 @@
+id: core.foundations.headers-and-build-model
+title: "Headers, source files, and the build model"
+module: core.foundations
+type: lesson
+estimatedMinutes: 35
+concepts: [declaration-vs-definition, include-guards, odr, translation-units, linking, inline]
+prerequisites: [core.foundations.functions]
+files:
+  editable: [circle.hpp, circle.cpp]
+  readonly: [main.cpp, shapes.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+starterBroken: true     # the given main.cpp includes a header the learner has not written yet
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [odr-violation, include-guards, inline-in-headers, static-init-order]

@@ -1,0 +1,11 @@
+// MUTANT: no include guard.
+
+struct Circle {
+    double radius;
+};
+
+// Declarations only: the definitions live in circle.cpp.
+double area(const Circle& c);
+double circumference(const Circle& c);
+bool contains(const Circle& c, double dx, double dy);
+

@@ -31,11 +31,20 @@ export function LessonPage() {
 
 type LeftTab = "lesson" | "fast" | "hints";
 
+/** Tabs follow lesson.yaml: editable files first, then read-only ones, then anything else. */
+function orderFiles(lesson: Lesson, files: Record<string, string>): Record<string, string> {
+  const wanted = [...lesson.meta.files.editable, ...(lesson.meta.files.readonly ?? [])];
+  const names = [...wanted.filter((n) => n in files), ...Object.keys(files).filter((n) => !wanted.includes(n)).sort()];
+  return Object.fromEntries(names.map((n) => [n, files[n] as string]));
+}
+
 function LessonView({ lesson }: { lesson: Lesson }) {
   const { meta } = lesson;
   const progress = useProgress(meta.id);
   const readonlyFiles = meta.files.readonly ?? [];
-  const [files, setFiles] = useState<Record<string, string>>(() => ({ ...lesson.starter, ...progress.lastCode }));
+  const [files, setFiles] = useState<Record<string, string>>(() =>
+    orderFiles(lesson, { ...lesson.starter, ...progress.lastCode }),
+  );
   const [active, setActive] = useState(meta.files.editable[0] ?? Object.keys(lesson.starter)[0] ?? "main.cpp");
   const [stdin, setStdin] = useState("");
   const [result, setResult] = useState<RunResult | null>(null);
@@ -119,7 +128,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
 
   const reset = () => {
     if (!confirm("Reset your code to the starter? Your current code will be lost.")) return;
-    const fresh = { ...lesson.starter };
+    const fresh = orderFiles(lesson, { ...lesson.starter });
     filesRef.current = fresh;
     setFiles(fresh);
     update(meta.id, (p) => ({ ...p, lastCode: fresh }));

@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Run the tests and sort the failures by function. Each function is independent, so you can do them one at a time. Which tier is each failure in: the basic cases, or the edge cases?"
+  - level: 2
+    text: "median must not change the caller's vector, but it needs the values in order. A `const&` parameter cannot be sorted, so what do you do instead? (Think about what the parameter list is telling you, and what a copy costs.)"
+  - level: 3
+    text: "For mode, count occurrences with a std::map<int, int> (it iterates in ascending key order). When you scan for the best count, use a strictly-greater comparison so that on a tie the earlier, smaller value wins. For repeat, the separator goes before every copy except the first."
+  - level: 4
+    text: |
+      mean: if empty return 0.0; otherwise std::accumulate(..., 0.0) divided by the size as a double.
+      median: if empty return 0.0; copy into a local vector, std::sort it; odd size -> middle element; even size -> average of the two middle elements.
+      mode: if empty return 0; count with std::map<int,int>; scan in key order keeping the value with the highest count (only replace on strictly greater).
+      repeat: loop i from 0 to times-1; if i > 0 append sep; append s.
+      kind_of: one overload returns "int", the other "double".

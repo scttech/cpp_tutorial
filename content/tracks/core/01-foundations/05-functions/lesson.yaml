@@ -1,0 +1,15 @@
+id: core.foundations.functions
+title: "Functions"
+module: core.foundations
+type: lesson
+estimatedMinutes: 30
+concepts: [parameters, return-values, overloading, default-arguments, pass-by-value, const-reference]
+prerequisites: [core.foundations.control-flow]
+files:
+  editable: [main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [silent-copies, default-args-call-site, overload-promotion, declaration-order]
