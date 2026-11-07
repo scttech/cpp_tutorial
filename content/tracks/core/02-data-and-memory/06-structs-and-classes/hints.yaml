@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Build and read the warnings first: the compiler already points at one bug in Rectangle. Then run the tests; the Works tier covers the methods, the Robust tier covers invariants, edges and the init-order problem."
+  - level: 2
+    text: "Point: std::hypot(dx, dy) gives the distance. Interval: normalize in the constructor with std::min and std::max. Rectangle::contains is four comparisons (x and y, lower and upper), using <= so the edges count. For init order: look at the order of the member DECLARATIONS at the bottom of the class, not at the constructor."
+  - level: 3
+    text: "scale must return the same object (return type Rectangle&, body ends with return *this;) and must update area_ as well as width_ and height_, because area() just returns the cache. Interval::length: widen to long long BEFORE subtracting. overlaps: two intervals share a value when each starts no later than the other ends. Reading: put the int first."
+  - level: 4
+    text: |
+      Point: distance_to = std::hypot(x - other.x, y - other.y); translated = Point{x + dx, y + dy}.
+      Rectangle ctor: width_(std::max(width, 0.0)), height_(std::max(height, 0.0)); declare members in the order top_left_, width_, height_, area_.
+      perimeter = 2 * (width_ + height_); scale: if (factor >= 0) { width_ *= factor; height_ *= factor; area_ = width_ * height_; } return *this;
+      Interval: lo_(std::min(a, b)), hi_(std::max(a, b)); length = (long long)hi_ - lo_; overlaps = lo_ <= other.hi_ && other.lo_ <= hi_; merged_with = Interval(min of lows, max of highs).

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Run the tests and sort the failures by bug number. Pick the one whose symptom you understand best. For each suspect line, ask: what does this pointer, reference or view point at, and is that still alive when it is used?"
+  - level: 2
+    text: "Match the symptoms to the families in the table: a canary that changed is a write past the end; -572662307 (0xDDDDDDDD) is freed memory being read; 1515870810 (0x5A5A5A5A) is a variable nobody initialized. Bugs 2 and 6 are the same idea in two clothes: something that only *refers* to data it does not own."
+  - level: 3
+    text: "1: how many elements are there, and which index is the last valid one? 2 and 6: change what the member IS, so that the object owns its text. 3: which comes first, the delete or the read? 4: when does `first` stop pointing at the right place? 5: what is the value of an int you never assigned?"
+  - level: 4
+    text: |
+      1: loop with i < n.
+      2: in Label, `std::string text_;` (a copy) instead of `const std::string& text_;`.
+      3: `const int value = *heap_value; delete heap_value; return value;`
+      4: push_back first, then `return v[0];`
+      5: `int count = 0;`
+      6: in Entry, `std::string name;` instead of `std::string_view name;` and build it with `first + " " + last`.

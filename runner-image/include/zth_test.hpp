@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <csignal>
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -196,6 +197,94 @@ inline Captured run_main(int (*fn)(), const std::string& input = "") {
     return {out.data, code, out.truncated};
 }
 
+// ---- inspecting the learner's source and memory -----------------------------------------------
+// The learner's files are in the current directory when the tests run.
+inline std::string read_file(const char* path) {
+    FILE* f = std::fopen(path, "rb");
+    if (!f) return "";
+    std::string s;
+    char buf[4096];
+    std::size_t n;
+    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) s.append(buf, n);
+    std::fclose(f);
+    return s;
+}
+
+// Blanks out comments and string/char literals so that a search for `new` does not find a word inside
+// a comment or a message. Line structure is kept.
+inline std::string strip_comments_and_literals(const std::string& src) {
+    std::string out = src;
+    enum { Code, Line, Block, Str, Chr } st = Code;
+    for (std::size_t i = 0; i < src.size(); ++i) {
+        const char c = src[i], d = i + 1 < src.size() ? src[i + 1] : '\0';
+        switch (st) {
+            case Code:
+                if (c == '/' && d == '/') { st = Line; out[i] = ' '; }
+                else if (c == '/' && d == '*') { st = Block; out[i] = ' '; }
+                else if (c == '"') { st = Str; out[i] = ' '; }
+                else if (c == '\'') { st = Chr; out[i] = ' '; }
+                break;
+            case Line:
+                if (c == '\n') st = Code; else out[i] = ' ';
+                break;
+            case Block:
+                if (c == '*' && d == '/') { out[i] = out[i + 1] = ' '; ++i; st = Code; }
+                else if (c != '\n') out[i] = ' ';
+                break;
+            case Str:
+            case Chr:
+                if (c == '\\' && i + 1 < src.size()) { out[i] = ' '; if (src[i + 1] != '\n') out[i + 1] = ' '; ++i; }
+                else if ((st == Str && c == '"') || (st == Chr && c == '\'')) { out[i] = ' '; st = Code; }
+                else if (c != '\n') out[i] = ' ';
+                break;
+        }
+    }
+    return out;
+}
+
+// Whole-identifier search ("new" does not match "renew" or "news").
+inline std::vector<std::size_t> find_word(const std::string& code, const std::string& word) {
+    std::vector<std::size_t> hits;
+    auto ident = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    for (std::size_t p = code.find(word); p != std::string::npos; p = code.find(word, p + 1)) {
+        const bool left = p == 0 || !ident(code[p - 1]);
+        const bool right = p + word.size() >= code.size() || !ident(code[p + word.size()]);
+        if (left && right) hits.push_back(p);
+    }
+    return hits;
+}
+
+// Which raw memory-management tools does this source use? Returns e.g. "new", "delete", "malloc".
+// `= delete` (deleted functions) is not a use of the delete operator.
+inline std::vector<std::string> raw_memory_uses(const std::string& source) {
+    const std::string code = strip_comments_and_literals(source);
+    std::vector<std::string> found;
+    for (const char* w : {"new", "delete", "malloc", "calloc", "realloc", "free"}) {
+        for (std::size_t p : find_word(code, w)) {
+            if (std::string(w) == "delete") {
+                std::size_t q = p;
+                while (q > 0 && std::isspace(static_cast<unsigned char>(code[q - 1]))) --q;
+                if (q > 0 && code[q - 1] == '=') continue;  // `= delete;`
+            }
+            if (std::string(w) == "free") {
+                std::size_t q = p + 4;
+                while (q < code.size() && std::isspace(static_cast<unsigned char>(code[q]))) ++q;
+                if (q >= code.size() || code[q] != '(') continue;  // an identifier named free, not a call
+            }
+            found.push_back(w);
+            break;
+        }
+    }
+    return found;
+}
+
+// Fills the stack below the caller with a recognizable pattern, so that a function which reads an
+// uninitialized local variable sees 0x5A5A5A5A... (reproducible) instead of "probably zero".
+__attribute__((noinline)) inline void dirty_stack() {
+    volatile unsigned char junk[16384];
+    for (std::size_t i = 0; i < sizeof junk; ++i) junk[i] = 0x5A;
+}
+
 // ---- instrumented types ----------------------------------------------------------------------
 // Counts how it is constructed, copied, moved and destroyed. Tests use it to observe what the
 // learner's code (or std::vector) does with their objects. Call Tracked::reset() at the start of a
@@ -304,8 +393,10 @@ class Scope {
 public:
     std::size_t allocs() const { return g_allocs - allocs0_; }
     std::size_t frees() const { return g_frees - frees0_; }
-    std::size_t leaked_blocks() const { return g_live_blocks - blocks0_; }
-    std::size_t leaked_bytes() const { return g_live_bytes - bytes0_; }
+    // Blocks allocated since the scope began and still alive. Never negative: freeing blocks that were
+    // allocated BEFORE the scope began cannot make this go below zero.
+    std::size_t leaked_blocks() const { return g_live_blocks > blocks0_ ? g_live_blocks - blocks0_ : 0; }
+    std::size_t leaked_bytes() const { return g_live_bytes > bytes0_ ? g_live_bytes - bytes0_ : 0; }
     std::size_t bad_frees() const { return g_bad_frees - bad0_; }
     const char* problem() const { return g_problem; }
 };
@@ -472,6 +563,19 @@ inline int run_all() {
         }                                                                                       \
     } while (0)
 #endif
+
+// Fails if the learner's file uses new / delete / malloc / free (for "no raw memory management" tiers).
+#define ZTH_EXPECT_NO_RAW_MEMORY(file)                                                              \
+    do {                                                                                            \
+        const auto zth_uses = ::zth::raw_memory_uses(::zth::read_file(file));                       \
+        if (!zth_uses.empty()) {                                                                    \
+            std::string zth_list;                                                                   \
+            for (const auto& u : zth_uses) zth_list += (zth_list.empty() ? "" : ", ") + u;         \
+            ::zth::fail(std::string(file) + " uses raw memory management (" + zth_list +            \
+                        "); let std::vector / std::string own the memory instead");                \
+            return;                                                                                 \
+        }                                                                                           \
+    } while (0)
 
 // Run the learner's main() with the given stdin; returns zth::Captured {out, exit_code}.
 #define ZTH_RUN_USER_MAIN(...) ::zth::run_main(&zth_user_main, ##__VA_ARGS__)

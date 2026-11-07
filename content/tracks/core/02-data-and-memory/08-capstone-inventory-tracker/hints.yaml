@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Get one command working end to end first (add, then find), using the Run button and the stdin box to try lines by hand. Then add the others one at a time. Reading the tests' names tells you which behaviors are checked in which tier."
+  - level: 2
+    text: "Structure it in small functions: split a line into words (istringstream and >>), parse an int and a price (std::from_chars: check that it consumed the whole word), a find-by-name helper, and one function that runs a command and prints the result. Keep `main` to the read loop."
+  - level: 3
+    text: "Validate in the documented order and return early on the first problem. For `add` on an existing item, check `item.quantity > INT_MAX - qty` BEFORE adding (adding first would overflow). For `remove` reaching zero, erase the element AFTER you have read the values you want to print. For printing money, use std::fixed and std::setprecision(2). For -0, assign 0.0 when the price equals 0."
+  - level: 4
+    text: |
+      parse_int: auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), out); return ec == std::errc() && ptr == s.data() + s.size();
+      parse_price: the same with a double, plus && std::isfinite(out).
+      find helper: std::find_if over the vector, returning a pointer or nullptr.
+      report: copy the vector, std::sort by name, print each line, accumulate the total, print "total: ...". Empty -> "inventory is empty".
+      Don't use new/delete anywhere: std::vector<Item> already owns the items.

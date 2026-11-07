@@ -1,0 +1,15 @@
+id: core.data-and-memory.find-the-bug
+title: "Debug challenge: Find the Bug"
+module: core.data-and-memory
+type: debug
+estimatedMinutes: 50
+concepts: [off-by-one, dangling-reference, use-after-free, iterator-invalidation, uninitialized-read, dangling-string-view, debugging]
+prerequisites: [core.data-and-memory.structs]
+files:
+  editable: [main.cpp, bugs.hpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [off-by-one-write, reference-member-to-temporary, use-after-free, push-back-invalidates, uninitialized-local, string-view-of-local]

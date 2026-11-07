@@ -3,5 +3,4 @@ title: "Data and Memory"
 track: core
 order: 2
 summary: "Arrays, vectors, strings, references, pointers, the stack and the heap, and structs."
-inProgress: true   # remove when the last lesson and the capstone exist
 testOut: core.data-and-memory.test-out   # "Rotate and dedupe": passing it completes the module

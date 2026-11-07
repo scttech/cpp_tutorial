@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Start with swap_values and rotate3: they only need one temporary variable. For the functions that RETURN a reference, ask yourself: what object does the caller end up holding, and will it still exist after my function returns?"
+  - level: 2
+    text: "larger and element_or should return one of the objects they were given (a parameter, or an element of the vector), never a new variable. largest_in: find the INDEX of the maximum, then return v[index]; the return type int& makes it a reference automatically."
+  - level: 3
+    text: "clamp_all: the loop variable must be a reference (for (int& x : v)) or you only change copies. swap_values: store a in a temporary first, then a = b, then b = the temporary. That also works when a and b are the same variable; the XOR trick does not."
+  - level: 4
+    text: |
+      swap_values: const int tmp = a; a = b; b = tmp;
+      rotate3: const int first = a; a = b; b = c; c = first;
+      larger: return b > a ? b : a;
+      largest_in: size_t best = 0; for i from 1: if (v[i] > v[best]) best = i; return v[best];
+      clamp_all: for (int& x : v) { if (x < lo) x = lo; else if (x > hi) x = hi; }
+      element_or: if (i < v.size()) return v[i]; return fallback;

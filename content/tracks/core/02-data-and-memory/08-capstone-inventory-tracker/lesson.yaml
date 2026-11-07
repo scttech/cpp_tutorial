@@ -1,0 +1,15 @@
+id: core.data-and-memory.capstone-inventory
+title: "Capstone: Inventory Tracker"
+module: core.data-and-memory
+type: capstone
+estimatedMinutes: 75
+concepts: [vector, struct, lookup, update, erase, sorting, parsing, input-validation, no-raw-new]
+prerequisites: [core.data-and-memory.find-the-bug]
+files:
+  editable: [main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [from-chars-accepts-nan, negative-zero, int-overflow-on-add, erase-while-iterating, validation-order]

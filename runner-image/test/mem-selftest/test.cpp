@@ -91,6 +91,42 @@ ZTH_TEST("works", "Tracked: vector growth moves (noexcept move), no copies") {
     ZTH_EXPECT_EQ(zth::Tracked::live(), 0);
 }
 
+ZTH_TEST("works", "source scan: finds new/delete/malloc/free in code") {
+    auto u = zth::raw_memory_uses("int* p = new int(3);\ndelete p;\nvoid* q = malloc(4);\nfree(q);\n");
+    ZTH_EXPECT_EQ(u, (std::vector<std::string>{"new", "delete", "malloc", "free"}));
+}
+ZTH_TEST("works", "source scan: ignores comments, strings, = delete, and look-alike identifiers") {
+    const std::string src =
+        "// we never use new or delete here\n"
+        "/* malloc(1); free(p); */\n"
+        "const char* s = \"new delete \\\" malloc\";\n"
+        "char c = '\\'';\n"
+        "struct A { A(const A&) = delete; };\n"
+        "int renew = 1, news = 2, freed = 3; void free_list();\n"
+        "int free = 4;\n";
+    ZTH_EXPECT_EQ(zth::raw_memory_uses(src), std::vector<std::string>{});
+}
+ZTH_TEST("works", "source scan: comment markers inside strings do not hide code") {
+    auto u = zth::raw_memory_uses("const char* s = \"//\"; int* p = new int;\n");
+    ZTH_EXPECT_EQ(u, std::vector<std::string>{"new"});
+}
+ZTH_TEST("works", "dirty_stack makes an uninitialized local visible (0x5A5A5A5A), not zero") {
+    struct Probe {
+        __attribute__((noinline)) static int read_uninitialized() {
+            int x;  // deliberately uninitialized
+            return *reinterpret_cast<volatile int*>(&x);
+        }
+    };
+    zth::dirty_stack();
+    ZTH_EXPECT_EQ(Probe::read_uninitialized(), 0x5A5A5A5A);
+}
+ZTH_TEST("works", "leaked_blocks never goes negative when pre-existing blocks are freed in the scope") {
+    int* old = new int(1);
+    zth::mem::Scope m;
+    delete old;
+    ZTH_EXPECT_EQ(m.leaked_blocks(), std::size_t{0});
+}
+
 ZTH_TEST("works", "Tracked: copying a vector copies every element") {
     std::vector<zth::Tracked> v{1, 2, 3};
     zth::Tracked::reset();

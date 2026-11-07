@@ -1,0 +1,15 @@
+id: core.data-and-memory.pointers
+title: "Pointers and the stack/heap"
+module: core.data-and-memory
+type: lesson
+estimatedMinutes: 60
+concepts: [pointers, address-of, dereference, nullptr, pointer-arithmetic, stack-vs-heap, new-delete, linked-list, ownership]
+prerequisites: [core.data-and-memory.references]
+files:
+  editable: [main.cpp]
+  readonly: [list.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [dangling-pointer, double-free, memory-leak, use-after-free, null-dereference, recursion-depth]

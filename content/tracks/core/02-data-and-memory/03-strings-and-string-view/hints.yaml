@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Run the starter to see how it behaves, then run the tests. The functions are independent. A good order: trim and first_word (views), tokenize, word_frequencies, join, utf8_length."
+  - level: 2
+    text: "tokenize, first_word and trim are all the same pattern: an index that walks forward, first skipping whitespace, then over a word. string_view::substr(start, length) gives you a view of a piece without copying. Check each loop condition against the size so you never read past the end."
+  - level: 3
+    text: "word_frequencies: build the current word one letter at a time; when you reach a non-letter, count the word (if it is not empty) and start over. Do not forget the word that ends the text. utf8_length: count every byte except the continuation bytes, which have the bit pattern 10xxxxxx (cast to unsigned char before masking with 0xC0). For join: add up the sizes first, reserve once."
+  - level: 4
+    text: |
+      is_space(c): std::isspace(static_cast<unsigned char>(c)); is_letter(c): in 'a'..'z' or 'A'..'Z'.
+      trim: begin moves forward over whitespace; end moves back over whitespace (stop at begin); return s.substr(begin, end - begin).
+      tokenize: while i < size: skip spaces; start = i; skip non-spaces; if i > start push_back(string(text.substr(start, i - start))).
+      join: total = sum of sizes + sep.size() * (parts - 1) (if any parts); out.reserve(total); append sep before every part except the first.
+      utf8_length: count bytes where (unsigned char(c) & 0xC0) != 0x80.

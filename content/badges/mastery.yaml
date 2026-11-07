@@ -107,3 +107,21 @@
   icon: "🏆"
   description: "Be Flawless on 10 challenges."
   rule: { type: lesson-count, where: { allTiers: true }, atLeast: 10 }
+
+- id: pointer-whisperer
+  name: "Pointer Whisperer"
+  category: mastery
+  icon: "👉"
+  description: "Pass the Pointers and the stack/heap lesson and the Find the Bug challenge."
+  rule:
+    type: all
+    rules:
+      - { type: lesson-complete, lesson: core.data-and-memory.pointers }
+      - { type: lesson-complete, lesson: core.data-and-memory.find-the-bug }
+
+- id: bug-hunter
+  name: "Bug Hunter"
+  category: mastery
+  icon: "🐛"
+  description: "Complete a debug challenge."
+  rule: { type: lesson-count, where: { type: [debug], status: complete }, atLeast: 1 }

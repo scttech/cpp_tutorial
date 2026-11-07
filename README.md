@@ -10,10 +10,10 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Runner (Docker sandbox + API) | Working, with attack tests |
 | Front end (lesson page, editor, tiers, hints) | Working |
 | Progress persistence | IndexedDB (localStorage fallback), export/import JSON, migration from the first release, streaks |
-| Badges | 42 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
+| Badges | 44 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
 | Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
-| Module 2 Data and Memory | **In progress**: test-out, arrays, `std::vector` (first lesson with a Fast tier, scored by counting heap allocations). 5 lessons + capstone to go |
+| Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
 | WASM runner for the static build | Spiked ([spike/](spike/)); not wired into the app yet |
 | AI tutor, Modules 3-10, domain tracks | Planned (see the spec) |
@@ -77,7 +77,8 @@ The validator and e2e need the runner (`docker compose up -d runner`); e2e also 
 - **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
 - **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a `mutants/` folder of plausible wrong solutions that the tests must reject.
   - Memory lessons: put `#define ZTH_TRACK_ALLOCATIONS` at the top of `tests/test.cpp`, then use `zth::mem::Scope` with `ZTH_EXPECT_NO_MEMORY_BUGS(scope)` / `ZTH_EXPECT_ALLOCS_AT_MOST(scope, n)`, and `zth::Tracked` to count copies and moves. See [runner-image/include/zth_test.hpp](runner-image/include/zth_test.hpp).
-  - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can).
+  - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can). Remove the flag when the module is finished.
+  - More harness helpers for hidden tests: `ZTH_EXPECT_NO_RAW_MEMORY("main.cpp")` (scans the learner's source for `new`/`delete`/`malloc`/`free`), `zth::dirty_stack()` (makes uninitialized reads reproducible), and placement-new over `0xAB`-filled memory to expose member-initialization-order bugs.
 
 Backend tests (need Docker):
 

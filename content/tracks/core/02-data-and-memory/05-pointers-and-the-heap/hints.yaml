@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Start with the easy read-only functions (list_length, list_find, find_max), then push_front, then the ones that change links. Draw boxes and arrows for a 3-node list on paper and step through each operation with your finger."
+  - level: 2
+    text: "push_front is one line: allocate a node whose `next` is the old head. For push_back you need the LAST node: walk while `last->next != nullptr`. Handle the empty list first. For the two pointer-range functions, the loop is `for (int* p = first; p != last; ++p)`."
+  - level: 3
+    text: "remove_first: walk with two pointers, `prev` and `cur`, until cur holds the value. If prev is null you are removing the head. Unlink (prev->next = cur->next, or head = cur->next), THEN delete cur. list_reverse: for each node, remember the next one, point this node's link backwards, step forward. free_list: save `next` before you delete the node."
+  - level: 4
+    text: |
+      push_front: return new Node{value, head};
+      push_back: Node* node = new Node{value, nullptr}; if (!head) return node; walk to the last node; last->next = node; return head;
+      remove_first: prev = nullptr, cur = head; while (cur && cur->value != value) { prev = cur; cur = cur->next; } if (!cur) return head; if (prev) prev->next = cur->next; else head = cur->next; delete cur; return head;
+      list_reverse: prev = nullptr; while (head) { following = head->next; head->next = prev; prev = head; head = following; } return prev;
+      free_list: while (head) { following = head->next; delete head; head = following; }
+      find_max: if (first == last) return last; best = first; for (p = first + 1; p != last; ++p) if (*p > *best) best = p; return best;
