@@ -133,7 +133,10 @@ inline std::string json_escape(const std::string& s) {
 inline void emit(const char* tier, const char* name, const char* status, const std::string& msg, double ms) {
     std::string line = "@@ZTH {\"event\":\"test\",\"name\":\"" + json_escape(name) + "\",\"tier\":\"" + tier +
                        "\",\"status\":\"" + status + "\"";
-    if (!msg.empty()) line += ",\"msg\":\"" + json_escape(msg) + "\"";
+    // Keep protocol lines small even when an expectation compares huge strings.
+    constexpr std::size_t kMaxMsg = 1500;
+    const std::string shown = msg.size() > kMaxMsg ? msg.substr(0, kMaxMsg) + "... (message truncated)" : msg;
+    if (!shown.empty()) line += ",\"msg\":\"" + json_escape(shown) + "\"";
     char b[48];
     std::snprintf(b, sizeof b, ",\"ms\":%.3f}", ms);
     line += b;
@@ -146,19 +149,50 @@ inline void emit(const char* tier, const char* name, const char* status, const s
 struct Captured {
     std::string out;
     int exit_code;
+    bool truncated;  // the program printed more than the capture limit
+};
+
+// Output sink that keeps at most kLimit bytes. A runaway program (e.g. an infinite loop that prints)
+// then neither exhausts the container's memory nor gets reported as a confusing "Killed"; it simply
+// runs into the per-test time limit.
+class CappedBuf : public std::streambuf {
+public:
+    static constexpr std::size_t kLimit = 1u << 20;  // 1 MiB
+    std::string data;
+    bool truncated = false;
+
+protected:
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) return traits_type::not_eof(ch);
+        if (data.size() >= kLimit) {
+            truncated = true;
+            return traits_type::eof();
+        }
+        data.push_back(traits_type::to_char_type(ch));
+        return ch;
+    }
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        const std::size_t room = data.size() < kLimit ? kLimit - data.size() : 0;
+        const std::size_t take = static_cast<std::size_t>(n) < room ? static_cast<std::size_t>(n) : room;
+        data.append(s, take);
+        if (take < static_cast<std::size_t>(n)) truncated = true;
+        return static_cast<std::streamsize>(take);
+    }
 };
 
 inline Captured run_main(int (*fn)(), const std::string& input = "") {
     std::istringstream in(input);
-    std::ostringstream out;
+    CappedBuf out;
     auto* old_in = std::cin.rdbuf(in.rdbuf());
-    auto* old_out = std::cout.rdbuf(out.rdbuf());
+    auto* old_out = std::cout.rdbuf(&out);
     std::cin.clear();
+    std::cout.clear();
     int code = fn();
     std::cout.flush();
     std::cin.rdbuf(old_in);
     std::cout.rdbuf(old_out);
-    return {out.str(), code};
+    std::cout.clear();  // a truncated capture leaves cout in a failed state: reset it for later calls
+    return {out.data, code, out.truncated};
 }
 
 // ---- driver ----------------------------------------------------------------------------------

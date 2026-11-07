@@ -3,47 +3,80 @@ import { modules } from "../content/loader";
 import type { Lesson } from "../content/types";
 import { runner } from "../runner";
 import { useAllProgress } from "../state/progress";
+import type { LessonProgress } from "../state/progress";
 
 export const isRunnable = (l: Lesson) => (l.meta.requires ?? []).every((c) => runner.capabilities.has(c));
 export const missingCaps = (l: Lesson) => (l.meta.requires ?? []).filter((c) => !runner.capabilities.has(c));
+
+const KIND_LABEL: Partial<Record<Lesson["meta"]["type"], string>> = {
+  capstone: "Capstone",
+  "test-out": "Test out",
+  challenge: "Challenge",
+  debug: "Debug",
+};
+
+function Status({ p }: { p: LessonProgress | undefined }) {
+  if (p?.status === "complete") return <span className="badge ok">✔ complete</span>;
+  if (p?.status === "in_progress") return <span className="badge">in progress</span>;
+  return null;
+}
+
+function Row({ lesson, p }: { lesson: Lesson; p: LessonProgress | undefined }) {
+  const kind = KIND_LABEL[lesson.meta.type];
+  const label = lesson.meta.type === "lesson" ? `${lesson.order}. ${lesson.meta.title}` : lesson.meta.title;
+  if (!isRunnable(lesson)) {
+    return (
+      <li className="locked" title={`Needs the full Docker runner: ${missingCaps(lesson).join(", ")}`}>
+        <span>{label}</span>
+        <span className="badge">Server needed</span>
+      </li>
+    );
+  }
+  return (
+    <li className={lesson.meta.type === "test-out" ? "test-out" : undefined}>
+      <Link to={`/lesson/${lesson.meta.id}`}>{label}</Link>
+      {kind && <span className="badge kind">{kind}</span>}
+      <span className="muted small">{lesson.meta.estimatedMinutes ? `${lesson.meta.estimatedMinutes} min` : ""}</span>
+      <Status p={p} />
+    </li>
+  );
+}
 
 export function Home() {
   const progress = useAllProgress();
   return (
     <main className="home">
-      <img src={`${import.meta.env.BASE_URL}logo.png`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" />
+      <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
       {modules.map((m) => {
-        const done = m.lessons.filter((l) => progress.lessons[l.meta.id]?.status === "complete").length;
+        const status = (l: Lesson) => progress.lessons[l.meta.id]?.status;
+        const testOut = m.lessons.find((l) => l.meta.type === "test-out");
+        const regular = m.lessons.filter((l) => l.meta.type !== "test-out");
+        const done = regular.filter((l) => status(l) === "complete").length;
+        // A module is complete when its test-out is passed, or when every other lesson is complete.
+        const testedOut = testOut ? status(testOut) === "complete" : false;
+        const moduleComplete = testedOut || (regular.length > 0 && done === regular.length);
         return (
-          <section key={m.id} className="module">
+          <section key={m.id} className={moduleComplete ? "module complete" : "module"}>
             <h2>
-              {m.title} <span className="muted small">{done}/{m.lessons.length} complete</span>
+              {m.title}{" "}
+              {moduleComplete ? (
+                <span className="badge ok">✔ module complete{testedOut && done < regular.length ? " (tested out)" : ""}</span>
+              ) : (
+                <span className="muted small">
+                  {done}/{regular.length} complete
+                </span>
+              )}
             </h2>
             {m.summary && <p className="muted">{m.summary}</p>}
             <ul className="lesson-list">
-              {m.lessons.map((l) => {
-                const st = progress.lessons[l.meta.id]?.status ?? "available";
-                if (!isRunnable(l)) {
-                  return (
-                    <li key={l.meta.id} className="locked" title={`Needs the full Docker runner: ${missingCaps(l).join(", ")}`}>
-                      <span>{l.order}. {l.meta.title}</span>
-                      <span className="badge">Server needed</span>
-                    </li>
-                  );
-                }
-                return (
-                  <li key={l.meta.id}>
-                    <Link to={`/lesson/${l.meta.id}`}>{l.order}. {l.meta.title}</Link>
-                    <span className="muted small">{l.meta.estimatedMinutes ? `${l.meta.estimatedMinutes} min` : ""}</span>
-                    {st === "complete" ? (
-                      <span className="badge ok">✔ complete</span>
-                    ) : st === "in_progress" ? (
-                      <span className="badge">in progress</span>
-                    ) : null}
-                  </li>
-                );
-              })}
+              {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
+              {regular.map((l) => (
+                <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
+              ))}
             </ul>
+            {testOut && !moduleComplete && (
+              <p className="muted small">Know this already? Pass the test-out to complete the whole module. The lessons stay available.</p>
+            )}
           </section>
         );
       })}

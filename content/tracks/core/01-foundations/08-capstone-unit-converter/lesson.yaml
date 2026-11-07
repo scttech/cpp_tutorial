@@ -1,0 +1,15 @@
+id: core.foundations.capstone-unit-converter
+title: "Capstone: Unit Converter CLI"
+module: core.foundations
+type: capstone
+estimatedMinutes: 60
+concepts: [parsing, input-validation, lookup-tables, error-handling, formatting]
+prerequisites: [core.foundations.io-basics]
+files:
+  editable: [main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [from-chars-accepts-nan, floating-point-printing, negative-zero]

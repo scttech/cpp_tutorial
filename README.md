@@ -3,6 +3,16 @@
 An interactive C++ course: write code in the browser, run it against real unit tests, get immediate feedback.
 Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets/CPP_From_Zero_to_Hero_SPEC.md).
 
+## Status
+
+| Area | State |
+|---|---|
+| Runner (Docker sandbox + API) | Working, with attack tests |
+| Front end (lesson page, editor, tiers, hints, progress) | Working, local storage progress |
+| Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
+| WASM runner for the static build | Spiked ([spike/](spike/)); not wired into the app yet |
+| Friendly compiler errors, badges, AI tutor, Modules 2-10, domain tracks | Planned (see the spec) |
+
 ## Two ways to run it
 
 | | **Static build** (GitHub Pages) | **Full build** (docker-compose) |

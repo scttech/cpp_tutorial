@@ -106,11 +106,37 @@ try {
   b = await bannerAfterClick(/Run Tests/, /tests passed/);
   check(/All tests passed/.test(b ?? ""), `lesson 7: ${b}`);
 
+  // ---------------- Capstone: Unit Converter CLI ----------------
+  await open("core.foundations.capstone-unit-converter");
+  await setCode(await solution("08-capstone-unit-converter", "main.cpp"));
+  await page.locator("details.stdin summary").click();
+  await page.locator("details.stdin textarea").fill("convert 100 C F\nconvert 5 km kg\nquit\n");
+  await page.getByRole("button", { name: /^▶ Run$/ }).click();
+  await page.getByRole("tab", { name: "Console" }).click();
+  await page.locator(".console", { hasText: "below" }).or(page.locator(".console", { hasText: "cannot convert" })).first().waitFor({ timeout: 30000 });
+  const capOut = await page.locator(".console").first().textContent();
+  check(capOut === "100 C = 212.0000 F\nerror: cannot convert km to kg\n", "capstone: Run converts and reports an error from stdin");
+  await page.getByRole("tab", { name: "Tests" }).click();
+  b = await bannerAfterClick(/Run Tests/, /tests passed/);
+  check(/All tests passed/.test(b ?? ""), `capstone: ${b}`);
+
+  // ---------------- Test-out: Temperature table ----------------
+  await open("core.foundations.test-out");
+  b = await bannerAfterClick(/Run Tests/, /did not compile|tests passed/);
+  check(!/All tests passed/.test(b ?? ""), `test-out: the empty starter does not pass (${b})`);
+  await setCode(await solution("00-test-out-temperature-table", "main.cpp"));
+  await page.getByRole("tab", { name: "Tests" }).click();
+  b = await bannerAfterClick(/Run Tests/, /All tests passed/);
+  check(/All tests passed/.test(b ?? ""), `test-out: ${b}`);
+  await shot("m1-testout-pass");
+
   // ---------------- course map ----------------
   await page.goto(`${APP}/#/`);
   await page.getByRole("link", { name: /I\/O basics/ }).waitFor();
   const links = await page.locator(".lesson-list a").count();
-  check(links === 7, `course map lists all 7 Module 1 lessons (${links})`);
+  check(links === 9, `course map lists test-out + 7 lessons + capstone (${links})`);
+  check((await page.locator(".lesson-list li").first().getAttribute("class"))?.includes("test-out"), "the test-out is listed first");
+  check((await page.locator("h2 .badge.ok").first().textContent())?.includes("tested out"), "passing the test-out marks the module complete (tested out)");
   await shot("m1-home");
 } catch (e) {
   failures++;

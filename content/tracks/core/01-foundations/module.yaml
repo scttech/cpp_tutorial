@@ -3,4 +3,4 @@ title: "Foundations"
 track: core
 order: 1
 summary: "Types, operators, control flow, functions, the build model and basic I/O."
-testOut: null   # "Temperature table" challenge is added later
+testOut: core.foundations.test-out   # "Temperature table": passing it completes the module

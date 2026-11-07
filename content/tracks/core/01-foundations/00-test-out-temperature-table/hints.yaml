@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Try your program with the stdin box and Run. Compare your output character by character with the example in the lesson: column widths and the single decimal place are checked exactly."
+  - level: 2
+    text: "`std::setw(n)` affects only the next value printed, so set it before every column in every row. `std::fixed` plus `std::setprecision(1)` make a double print with one decimal; they stay in effect afterwards."
+  - level: 3
+    text: "If a row shows 33.0 where 33.8 is expected, the 9/5 is being done in integer arithmetic. And if the huge-value tests hang or fail, think about what happens to an int loop counter when `c += step` would go past INT_MAX."
+  - level: 4
+    text: |
+      1. Read start, end, step with one chained >> inside an if; on failure print the 'expected three integers' error.
+      2. Check step <= 0, then start > end, printing the matching error line for each.
+      3. Print the header: setw(8) "Celsius", setw(12) "Fahrenheit", newline. Then std::fixed and setprecision(1).
+      4. Loop with a `long long` counter c from start while c <= end, adding step. Compute fahrenheit as a double: c * 9.0 / 5.0 + 32.0.
+      5. Print setw(8) c, setw(12) fahrenheit, newline.

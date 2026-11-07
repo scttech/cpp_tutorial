@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Build it in layers and use Run with the stdin box: first read lines and echo them, then split them into words, then handle `quit`, then a single conversion, then the errors one at a time in the order of the error table."
+  - level: 2
+    text: "Avoid writing a function for every pair of units. If every unit knows its factor to a base unit (meters, kilograms), any conversion is: to base, then from base. Temperatures need offsets, so treat them in their own branch with kelvin as the base."
+  - level: 3
+    text: "For the number check, remember lesson 7: from_chars must report no error AND consume the whole token. Also note that from_chars happily parses 'nan' and 'inf'; std::isfinite rejects them. After computing the result, snap tiny magnitudes (below 0.00005) to exactly 0.0 so you never print -0.0000."
+  - level: 4
+    text: |
+      Data: a table from unit name to {dimension, factor}. Temperatures: C, F, K with explicit formulas to/from kelvin.
+      Loop: getline; split into words with an istringstream; skip empty; 'quit' breaks; 'convert' dispatches; anything else is an unknown command.
+      Convert checks in order: word count == 4 (usage), parse number (invalid number), from unit known, to unit known, same dimension, then compute the base value; for temperatures a base value below -1e-9 is 'below absolute zero'.
+      Print: the original value text, from-unit, ' = ', the result with std::fixed and setprecision(4), and the to-unit.
