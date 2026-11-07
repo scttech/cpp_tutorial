@@ -85,6 +85,42 @@ def run_capped(cmd, stdin_data, timeout_s, max_out):
             "timedOut": timed_out}
 
 
+def is_source(name):
+    return name.endswith((".cpp", ".cc", ".cxx"))
+
+
+def build(flags, user_sources, test_sources, compile_s):
+    """Compile + link. Returns (ok, compiler_stderr, timed_out).
+
+    Run mode: one clang++ invocation. Test mode: the learner's files are compiled normally and
+    then their `main` SYMBOL is renamed to `zth_user_main` (objcopy) so the hidden tests can call
+    and capture it, while the test sources provide the real main. (Renaming with -Dmain= would
+    break the rule that main implicitly returns 0.)
+    """
+    base = ["clang++", *flags, "-I/opt/zth/include", "-I" + WORK]
+    if not test_sources:
+        r = run_capped([*base, *user_sources, "-o", "/work/a.out"], "", compile_s, 262144)
+        return r["exitCode"] == 0 and not r["timedOut"], r["stderr"], r["timedOut"]
+    os.makedirs(os.path.join(WORK, "obj"), exist_ok=True)
+    objs, output = [], ""
+    deadline = time.monotonic() + compile_s
+    units = [(n, True) for n in user_sources] + [(n, False) for n in test_sources]
+    for i, (name, is_user) in enumerate(units):
+        obj = f"/work/obj/{i}.o"
+        r = run_capped([*base, "-c", name, "-o", obj], "",
+                       max(deadline - time.monotonic(), 1), 262144)
+        output += r["stderr"]
+        if r["timedOut"] or r["exitCode"] != 0:
+            return False, output, r["timedOut"]
+        if is_user:
+            rn = run_capped(["objcopy", "--redefine-sym", "main=zth_user_main", obj], "", 10, 4096)
+            if rn["exitCode"] != 0:
+                return False, output + rn["stderr"], False
+        objs.append(obj)
+    r = run_capped([*base, *objs, "-o", "/work/a.out"], "", max(deadline - time.monotonic(), 1), 262144)
+    return r["exitCode"] == 0 and not r["timedOut"], output + r["stderr"], r["timedOut"]
+
+
 def main():
     # The job arrives as one line "@@JOB <json>". The docker client library can prepend its own
     # attach options to stdin, so ignore anything before the marker. No EOF is needed (a hijacked
@@ -108,18 +144,17 @@ def main():
         write_files(files)
         if test_mode:
             write_files(tests)
-        sources = [n for n in (list(files) + (list(tests) if test_mode else []))
-                   if n.endswith((".cpp", ".cc", ".cxx"))]
-        if not sources:
+        user_sources = [n for n in files if is_source(n)]
+        test_sources = [n for n in tests if is_source(n)] if test_mode else []
+        if not user_sources and not test_sources:
             result["compileOutput"] = "no .cpp files to compile"
         else:
-            cmd = ["clang++", *flags, "-I/opt/zth/include", "-I" + WORK,
-                   *sources, "-o", "/work/a.out"]
             t0 = time.monotonic()
-            c = run_capped(cmd, "", int(lim.get("compileMs", 30000)) / 1000, 262144)
+            ok, output, _ = build(flags, user_sources, test_sources,
+                                  int(lim.get("compileMs", 30000)) / 1000)
             result["compileMs"] = int((time.monotonic() - t0) * 1000)
-            result["compileOutput"] = c["stderr"]
-            if c["exitCode"] == 0 and not c["timedOut"]:
+            result["compileOutput"] = output
+            if ok:
                 result["compiled"] = True
                 t1 = time.monotonic()
                 r = run_capped(["/work/a.out"], job.get("stdin", ""),

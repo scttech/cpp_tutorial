@@ -1,0 +1,12 @@
+{
+  "name": "zth-validate-content",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node validate.mjs"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

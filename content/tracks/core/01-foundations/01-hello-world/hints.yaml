@@ -1,0 +1,11 @@
+ladder:
+  - level: 1   # nudge
+    text: "Run the tests and read the failure message. What did your program print, compared with what was expected?"
+  - level: 2   # concept
+    text: "`std::cout << something;` writes to the standard output stream. Text in double quotes is a string literal."
+  - level: 3   # pinpoint
+    text: "The body of `main` is empty (just a comment). Add a statement inside it, and end the statement with a semicolon."
+  - level: 4   # approach
+    text: |
+      1. Inside `main`, write a statement that sends a string literal to `std::cout`.
+      2. The string is `Hello, World!` and it must end with a newline escape (backslash n).

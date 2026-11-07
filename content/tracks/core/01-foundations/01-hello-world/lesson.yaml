@@ -1,0 +1,15 @@
+id: core.foundations.hello-world
+title: "Hello, World (and what just happened)"
+module: core.foundations
+type: lesson
+estimatedMinutes: 10
+concepts: [main-function, iostream, compilation-model]
+prerequisites: []
+files:
+  editable: [main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []            # runner capabilities: exceptions | threads | sanitizers
+tiers: { works: true, robust: false, fast: false, clean: false }
+gotchas: [header-vs-source, main-returns-int]
