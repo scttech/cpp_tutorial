@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Press Run first: the demo shows what is still missing. Then run the tests and start with the constructor: once every Fraction is normalized, the other operations get much easier, because they can trust what they are given."
+  - level: 2
+    text: "Constructor: reject a zero denominator, make the denominator positive by moving the sign to the numerator, then divide both by std::gcd(num, den). Arithmetic: write += -= *= /= as members and the binary operators as ordinary functions that copy the left operand and apply the compound one. Passing the left operand BY VALUE does the copy for you."
+  - level: 3
+    text: "Adding a/b + c/d: let g = gcd(b, d); the sum is (a * (d / g) + c * (b / g)) / ((b / g) * d). Multiplying a/b * c/d: cancel first (g1 = gcd(a, d), g2 = gcd(c, b)), then ((a / g1) * (c / g2)) / ((b / g2) * (d / g1)). Dividing is multiplying by the reciprocal (check for zero first). For ordering, <=> on the cross products a * d and c * b gives a std::strong_ordering."
+  - level: 4
+    text: |
+      ctor: if (den_ == 0) throw std::invalid_argument(...); if (den_ < 0) { num_ = -num_; den_ = -den_; }
+            g = std::gcd(num_, den_); num_ /= g; den_ /= g;      (gcd(0, n) is n, so zero becomes 0/1)
+      operator/=: if (o.num_ == 0) throw std::domain_error(...); return *this *= Fraction(o.den_, o.num_);
+      friend bool operator==(const Fraction&, const Fraction&) = default;
+      friend std::strong_ordering operator<=>(const Fraction& a, const Fraction& b) { return a.num_ * b.den_ <=> b.num_ * a.den_; }
+      inline Fraction operator+(Fraction a, const Fraction& b) { return a += b; }
+      operator<<: os << f.numerator(); if (f.denominator() != 1) os << '/' << f.denominator(); return os;

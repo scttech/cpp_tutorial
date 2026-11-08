@@ -1,0 +1,20 @@
+ladder:
+  - level: 1
+    text: "Press Run to see the demo, then run the tests. Fix one thing at a time: the constructors first (default, explicit cents, then the two-argument one), then to_string, then plus. The test names tell you what is checked."
+  - level: 2
+    text: "Default constructor: `Money() = default;` plus a default member initializer on cents_. For the two-argument constructor, write a private static helper `to_cents(dollars, cents)` that checks the arguments, throws if they are invalid, and returns dollars * 100 + cents; then delegate: `Money(long long d, int c) : Money(to_cents(d, c)) {}`."
+  - level: 3
+    text: "Overflow checks: do them before the arithmetic. For to_cents: dollars * 100 + cents fits exactly when dollars <= (LLONG_MAX - cents) / 100 (use std::numeric_limits<long long>::max()). For plus(a, b): it overflows if (b > 0 && a > max - b) or (b < 0 && a < min - b). For to_string: copy the value into an unsigned long long magnitude (negating as unsigned is well defined), then print magnitude / 100 and magnitude % 100 with std::setw(2) and std::setfill('0') from <iomanip>."
+  - level: 4
+    text: |
+      Money() = default;   explicit Money(long long cents) : cents_(cents) {}
+      Money(long long dollars, int cents) : Money(to_cents(dollars, cents)) {}
+      static long long to_cents(long long dollars, int cents) {
+          if (dollars < 0) throw std::invalid_argument("...");
+          if (cents < 0 || cents > 99) throw std::invalid_argument("...");
+          if (dollars > (std::numeric_limits<long long>::max() - cents) / 100) throw std::overflow_error("...");
+          return dollars * 100 + cents;
+      }
+      long long cents_ = 0;
+      to_string: negative = cents_ < 0; magnitude = negative ? 0ULL - (unsigned long long)cents_ : (unsigned long long)cents_;
+                 out << (negative ? "-" : "") << '$' << magnitude / 100 << '.' << setw(2) << setfill('0') << magnitude % 100;

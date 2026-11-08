@@ -1,6 +1,30 @@
 {
   "toolchain": "browsercc",
   "lessons": {
+    "core.classes.constructors": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:5: | ./money.hpp:39:13: error: cannot use 'throw' with exceptions disabled |    39 |             throw std::overflow_error(\"Money: the sum does not fit\"); |       |             ^"
+      ],
+      "hash": "40a26442181a114f"
+    },
+    "core.classes.encapsulation": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:5: | ./account.hpp:18:29: error: cannot use 'throw' with exceptions disabled |    18 |         if (owner_.empty()) throw std::invalid_argument(\"BankAccount: the owner's name is empty\"); |       |                             ^"
+      ],
+      "hash": "ee3e9b30701897ce"
+    },
+    "core.classes.test-out": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:4: | ./fraction.hpp:14:24: error: cannot use 'throw' with exceptions disabled |    14 |         if (den_ == 0) throw std::invalid_argument(\"Fraction: the denominator is zero\"); |       |                        ^"
+      ],
+      "hash": "aa12f3ab5176fb4d"
+    },
     "core.data-and-memory.arrays": {
       "wasm": true,
       "mutants": 10,

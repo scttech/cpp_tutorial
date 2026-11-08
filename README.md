@@ -3,6 +3,8 @@
 An interactive C++ course: write code in the browser, run it against real unit tests, get immediate feedback.
 Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets/CPP_From_Zero_to_Hero_SPEC.md).
 
+**[Try the live demo](https://scttech.github.io/cpp_tutorial/)**: the static build, with the compiler running in your browser (no install). Some lessons need the full Docker build and are greyed out there. See [Two ways to run it](#two-ways-to-run-it).
+
 ## Status
 
 | Area | State |
@@ -14,6 +16,7 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
+| Module 3 Classes and Objects | **In progress**: test-out (a normalized `Fraction` with operators), constructors/`explicit` (`Money`), encapsulation and invariants (`BankAccount`): 3 items, 54 mutant solutions that must fail. Four lessons and the Library Management capstone are still to write; the module cannot be completed by lessons alone until then, but the test-out completes it |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
 | Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 15 of 18 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. A GitHub Pages workflow is written but has not run on GitHub yet |
 | AI tutor, Modules 3-10, domain tracks | Planned (see the spec) |
@@ -85,7 +88,7 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ```bash
 cd app && npm test                                   # 99 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
 cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (4 scripts; wasm.mjs separately, see above)
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (5 scripts; wasm.mjs separately, see above)
 cd wasm-runner && npm install && npm test            # the in-browser (WASM) runner on small programs; no Docker needed
 cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```

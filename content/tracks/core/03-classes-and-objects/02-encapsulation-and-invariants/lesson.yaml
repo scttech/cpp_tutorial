@@ -1,0 +1,15 @@
+id: core.classes.encapsulation
+title: "Encapsulation and invariants"
+module: core.classes
+type: lesson
+estimatedMinutes: 45
+concepts: [encapsulation, private, class-invariant, const-member-function, const-reference-return, validate-then-commit, aliasing, single-point-of-mutation]
+prerequisites: [core.classes.constructors]
+files:
+  editable: [account.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [public-data, getter-returns-mutable-reference, non-const-getter, partial-update-on-failure, self-transfer-aliasing, invariant-spread-over-several-members]

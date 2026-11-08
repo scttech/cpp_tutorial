@@ -1,0 +1,15 @@
+id: core.classes.test-out
+title: "Test-out: Fraction class"
+module: core.classes
+type: test-out
+estimatedMinutes: 30
+concepts: [class-design, constructors, operator-overloading, normalization, three-way-comparison, explicit-conversion]
+prerequisites: [core.data-and-memory.capstone-inventory]
+files:
+  editable: [fraction.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [member-vs-nonmember-operators, int-on-the-left, explicit-conversion, overflow-in-arithmetic, comparing-through-double]

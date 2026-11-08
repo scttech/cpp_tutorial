@@ -1,0 +1,24 @@
+ladder:
+  - level: 1
+    text: "Run the tests and read the names: they describe the rules. Start with the structure, not the details: make the three data members private (give them names ending in an underscore so the getters can use the plain names), and turn the three getters into const functions that cannot be used to change anything."
+  - level: 2
+    text: "Getters: `const std::string& owner() const`, `long long balance() const`, `const std::vector<long long>& history() const`. Put the checks in the constructor body (throw std::invalid_argument), and write ONE private function, say apply(delta), that pushes delta onto the history and adds it to the balance. deposit, withdraw and the constructor's opening balance all go through it, so the balance and the history cannot disagree."
+  - level: 3
+    text: "For deposit, check for overflow before adding: balance_ > max - cents means it would not fit. For transfer_to: validate the amount, check the funds, handle the `&to == this` case, check that the receiver has room (a private const helper like require_room() shared with deposit), and only THEN change the two accounts. A failed operation must not touch the history either."
+  - level: 4
+    text: |
+      class BankAccount {
+      public:
+        explicit BankAccount(std::string owner, long long opening = 0) : owner_(std::move(owner)) {
+            if (owner_.empty()) throw std::invalid_argument("..."); if (opening < 0) throw std::invalid_argument("...");
+            if (opening > 0) apply(opening);
+        }
+        bool withdraw(long long c) { require_positive(c); if (c > balance_) return false; apply(-c); return true; }
+        bool transfer_to(BankAccount& to, long long c) {
+            require_positive(c); if (c > balance_) return false; if (&to == this) return true;
+            to.require_room(c); apply(-c); to.apply(c); return true;      // `to.apply` is fine: same class, private access
+        }
+      private:
+        void apply(long long d) { history_.push_back(d); balance_ += d; }
+        std::string owner_; long long balance_ = 0; std::vector<long long> history_;
+      };
