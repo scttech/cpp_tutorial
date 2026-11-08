@@ -16,10 +16,10 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
-| Module 3 Classes and Objects | **In progress**: test-out (a normalized `Fraction` with operators), constructors/`explicit` (`Money`), encapsulation and invariants (`BankAccount`): 3 items, 54 mutant solutions that must fail. Four lessons and the Library Management capstone are still to write; the module cannot be completed by lessons alone until then, but the test-out completes it |
+| Module 3 Classes and Objects | **Complete**: test-out (a normalized `Fraction` with operators), six lessons (constructors/`explicit`, encapsulation and invariants, const correctness with `mutable` caches, operator overloading, `enum class` state machines with `static` members, namespaces/ADL/header hygiene) and the Library Management capstone: 8 items, 244 mutant solutions in total that must fail. Uses the Works, Robust and Clean tiers (Clean scans the header for `using namespace`, code outside the namespace, and raw `new`/`delete`) |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
-| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 15 of 18 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. A GitHub Pages workflow is written but has not run on GitHub yet |
-| AI tutor, Modules 3-10, domain tracks | Planned (see the spec) |
+| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 16 of 26 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. The GitHub Pages workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) builds and deploys it |
+| AI tutor, Modules 4-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
 
@@ -101,7 +101,7 @@ The validator and e2e need the runner (`docker compose up -d runner`); e2e also 
 - **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
 - **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a `mutants/` folder of plausible wrong solutions that the tests must reject.
   - Memory lessons: put `#define ZTH_TRACK_ALLOCATIONS` at the top of `tests/test.cpp`, then use `zth::mem::Scope` with `ZTH_EXPECT_NO_MEMORY_BUGS(scope)` / `ZTH_EXPECT_ALLOCS_AT_MOST(scope, n)`, and `zth::Tracked` to count copies and moves. See [runner-image/include/zth_test.hpp](runner-image/include/zth_test.hpp).
-  - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can). Remove the flag when the module is finished.
+  - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can). Remove the flag when the module is finished (Modules 1-3 are).
   - More harness helpers for hidden tests: `ZTH_EXPECT_NO_RAW_MEMORY("main.cpp")` (scans the learner's source for `new`/`delete`/`malloc`/`free`), `zth::dirty_stack()` (makes uninitialized reads reproducible), and placement-new over `0xAB`-filled memory to expose member-initialization-order bugs.
 
 Backend tests (need Docker):

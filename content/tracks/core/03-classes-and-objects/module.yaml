@@ -4,4 +4,3 @@ track: core
 order: 3
 summary: "Constructors, encapsulation, const correctness, operators, enums, static members, and namespaces."
 testOut: core.classes.test-out   # "Fraction class": passing it completes the module
-inProgress: true                 # remove when every lesson and the capstone are written

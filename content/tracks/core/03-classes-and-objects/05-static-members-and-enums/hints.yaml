@@ -1,0 +1,22 @@
+ladder:
+  - level: 1
+    text: "Three separate jobs: (1) turn the enum into `enum class Status : std::uint8_t`, (2) make the id counter ONE counter shared by the whole class (`static`), (3) write the transition rules once and let pay/ship/deliver/cancel ask them. Run the tests after each job: the names and failure messages tell you which one is still missing."
+  - level: 2
+    text: "`enum class` means every use needs `Status::` in front (in order.hpp, including the cases of the switch). The counter: `inline static int created_ = 0;` and in the constructor `id_(first_id + created_++)`. `created()` becomes `static int created() { return created_; }`. Add `static constexpr int first_id = 1;` at the top of the class."
+  - level: 3
+    text: "`static bool allowed(Status from, Status to)`: switch on `from` and return a condition on `to`. Created: Paid or Cancelled. Paid: Shipped or Cancelled. Shipped: Delivered. Delivered and Cancelled: false. Then move_to(next): `if (!allowed(status_, next)) return false; status_ = next; return true;` (check BEFORE changing anything)."
+  - level: 4
+    text: |
+      enum class Status : std::uint8_t { Created, Paid, Shipped, Delivered, Cancelled };
+      static bool allowed(Status from, Status to) {
+          switch (from) {
+              case Status::Created:   return to == Status::Paid || to == Status::Cancelled;
+              case Status::Paid:      return to == Status::Shipped || to == Status::Cancelled;
+              case Status::Shipped:   return to == Status::Delivered;
+              case Status::Delivered:
+              case Status::Cancelled: return false;
+          }
+          return false;
+      }
+      bool move_to(Status next) { if (!allowed(status_, next)) return false; status_ = next; return true; }
+      inline static int created_ = 0;     // and: static int created() { return created_; }

@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Read the failing tests: they say what is wrong with the header's SHAPE (the behavior is already right). There are four jobs: remove `using namespace std;`, move the helper into a nested namespace, move the four operators into namespace geo, and make sure nothing sits outside `namespace geo`."
+  - level: 2
+    text: "Without `using namespace std;` the compiler will tell you which names need `std::` (vector, invalid_argument, min, max). For the helper: inside `namespace geo { ... }` open `namespace detail { ... }`, put `intervals_overlap` in it, and call it as `detail::intervals_overlap(...)`. For the operators: cut them from the bottom of the file and paste them before the closing brace of `namespace geo`; then `geo::Point` can just be `Point`."
+  - level: 3
+    text: "For ==, you do not need to write the comparison at all: inside `struct Point { ... }` write `friend bool operator==(const Point&, const Point&) = default;` and the same inside `struct Rect`. (Rect's defaulted == uses Point's, so Point must come first.) The two `operator<<` go into namespace geo as ordinary inline functions; Rect's prints `r.origin` with the Point one."
+  - level: 4
+    text: |
+      namespace geo {
+      namespace detail {
+      inline bool intervals_overlap(int s1, int l1, int s2, int l2) { ... }
+      }  // namespace detail
+      struct Point { int x = 0; int y = 0; friend bool operator==(const Point&, const Point&) = default; };
+      struct Rect { Point origin; int width = 0; int height = 0; friend bool operator==(const Rect&, const Rect&) = default; };
+      ... area, contains, overlaps (calls detail::intervals_overlap), bounding_box (std::vector, std::min, std::max, std::invalid_argument) ...
+      inline std::ostream& operator<<(std::ostream& os, const Point& p) { ... }
+      inline std::ostream& operator<<(std::ostream& os, const Rect& r) { ... }
+      }  // namespace geo

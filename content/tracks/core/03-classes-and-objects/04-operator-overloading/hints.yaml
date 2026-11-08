@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Start with the pair that everything else is built on: `operator+=` as a MEMBER that adds the parts and returns `*this` (type `Vec2&`). Then `operator+` as a NON-member that takes its left side by value and returns `a += b`. Run the tests after each operator: their names say what is expected, and a failure about a 'wrongly shaped' operator tells you which return type or constness is off."
+  - level: 2
+    text: "Do the same trio for - and *: members `-=` and `*=(int)` returning `Vec2&`, non-members `operator-(Vec2 a, const Vec2& b)`, `operator*(Vec2 v, int k)`, and `operator*(int k, const Vec2& v)` (just `return v * k;`). Then: `Vec2 operator-() const`, `friend bool operator==(const Vec2&, const Vec2&) = default;`, `dot`, and `operator<<` taking `std::ostream&` and returning it."
+  - level: 3
+    text: "`operator[]`: two overloads (`int&` and `const int& ... const`), both throw std::out_of_range when i > 1. `explicit operator bool() const { return x_ != 0 || y_ != 0; }`. Prefix: `Vec2& operator++() { ++x_; ++y_; return *this; }`. Postfix takes a dummy `int`, copies *this FIRST, increments, and returns the copy."
+  - level: 4
+    text: |
+      Vec2& operator+=(const Vec2& o) { x_ += o.x_; y_ += o.y_; return *this; }
+      Vec2  operator-() const { return Vec2(-x_, -y_); }
+      Vec2& operator++() { ++x_; ++y_; return *this; }
+      Vec2  operator++(int) { Vec2 old = *this; ++*this; return old; }
+      explicit operator bool() const { return x_ != 0 || y_ != 0; }
+      friend bool operator==(const Vec2&, const Vec2&) = default;
+      // outside the class:
+      inline Vec2 operator+(Vec2 a, const Vec2& b) { return a += b; }
+      inline Vec2 operator*(int k, const Vec2& v) { return v * k; }
+      inline std::ostream& operator<<(std::ostream& os, const Vec2& v) { return os << '(' << v.x() << ", " << v.y() << ')'; }

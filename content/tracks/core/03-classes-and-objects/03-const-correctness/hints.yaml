@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Run the tests: the failures name the members that cannot be used on a const Grid. Then go through the class and ask of each member function: does it change the object? If not, it gets a `const` after its parameter list. The tests' names list the rules."
+  - level: 2
+    text: "Mark rows, cols, count, row_text, recomputations, check and total as const. Add a SECOND at(): `const int& at(std::size_t r, std::size_t c) const`. Change row_sum's parameter to `const Grid&` (keep it `inline`). Then deal with the cache: declare cache_ and recomputations_ `mutable` so that total() const may use them."
+  - level: 3
+    text: "total(): `if (!cache_) { ...compute the sum...; cache_ = sum; ++recomputations_; } return *cache_;`. The non-const at() and fill() must call `cache_.reset()` (the caller may write through the reference). The const at() must NOT reset it. Both overloads check the bounds (share the private check())."
+  - level: 4
+    text: |
+      int&       at(std::size_t r, std::size_t c)       { check(r, c); cache_.reset(); return cells_[r * cols_ + c]; }
+      const int& at(std::size_t r, std::size_t c) const { check(r, c);                  return cells_[r * cols_ + c]; }
+      void fill(int value) { std::fill(cells_.begin(), cells_.end(), value); cache_.reset(); }
+      long long total() const { if (!cache_) { long long s = 0; for (int v : cells_) s += v; cache_ = s; ++recomputations_; } return *cache_; }
+      mutable std::optional<long long> cache_;
+      mutable std::size_t recomputations_ = 0;
+      inline long long row_sum(const Grid& g, std::size_t r) { ... }

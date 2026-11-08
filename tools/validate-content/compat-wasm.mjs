@@ -32,7 +32,11 @@ async function inputsHash(dir) {
   const h = createHash("sha256");
   // Line endings are normalized: a Windows checkout (CRLF) and CI (LF) must agree on the hash.
   const add = async (p, label) => h.update(label + "\0").update((await readFile(p, "latin1")).replace(/\r\n/g, "\n"), "latin1").update("\0");
-  for await (const p of walk(dir)) await add(p, "lesson:" + p.slice(dir.length));
+  // Labels use "/" and the files are sorted: Windows (backslashes, sorted listings) and Linux CI must agree on the hash.
+  const files = [];
+  for await (const p of walk(dir)) files.push([p.slice(dir.length).replace(/\\/g, "/"), p]);
+  files.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const [label, p] of files) await add(p, "lesson:" + label);
   for (const f of (await readdir(HEADER_DIR)).sort()) await add(join(HEADER_DIR, f), "header:" + f);
   for (const f of (await readdir(join(RUNNER_DIR, "src"))).sort()) await add(join(RUNNER_DIR, "src", f), "runner:" + f);
   h.update(JSON.parse(await readFile(join(RUNNER_DIR, "node_modules/browsercc/package.json"), "utf8")).version);

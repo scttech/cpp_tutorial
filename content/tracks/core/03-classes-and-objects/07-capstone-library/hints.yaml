@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Do it in this order, running the tests after each step: (1) Book: constructor checks, const getters, `friend class Library`, operator<<. (2) Library data and add_member/add_book, the counts, and ONE private helper that turns an id into an index (or throws std::out_of_range). (3) checkout and return_book. (4) fines: pay_fine and mark_lost. (5) the lookups loans / loans_of / overdue, and then const-ness."
+  - level: 2
+    text: "The test names are the specification: read them like a checklist. Private data: `std::vector<Book> books_;`, `struct Member { std::string name; long long fines; };` and `std::vector<Member> members_;`. `book_index(id)`: `if (id < 1 || id > books_.size()) throw std::out_of_range(...)`, then `id - 1` (write the same for members; make both const so every lookup can use them). A member's loan count: `std::count_if` over books_ with status OnLoan and the right borrower."
+  - level: 3
+    text: "checkout: look up the member first, then the book (both may throw), then `if (fines > 0) return false; if (loans(member) >= max_loans) return false; if (status != Available) return false;` and only then change the book. return_book: look up the book, `throw std::logic_error` if it is not OnLoan, fine = `today > due ? (long long)(today - due) * fine_per_day : 0`, add it to the BORROWER's fines (book.borrower_), then reset status, borrower, due. mark_lost: throw if already Lost; if OnLoan, add lost_fee to the borrower; then status = Lost, borrower = 0, due = 0. pay_fine: look up the member, THEN check the amount (<= 0 or > owed: std::invalid_argument)."
+  - level: 4
+    text: |
+      class Book { public: Book(std::string t, std::string a, int id) : id_(id), title_(std::move(t)), author_(std::move(a)) { if (id_ <= 0 || title_.empty() || author_.empty()) throw std::invalid_argument("..."); }
+                   int id() const { return id_; }  const std::string& title() const { return title_; } /* ... */
+                   private: friend class Library; int id_; std::string title_, author_; Status status_ = Status::Available; int borrower_ = 0, due_ = 0; };
+      operator<<: os << '#' << b.id() << " \"" << b.title() << "\" by " << b.author() << " [" << to_string(b.status()); if OnLoan: << ", due day " << b.due(); return os << ']';
+      add_book: build the Book FIRST (it validates), then push_back it.
+      overdue(today): loop over books_, push_back id_ when status_ == OnLoan && due_ < today (books_ is in id order, so the result is ascending).
