@@ -13,7 +13,9 @@
 #pragma once
 
 #include <chrono>
+#ifndef __wasi__
 #include <csignal>
+#endif
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
@@ -27,8 +29,10 @@
 #include <type_traits>
 #include <vector>
 
+#ifndef __wasi__  // the in-browser (WASI) build has no fork(); see run_all() below
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 extern "C" int zth_user_main();  // the learner's main(), renamed at link time; only linked if used
 
@@ -403,14 +407,19 @@ public:
 
 }  // namespace zth::mem
 
+#ifdef __cpp_exceptions
+#define ZTH_BAD_ALLOC() throw std::bad_alloc()
+#else
+#define ZTH_BAD_ALLOC() std::abort()
+#endif
 void* operator new(std::size_t n) {
     void* p = zth::mem::alloc(n, 0);
-    if (!p) throw std::bad_alloc();
+    if (!p) ZTH_BAD_ALLOC();
     return p;
 }
 void* operator new[](std::size_t n) {
     void* p = zth::mem::alloc(n, 1);
-    if (!p) throw std::bad_alloc();
+    if (!p) ZTH_BAD_ALLOC();
     return p;
 }
 void* operator new(std::size_t n, const std::nothrow_t&) noexcept { return zth::mem::alloc(n, 0); }
@@ -426,6 +435,41 @@ void operator delete[](void* p, const std::nothrow_t&) noexcept { zth::mem::rele
 namespace zth {
 
 // ---- driver ----------------------------------------------------------------------------------
+#ifdef __wasi__
+// In the browser there is no fork(), so the HOST provides the isolation instead: it starts a fresh
+// instance of the program per test, with a time limit it enforces itself (it kills the worker).
+//   prog --list      prints one `@@ZTH {"event":"list",...}` line per test and exits
+//   prog --only N    runs test number N in this process and prints its result line
+// Without arguments every test runs in this one process, in order (a crash then ends the whole run).
+inline int run_all(int argc, char** argv) {
+    const auto& tests = registry();
+    if (argc >= 2 && std::strcmp(argv[1], "--list") == 0) {
+        for (std::size_t i = 0; i < tests.size(); ++i)
+            std::printf("@@ZTH {\"event\":\"list\",\"index\":%zu,\"tier\":\"%s\",\"name\":\"%s\",\"timeout\":%u}\n", i,
+                        tests[i].tier, json_escape(tests[i].name).c_str(), tests[i].timeout_s);
+        return 0;
+    }
+    std::size_t first = 0, last = tests.size();
+    if (argc >= 3 && std::strcmp(argv[1], "--only") == 0) {
+        first = static_cast<std::size_t>(std::strtoul(argv[2], nullptr, 10));
+        if (first >= tests.size()) return 2;
+        last = first + 1;
+    }
+    int passed = 0, failed = 0;
+    for (std::size_t i = first; i < last; ++i) {
+        g_failed = false;
+        g_message.clear();
+        auto t0 = std::chrono::steady_clock::now();
+        tests[i].fn();
+        double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        emit(tests[i].tier, tests[i].name, g_failed ? "fail" : "pass", g_message, ms);
+        (g_failed ? failed : passed)++;
+    }
+    if (argc < 2) std::printf("@@ZTH {\"event\":\"summary\",\"passed\":%d,\"failed\":%d}\n", passed, failed);
+    std::fflush(stdout);
+    return failed == 0 ? 0 : 1;
+}
+#else
 inline int run_all() {
     int passed = 0, failed = 0;
     for (const auto& t : registry()) {
@@ -461,6 +505,7 @@ inline int run_all() {
     std::fflush(stdout);
     return failed == 0 ? 0 : 1;
 }
+#endif  // __wasi__
 
 }  // namespace zth
 
@@ -581,5 +626,9 @@ inline int run_all() {
 #define ZTH_RUN_USER_MAIN(...) ::zth::run_main(&zth_user_main, ##__VA_ARGS__)
 
 #ifndef ZTH_NO_MAIN
+#ifdef __wasi__
+int main(int argc, char** argv) { return ::zth::run_all(argc, argv); }
+#else
 int main() { return ::zth::run_all(); }
+#endif
 #endif

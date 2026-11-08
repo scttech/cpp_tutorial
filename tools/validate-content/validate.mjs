@@ -5,27 +5,11 @@
 // usage: node validate.mjs [lesson-id-substring]    env: RUNNER_URL (default http://localhost:8080)
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { runJob } from "./runner-client.mjs";
+import { CONTENT_ROOT as ROOT, findLessonDirs, readTree } from "./lessons.mjs";
 
-const ROOT = resolve(fileURLToPath(new URL("../../content", import.meta.url)));
 const filter = process.argv[2];
-
-async function* walk(dir) {
-  for (const e of await readdir(dir, { withFileTypes: true })) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) yield* walk(p);
-    else yield p;
-  }
-}
-
-async function readTree(dir) {
-  const files = {};
-  try { await stat(dir); } catch { return files; }
-  for await (const p of walk(dir)) files[relative(dir, p).split(sep).join("/")] = await readFile(p, "utf8");
-  return files;
-}
 
 async function runTests(lesson, userFiles, testFiles) {
   return runJob({
@@ -102,9 +86,7 @@ ${r.compileOutput}`);
   return { lesson, errors, mutantCount: Object.keys(mutants).length };
 }
 
-const lessonDirs = [];
-for await (const p of walk(ROOT)) if (p.endsWith(`${sep}lesson.yaml`)) lessonDirs.push(resolve(p, ".."));
-lessonDirs.sort();
+const lessonDirs = await findLessonDirs();
 
 let failed = 0, checked = 0;
 for (const dir of lessonDirs) {

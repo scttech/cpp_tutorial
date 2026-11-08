@@ -1,0 +1,20 @@
+{
+  "name": "zth-wasm-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "In-browser C++ runner for the static build: Clang/LLD compiled to WebAssembly (browsercc) plus a WASI executor. The same code runs in Node worker threads for the compatibility check.",
+  "exports": {
+    "./toolchain": "./src/toolchain.mjs",
+    "./exec": "./src/exec.mjs",
+    "./driver": "./src/driver.mjs",
+    "./node": "./src/node-host.mjs"
+  },
+  "scripts": {
+    "test": "node test/selftest.mjs"
+  },
+  "dependencies": {
+    "@bjorn3/browser_wasi_shim": "^0.4.2",
+    "browsercc": "^0.1.1"
+  }
+}

@@ -10,7 +10,8 @@ import type { Lesson } from "../content/types";
 import { RunnerError, runner } from "../runner";
 import type { CompileDiagnostic, RunResult, Tier } from "../runner";
 import { update, recordRun, revealHint, revealSolution, useAllProgress, useProgress } from "../state/store";
-import { isRunnable, missingCaps } from "./Home";
+import { isRunnable, unrunnableReason } from "./Home";
+import { useToolchain } from "../runner/useToolchain";
 
 const TIER_ORDER: Tier[] = ["works", "robust", "fast", "clean"];
 
@@ -58,6 +59,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const [solution, setSolution] = useState<Record<string, string> | null>(null);
   const [jump, setJump] = useState<{ file: string; line: number; column: number; nonce: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const toolchain = useToolchain();
   const filesRef = useRef(files);
   filesRef.current = files;
 
@@ -134,7 +136,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
       <main className="page">
         <h1>{meta.title}</h1>
         <p className="banner">
-          This lesson needs the full Docker runner ({missingCaps(lesson).join(", ")}). <Link to="/">Back</Link>
+          This lesson is not available in this version: {unrunnableReason(lesson)}. Run the full Docker version to try it. <Link to="/">Back</Link>
         </p>
       </main>
     );
@@ -204,6 +206,17 @@ function LessonView({ lesson }: { lesson: Lesson }) {
             Reset
           </button>
         </div>
+        {toolchain.phase === "downloading" && (
+          <p className="banner" role="status">
+            Downloading the in-browser C++ compiler (about 90 MB, first visit only; your browser keeps it afterwards)
+            {toolchain.progress.total > 0 && ` … ${Math.round((toolchain.progress.loaded / toolchain.progress.total) * 100)}%`}
+          </p>
+        )}
+        {toolchain.phase === "failed" && (
+          <p className="banner error" role="alert">
+            Could not download the in-browser compiler: {toolchain.message}. Reload the page to try again.
+          </p>
+        )}
         <div className="editor-wrap">
           <CodeEditor
             files={files}

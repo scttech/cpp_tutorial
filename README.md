@@ -15,7 +15,7 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
-| WASM runner for the static build | Spiked ([spike/](spike/)); not wired into the app yet |
+| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 15 of 18 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. A GitHub Pages workflow is written but has not run on GitHub yet |
 | AI tutor, Modules 3-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
@@ -29,8 +29,17 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | First load | ~90 MB toolchain download (cached) | Nothing to download |
 | Lessons needing the server | Shown greyed out, marked "server needed" | Available |
 
-The static build is a self-contained demo and is frozen at its last release; ongoing development continues in the
-docker-compose version. Both share the same UI, lesson format and `Runner` interface.
+The static build is meant to be deployed to GitHub Pages by [.github/workflows/pages.yml](.github/workflows/pages.yml) on
+every push to `main`, so it tracks the docker-compose version. Lessons the browser compiler cannot teach are greyed out and marked
+"server needed". Which ones is decided by a compatibility check, not by hand: it runs every lesson's starter, solution
+and mutants through the in-browser runner and writes [content/wasm-compat.json](content/wasm-compat.json). The workflow
+fails if that file is stale, so a new lesson needs no other change. Both builds share the same UI, lesson format and
+`Runner` interface.
+
+Known differences in the browser build: it is 32-bit (`size_t` and pointers are 4 bytes), `std::from_chars` for
+floating point is missing, and there are no exceptions, threads or sanitizers. A null-pointer read does not crash.
+Completing a module by finishing every lesson is not possible while one of its lessons is greyed out; the test-out
+still completes it.
 
 ## Layout
 
@@ -39,7 +48,8 @@ docker-compose version. Both share the same UI, lesson format and `Runner` inter
 | `app/` | Vite + React + TypeScript front end |
 | `runner-service/` | Node/Fastify API: validates requests, runs each job in a fresh sandbox container |
 | `runner-image/` | The sandbox image (Clang, GCC, and the in-container job runner) |
-| `spike/` | M0 feasibility spike for the WASM (browsercc) runner |
+| `wasm-runner/` | In-browser runner (Clang/LLD as WebAssembly via browsercc + WASI); also runs in Node for the compatibility check |
+| `spike/` | M0 feasibility spike (superseded by `wasm-runner/`) |
 | `docker-compose.yml` | Runner service + Docker socket proxy |
 
 ## Run the backend
@@ -48,6 +58,15 @@ docker-compose version. Both share the same UI, lesson format and `Runner` inter
 docker compose --profile build-only build   # builds zth-sandbox and the runner
 docker compose up -d runner                 # API on http://localhost:8080
 curl localhost:8080/healthz
+```
+
+## Build the static (in-browser) version locally
+
+```bash
+cd app
+VITE_RUNNER=wasm npm run build        # or: VITE_RUNNER=wasm npx vite build --outDir dist-wasm
+npx vite preview --port 4173          # serves app/dist; the first visit downloads ~90 MB of compiler
+cd ../tools/e2e && node wasm.mjs      # drives it in a browser (APP_URL defaults to http://localhost:4173)
 ```
 
 ## Run the front end
@@ -66,7 +85,9 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ```bash
 cd app && npm test                                   # 99 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
 cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (4 scripts)
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (4 scripts; wasm.mjs separately, see above)
+cd wasm-runner && npm install && npm test            # the in-browser (WASM) runner on small programs; no Docker needed
+cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```
 
 The validator and e2e need the runner (`docker compose up -d runner`); e2e also needs the dev server. Set `SHOTS=<dir>` to save screenshots.

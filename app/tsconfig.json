@@ -5,6 +5,8 @@
     "lib": ["ES2023", "DOM"],
     "types": ["vite/client", "node"],
     "allowArbitraryExtensions": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
 
     /* Bundler mode */

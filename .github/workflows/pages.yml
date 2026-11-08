@@ -1,0 +1,95 @@
+# Static build for GitHub Pages: the in-browser (WebAssembly) runner, tracking `main`.
+# Lessons the browser compiler cannot teach are greyed out ("Server needed"), decided by the compatibility check
+# (content/wasm-compat.json), so adding content needs no other change here.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            wasm-runner/package-lock.json
+            tools/validate-content/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci --prefix app
+          npm ci --prefix wasm-runner
+          npm ci --prefix tools/validate-content
+
+      - name: App typecheck and unit tests
+        working-directory: app
+        run: |
+          npx tsc
+          npm test
+
+      - name: WASM runner self-test
+        run: npm test --prefix wasm-runner
+
+      # Re-runs only the lessons whose files, the harness or the runner changed, then insists the committed report
+      # matches. If this fails: run `npm run compat` in tools/validate-content and commit content/wasm-compat.json.
+      - name: Which lessons run in the browser?
+        run: |
+          npm run compat --prefix tools/validate-content
+          git diff --exit-code content/wasm-compat.json
+
+  deploy:
+    needs: verify
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            wasm-runner/package-lock.json
+      - uses: actions/configure-pages@v5
+
+      - name: Install
+        run: |
+          npm ci --prefix app
+          npm ci --prefix wasm-runner
+
+      - name: Build
+        run: npm run build --prefix app
+        env:
+          VITE_RUNNER: wasm
+          BASE_PATH: /${{ github.event.repository.name }}/
+
+      # browsercc ships a 19 MB precompiled header that this app never loads.
+      - name: Drop unused toolchain files
+        run: rm -f app/dist/assets/stdc__*.pch
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

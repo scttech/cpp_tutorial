@@ -54,6 +54,12 @@ export interface RunResult {
   timings: { compileMs: number; runMs: number };
 }
 
+export interface WarmUpProgress {
+  loaded: number;
+  /** 0 when the server did not say how large the download is. */
+  total: number;
+}
+
 export interface Runner {
   readonly id: string;
   readonly label: string;
@@ -62,7 +68,8 @@ export interface Runner {
   run(req: RunRequest, signal?: AbortSignal): Promise<RunResult>;
   /** Resolves true if the runner is reachable and ready. */
   health(): Promise<boolean>;
-  warmUp?(): Promise<void>;
+  /** Fetch whatever the runner needs ahead of the first Run (the in-browser compiler is ~90 MB). */
+  warmUp?(onProgress?: (p: WarmUpProgress) => void): Promise<void>;
 }
 
 export class RunnerError extends Error {

@@ -1,0 +1,104 @@
+{
+  "toolchain": "browsercc",
+  "lessons": {
+    "core.data-and-memory.arrays": {
+      "wasm": true,
+      "mutants": 10,
+      "hash": "a1fa7822052e9ff7"
+    },
+    "core.data-and-memory.capstone-inventory": {
+      "wasm": false,
+      "reason": "uses a C++ library feature the browser build lacks",
+      "details": [
+        "solution does not build: main.cpp:37:28: error: call to deleted function 'from_chars' |    37 |     const auto [ptr, ec] = std::from_chars(s.data(), end, out); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
+      ],
+      "hash": "0bc7ad0b225ea1e2"
+    },
+    "core.data-and-memory.find-the-bug": {
+      "wasm": true,
+      "mutants": 14,
+      "hash": "c5c7b95243d6aa0a"
+    },
+    "core.data-and-memory.pointers": {
+      "wasm": true,
+      "mutants": 17,
+      "hash": "07eeaaa49425f501"
+    },
+    "core.data-and-memory.references": {
+      "wasm": true,
+      "mutants": 13,
+      "hash": "38a091c0dc42682c"
+    },
+    "core.data-and-memory.strings": {
+      "wasm": true,
+      "mutants": 13,
+      "hash": "c10f733dfb530bef"
+    },
+    "core.data-and-memory.structs": {
+      "wasm": true,
+      "mutants": 19,
+      "hash": "e2e30e7df70abd65"
+    },
+    "core.data-and-memory.test-out": {
+      "wasm": true,
+      "mutants": 8,
+      "hash": "318304cd7cc99eda"
+    },
+    "core.data-and-memory.vector": {
+      "wasm": true,
+      "mutants": 12,
+      "hash": "7cd7a8a47ecb61f9"
+    },
+    "core.foundations.capstone-unit-converter": {
+      "wasm": false,
+      "reason": "uses a C++ library feature the browser build lacks",
+      "details": [
+        "solution does not build: main.cpp:71:28: error: call to deleted function 'from_chars' |    71 |     const auto [ptr, ec] = std::from_chars(first, last, value); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
+      ],
+      "hash": "f8d6da662ef4d958"
+    },
+    "core.foundations.control-flow": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution fails \"primes_up_to(5,000,000) finishes in time and finds 348513 primes\" [fail]: expected 348513, got 348425"
+      ],
+      "hash": "8952bdd17529748e"
+    },
+    "core.foundations.functions": {
+      "wasm": true,
+      "mutants": 5,
+      "hash": "bf1a450e4027b193"
+    },
+    "core.foundations.headers-and-build-model": {
+      "wasm": true,
+      "mutants": 4,
+      "hash": "4a3c836ad88dd4cd"
+    },
+    "core.foundations.hello-world": {
+      "wasm": true,
+      "mutants": 0,
+      "hash": "a0b0bda4863c202c"
+    },
+    "core.foundations.io-basics": {
+      "wasm": true,
+      "mutants": 5,
+      "hash": "bd2fb3c2d65197bb"
+    },
+    "core.foundations.operators-and-integers": {
+      "wasm": true,
+      "mutants": 4,
+      "hash": "06c02dfde3d127db"
+    },
+    "core.foundations.test-out": {
+      "wasm": true,
+      "mutants": 4,
+      "hash": "f9012dc756a05064"
+    },
+    "core.foundations.variables-and-types": {
+      "wasm": true,
+      "mutants": 2,
+      "hash": "48fd74a33794a77f"
+    }
+  }
+}

@@ -2,13 +2,22 @@ import { Link } from "react-router-dom";
 import { modules } from "../content/loader";
 import type { Lesson } from "../content/types";
 import { runner } from "../runner";
+import { wasmProblem } from "../content/wasmCompat";
 import { catalog } from "../badges/catalog";
 import { isModuleComplete } from "../badges/engine";
 import type { LessonProgress } from "../state/model";
 import { useAllProgress } from "../state/store";
 
-export const isRunnable = (l: Lesson) => (l.meta.requires ?? []).every((c) => runner.capabilities.has(c));
-export const missingCaps = (l: Lesson) => (l.meta.requires ?? []).filter((c) => !runner.capabilities.has(c));
+/** Why this lesson cannot run with the current runner, or null if it can. */
+export function unrunnableReason(l: Lesson): string | null {
+  const missing = (l.meta.requires ?? []).filter((c) => !runner.capabilities.has(c));
+  if (missing.length) return `it needs ${missing.join(", ")}`;
+  // The in-browser compiler differs from the Docker one; a compatibility check decides lesson by lesson.
+  if (runner.id === "wasm") return wasmProblem(l.meta.id);
+  return null;
+}
+export const isRunnable = (l: Lesson) => unrunnableReason(l) === null;
+const FULL_RUNNER = "the full Docker version";
 
 const KIND_LABEL: Partial<Record<Lesson["meta"]["type"], string>> = {
   capstone: "Capstone",
@@ -28,7 +37,7 @@ function Row({ lesson, p }: { lesson: Lesson; p: LessonProgress | undefined }) {
   const label = lesson.meta.type === "lesson" ? `${lesson.order}. ${lesson.meta.title}` : lesson.meta.title;
   if (!isRunnable(lesson)) {
     return (
-      <li className="locked" title={`Needs the full Docker runner: ${missingCaps(lesson).join(", ")}`}>
+      <li className="locked" title={`Not available in this version: ${unrunnableReason(lesson)}. Run ${FULL_RUNNER} to try it.`}>
         <span>{label}</span>
         <span className="badge">Server needed</span>
       </li>
