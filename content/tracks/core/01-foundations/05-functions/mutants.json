@@ -1,0 +1,7 @@
+[
+  {"name": "mean-empty-nan", "why": "no empty check: 0.0 / 0 is NaN.", "edits": [{"old": "double mean(const std::vector<double>& values) {\n    if (values.empty()) {\n        return 0.0;\n    }\n", "new": "double mean(const std::vector<double>& values) {\n"}]},
+  {"name": "median-assumes-sorted", "why": "median never sorts its copy, so unsorted input gives the wrong middle.", "edits": [{"old": "    std::sort(sorted.begin(), sorted.end());\n", "new": ""}]},
+  {"name": "mode-tie-largest", "why": ">= instead of > lets the later (larger) value win ties.", "edits": [{"old": "        if (count > best_count) {  // strictly greater: ties keep the smaller value\n", "new": "        if (count >= best_count) {  // strictly greater: ties keep the smaller value\n"}]},
+  {"name": "repeat-trailing-separator", "why": "appends the separator after every copy, including the last.", "edits": [{"old": "        if (i > 0) {\n            out += sep;\n        }\n", "new": ""}, {"old": "        out += s;\n", "new": "        out += s;\n        out += sep;\n"}]},
+  {"name": "wrong-default-times", "why": "default argument times = 1 instead of 2: repeat(\"ab\") is \"ab\".", "edits": [{"old": "std::string repeat(const std::string& s, int times = 2, const std::string& sep = \"\") {\n", "new": "std::string repeat(const std::string& s, int times = 1, const std::string& sep = \"\") {\n"}]}
+]

@@ -1,0 +1,10 @@
+[
+  {"name": "accepts-nan-inf", "why": "does not reject nan/inf, which from_chars parses happily.", "edits": [{"old": "    if (ec != std::errc{} || ptr != last || !std::isfinite(value)) {\n", "new": "    if (ec != std::errc{} || ptr != last) {\n"}]},
+  {"name": "default-precision", "why": "forgets std::fixed / setprecision(4).", "edits": [{"old": "    std::cout << words[1] << ' ' << words[2] << \" = \" << std::fixed << std::setprecision(4) << result << ' '\n", "new": "    std::cout << words[1] << ' ' << words[2] << \" = \" << result << ' '\n"}]},
+  {"name": "fahrenheit-no-offset", "why": "C->F multiplies by 9/5 but forgets to add 32.", "edits": [{"old": "        return (base - kZeroCelsiusInKelvin) * 9.0 / 5.0 + 32.0;\n", "new": "        return (base - kZeroCelsiusInKelvin) * 9.0 / 5.0;\n"}]},
+  {"name": "no-absolute-zero-check", "why": "allows temperatures below absolute zero.", "edits": [{"old": "    if (from->second.dimension == Dimension::Temperature && base < -1e-9) {\n", "new": "    if (from->second.dimension == Dimension::Temperature && false) {\n"}]},
+  {"name": "no-dimension-check", "why": "converts km to kg using the factors anyway.", "edits": [{"old": "    if (from->second.dimension != to->second.dimension) {\n", "new": "    if (false) {\n"}]},
+  {"name": "no-trailing-junk-check", "why": "accepts 5x as 5 because it ignores where parsing stopped.", "edits": [{"old": "    if (ec != std::errc{} || ptr != last || !std::isfinite(value)) {\n", "new": "    if (ec != std::errc{} || !std::isfinite(value)) {\n"}]},
+  {"name": "prints-negative-zero", "why": "does not normalize results that round to zero.", "edits": [{"old": "    if (std::abs(result) < 0.00005) {\n", "new": "    if (false) {\n"}]},
+  {"name": "quit-is-ignored", "why": "treats quit like a blank line and keeps going.", "edits": [{"old": "            break;\n", "new": "            continue;\n"}]}
+]

@@ -1,0 +1,22 @@
+[
+  {"name": "active-is-always-true", "why": "active() ignores dismissal.", "edits": [{"old": "    bool active() const noexcept { return static_cast<bool>(on_exit_); }\n", "new": "    bool active() const noexcept { return true; }\n"}]},
+  {"name": "active-is-inverted", "why": "active() says true when dismissed.", "edits": [{"old": "    bool active() const noexcept { return static_cast<bool>(on_exit_); }\n", "new": "    bool active() const noexcept { return !on_exit_; }\n"}]},
+  {"name": "dismiss-does-nothing", "why": "dismiss() does not cancel the cleanup.", "edits": [{"old": "    void dismiss() noexcept { on_exit_ = nullptr; }\n", "new": "    void dismiss() noexcept {}\n"}]},
+  {"name": "guard-can-be-copied", "why": "the copy constructor and assignment are not deleted.", "edits": [{"old": "    ScopeGuard(const ScopeGuard&) = delete;\n    ScopeGuard& operator=(const ScopeGuard&) = delete;\n", "new": ""}]},
+  {"name": "guard-copy-assignment-is-allowed", "why": "only the copy constructor is deleted.", "edits": [{"old": "    ScopeGuard& operator=(const ScopeGuard&) = delete;\n", "new": ""}]},
+  {"name": "guard-destructor-may-throw", "why": "the destructor is declared noexcept(false).", "edits": [{"old": "    ~ScopeGuard() {\n", "new": "    ~ScopeGuard() noexcept(false) {\n"}]},
+  {"name": "guard-lets-exceptions-escape-its-destructor", "why": "no try/catch: an exception thrown by the cleanup ends the program.", "edits": [{"old": "        try {\n            on_exit_();\n        } catch (...) {\n            // nothing sensible can be done here; swallow it\n        }\n", "new": "        on_exit_();\n"}]},
+  {"name": "guard-never-runs-its-function", "why": "the destructor does not call the function.", "edits": [{"old": "            on_exit_();\n", "new": ""}]},
+  {"name": "guard-runs-in-the-constructor", "why": "the function runs when the guard is made (and again when it is destroyed).", "edits": [{"old": "    explicit ScopeGuard(std::function<void()> on_exit) : on_exit_(std::move(on_exit)) {}\n", "new": "    explicit ScopeGuard(std::function<void()> on_exit) : on_exit_(std::move(on_exit)) {\n        if (on_exit_) on_exit_();\n    }\n"}]},
+  {"name": "guard-runs-its-function-twice", "why": "the destructor calls the function two times.", "edits": [{"old": "        try {\n", "new": "        try {\n            on_exit_();\n"}]},
+  {"name": "session-can-be-copied", "why": "the copy constructor and assignment are not deleted.", "edits": [{"old": "    Session(const Session&) = delete;\n    Session& operator=(const Session&) = delete;\n", "new": ""}]},
+  {"name": "session-destructor-may-throw", "why": "the destructor is declared noexcept(false).", "edits": [{"old": "    ~Session() {\n", "new": "    ~Session() noexcept(false) {\n"}]},
+  {"name": "session-does-not-log-the-close", "why": "the destructor logs nothing.", "edits": [{"old": "        log_.push_back(\"close \" + name_);\n", "new": ""}]},
+  {"name": "session-frees-its-token-twice", "why": "the token is deleted two times.", "edits": [{"old": "        delete token_;\n", "new": "        delete token_;\n        delete token_;\n"}]},
+  {"name": "session-leaks-its-token", "why": "the destructor never frees the token.", "edits": [{"old": "        delete token_;\n", "new": ""}]},
+  {"name": "session-logs-close-without-the-name", "why": "logs just `close`.", "edits": [{"old": "        log_.push_back(\"close \" + name_);\n", "new": "        log_.push_back(\"close\");\n"}]},
+  {"name": "session-logs-open-without-the-name", "why": "logs just `open`.", "edits": [{"old": "        log_.push_back(\"open \" + name_);\n", "new": "        log_.push_back(\"open\");\n"}]},
+  {"name": "session-logs-the-close-twice", "why": "the close line is written two times.", "edits": [{"old": "        log_.push_back(\"close \" + name_);\n", "new": "        log_.push_back(\"close \" + name_);\n        log_.push_back(\"close \" + name_);\n"}]},
+  {"name": "session-token-is-always-one", "why": "every session gets the token 1.", "edits": [{"old": "    Session(std::vector<std::string>& log, std::string name) : log_(log), name_(std::move(name)), token_(new int(++issued_)) {\n", "new": "    Session(std::vector<std::string>& log, std::string name) : log_(log), name_(std::move(name)), token_(new int(1)) {\n"}]},
+  {"name": "session-uses-the-wrong-delete", "why": "delete[] on memory from plain new.", "edits": [{"old": "        delete token_;\n", "new": "        delete[] token_;\n"}]}
+]

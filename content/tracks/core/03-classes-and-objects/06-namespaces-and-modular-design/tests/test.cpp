@@ -24,18 +24,6 @@ template <class T> constexpr bool comparable_via_adl = requires(const T& a, cons
 
 namespace {
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 // Text for failure messages and comparisons that does not depend on the learner's operators.
 std::string txt(const geo::Point& p) { return "(" + std::to_string(p.x) + ", " + std::to_string(p.y) + ")"; }
 std::string txt(const geo::Rect& r) { return "[" + txt(r.origin) + " " + std::to_string(r.width) + "x" + std::to_string(r.height) + "]"; }
@@ -43,77 +31,8 @@ std::string txt(const geo::Rect& r) { return "[" + txt(r.origin) + " " + std::to
 geo::Point P(int x, int y) { return geo::Point{x, y}; }
 geo::Rect R(int x, int y, int w, int h) { return geo::Rect{geo::Point{x, y}, w, h}; }
 
-// ---- what is at file scope in geometry.hpp? --------------------------------------------------------------------
-struct Layout {
-    std::vector<std::string> top_level_namespaces;
-    std::string leftover;      // whatever is not inside a namespace (other than preprocessor lines)
-    bool using_directive = false;
-    bool unnamed_namespace = false;
-    bool has_detail = false;
-};
-
-bool is_word_char(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; }
-
-Layout analyze(const std::string& code) {
-    Layout L;
-    std::string out;
-    const std::size_t n = code.size();
-    std::size_t i = 0;
-    while (i < n) {
-        if (code[i] == '#') {  // preprocessor line
-            while (i < n && code[i] != '\n') ++i;
-            continue;
-        }
-        if (code.compare(i, 9, "namespace") == 0 && (i == 0 || !is_word_char(code[i - 1])) && (i + 9 >= n || !is_word_char(code[i + 9]))) {
-            std::size_t j = out.size();
-            while (j > 0 && std::isspace(static_cast<unsigned char>(out[j - 1]))) --j;
-            const bool after_using = j >= 5 && out.compare(j - 5, 5, "using") == 0;
-            std::size_t k = i + 9;
-            while (k < n && code[k] != '{' && code[k] != ';' && code[k] != '=') ++k;
-            if (after_using) {
-                L.using_directive = true;
-            } else if (k < n && code[k] == '{') {
-                std::string name;
-                for (std::size_t m = i + 9; m < k; ++m)
-                    if (!std::isspace(static_cast<unsigned char>(code[m]))) name += code[m];
-                if (name.empty()) L.unnamed_namespace = true;
-                const std::string first = name.substr(0, name.find("::"));
-                if (!name.empty()) L.top_level_namespaces.push_back(first);
-                // find this namespace's closing brace; note `detail` namespaces on the way
-                int depth = 0;
-                std::size_t m = k;
-                for (; m < n; ++m) {
-                    if (code[m] == '{') ++depth;
-                    else if (code[m] == '}' && --depth == 0) { ++m; break; }
-                }
-                if (code.substr(k, m - k).find("namespace detail") != std::string::npos || name.find("detail") != std::string::npos) L.has_detail = true;
-                i = m;
-                continue;
-            }
-        }
-        // `namespace {` anywhere inside, e.g. nested in geo, is also an unnamed namespace
-        out += code[i];
-        ++i;
-    }
-    // nested unnamed namespaces (inside geo) are not seen above: look for them textually
-    for (std::size_t p = 0; (p = code.find("namespace", p)) != std::string::npos; p += 9) {
-        std::size_t q = p + 9;
-        while (q < n && std::isspace(static_cast<unsigned char>(code[q]))) ++q;
-        if (q < n && code[q] == '{') L.unnamed_namespace = true;
-        std::size_t b = p;
-        while (b > 0 && std::isspace(static_cast<unsigned char>(code[b - 1]))) --b;
-        if (b >= 5 && code.compare(b - 5, 5, "using") == 0) L.using_directive = true;
-    }
-    for (std::size_t p = 0; (p = code.find("namespace detail", p)) != std::string::npos; p += 16) L.has_detail = true;
-    std::size_t a = 0;
-    while (a < out.size() && std::isspace(static_cast<unsigned char>(out[a]))) ++a;
-    std::size_t z = out.size();
-    while (z > a && std::isspace(static_cast<unsigned char>(out[z - 1]))) --z;
-    L.leftover = out.substr(a, z - a);
-    return L;
-}
-
-Layout my_layout() { return analyze(::zth::strip_comments_and_literals(::zth::read_file("geometry.hpp"))); }
+// ---- what is at file scope in geometry.hpp? (zth::source_layout reads the learner's header) ----------------------
+zth::SourceLayout my_layout() { return zth::source_layout_of("geometry.hpp"); }
 
 }  // namespace
 
@@ -193,8 +112,8 @@ ZTH_TEST("robust", "bounding_box: one point, negative coordinates, a first point
     ZTH_EXPECT_EQ(txt(geo::bounding_box({{-1, -1}, {-1, -1}})), txt(R(-1, -1, 1, 1)));
 }
 ZTH_TEST("robust", "bounding_box of no points throws std::invalid_argument") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)geo::bounding_box({}); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { (void)geo::bounding_box({{0, 0}}); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)geo::bounding_box({}));
+    ZTH_EXPECT_NO_THROW((void)geo::bounding_box({{0, 0}}));
 }
 ZTH_TEST("robust", "huge coordinates do not overflow an int") {
     ZTH_EXPECT_EQ(geo::area(R(0, 0, 100000, 100000)), 10000000000LL);
@@ -214,11 +133,8 @@ ZTH_TEST("robust", "operator== for Point and Rect is found by argument-dependent
     ZTH_EXPECT_TRUE(probe::comparable_via_adl<geo::Rect>);
 }
 ZTH_TEST("robust", "contains, overlaps and area agree with a brute-force count over many small random rectangles") {
-    unsigned long long state = 7;
-    auto next = [&](int mod) {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<int>((state >> 33) % static_cast<unsigned>(mod));
-    };
+    zth::Lcg rng(7);
+    auto next = [&](int mod) { return rng.below(mod); };
     for (int round = 0; round < 400; ++round) {
         const geo::Rect a = R(next(11) - 5, next(11) - 5, next(7), next(7));
         const geo::Rect b = R(next(11) - 5, next(11) - 5, next(7), next(7));
@@ -243,11 +159,8 @@ ZTH_TEST("robust", "contains, overlaps and area agree with a brute-force count o
     }
 }
 ZTH_TEST("robust", "bounding_box contains every point and is as small as possible, for many random point sets") {
-    unsigned long long state = 11;
-    auto next = [&](int mod) {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<int>((state >> 33) % static_cast<unsigned>(mod));
-    };
+    zth::Lcg rng(11);
+    auto next = [&](int mod) { return rng.below(mod); };
     for (int round = 0; round < 200; ++round) {
         std::vector<geo::Point> pts;
         const int n = 1 + next(8);
@@ -273,7 +186,7 @@ ZTH_TEST("clean", "geometry.hpp has no unnamed namespace (in a header, every fil
     ZTH_EXPECT_FALSE(my_layout().unnamed_namespace);
 }
 ZTH_TEST("clean", "everything in geometry.hpp is inside namespace geo: nothing at file scope, and no second top-level namespace") {
-    const Layout L = my_layout();
+    const auto L = my_layout();
     if (!L.leftover.empty()) {
         ::zth::fail("there is code outside any namespace: `" + L.leftover.substr(0, 70) + "...` (move it inside namespace geo)");
         return;

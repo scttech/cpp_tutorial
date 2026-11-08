@@ -3,36 +3,19 @@
 //   usage: node modules.mjs        env: APP_URL (default http://localhost:5173), SHOTS (screenshot dir)
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:5173";
-const SHOTS = process.env.SHOTS;
+const t = createSuite({ track: "01-foundations/" });
+const { APP, check } = t;
 const M1 = new URL("../../content/tracks/core/01-foundations/", import.meta.url);
 const solution = (lesson, file) => readFile(fileURLToPath(new URL(`${lesson}/solution/${file}`, M1)), "utf8");
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-const consoleErrors = [];
-page.on("pageerror", (e) => consoleErrors.push(String(e)));
-page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-page.on("dialog", (d) => d.accept());
-const shot = async (name) => SHOTS && page.screenshot({ path: `${SHOTS}/${name}.png` });
-
-async function open(lessonId) {
-  await page.goto(`${APP}/#/lesson/${lessonId}`);
-  await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
-}
-async function setCode(text) {
-  await page.locator(".monaco-editor .view-lines").first().click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.insertText(text);
-}
+await t.launch();
+const page = await t.newPage();
+const shot = (name) => t.shot(page, name);
+const open = (lessonId) => t.open(page, lessonId);
+const setCode = (text) => t.setCode(page, text);
 const bannerAfterClick = async (button, expected) => {
   await page.getByRole("button", { name: button }).click();
   await page.locator(".results .panel-body .banner", { hasText: expected }).first().waitFor({ timeout: 40000 });
@@ -140,13 +123,8 @@ try {
   check((await module1.locator("h2 .badge.ok").first().textContent())?.includes("tested out"), "passing the test-out marks the module complete (tested out)");
   await shot("m1-home");
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n")[0]);
+  t.crashed(e);
   await shot("m1-error");
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 160) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

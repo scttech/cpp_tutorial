@@ -2,56 +2,24 @@
 // are greyed out. No Docker needed.
 //   prerequisites: cd app && VITE_RUNNER=wasm npx vite build --outDir dist-wasm && npx vite preview --outDir dist-wasm --port 4173
 //   usage: node wasm.mjs        env: APP_URL (default http://localhost:4173), SHOTS (screenshot dir)
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:4173";
-const SHOTS = process.env.SHOTS;
-const TRACKS = new URL("../../content/tracks/core/", import.meta.url);
-const solutionFiles = async (dir) => {
-  const base = new URL(`${dir}/solution/`, TRACKS);
-  const out = {};
-  for (const f of await readdir(fileURLToPath(base))) out[f] = await readFile(fileURLToPath(new URL(f, base)), "utf8");
-  return out;
-};
 const SLOW = 240000; // the first compile in a fresh browser loads ~90 MB of toolchain
+const t = createSuite({ app: "http://localhost:4173", track: "", timeoutMs: SLOW });
+const { APP, check, solutionFiles } = t;
+// which lessons the compatibility report says cannot run in the browser (the course map must grey out exactly those)
+const compat = JSON.parse(await readFile(fileURLToPath(new URL("../../content/wasm-compat.json", import.meta.url)), "utf8"));
+const NOT_IN_BROWSER = Object.values(compat.lessons).filter((l) => !l.wasm).length;
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
-
-const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
-const page = await ctx.newPage();
-const consoleErrors = [];
-page.on("pageerror", (e) => consoleErrors.push(String(e)));
-page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-page.on("dialog", (d) => d.accept());
-const shot = async (name) => SHOTS && page.screenshot({ path: `${SHOTS}/${name}.png` });
-
-async function open(id) {
-  await page.goto(`${APP}/#/lesson/${id}`);
-  await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
-}
-async function setCode(text) {
-  await page.locator(".monaco-editor .view-lines").first().click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.insertText(text);
-}
-async function setFile(name, text) {
-  await page.getByRole("tab", { name: new RegExp(`^${name.replace(".", "\\.")}`) }).click();
-  await page.waitForTimeout(120);
-  await setCode(text);
-}
-const runTests = async (expected) => {
-  await page.getByRole("tab", { name: "Tests" }).click();
-  await page.getByRole("button", { name: /Run Tests/ }).click();
-  await page.locator(".results .panel-body .banner", { hasText: expected }).first().waitFor({ timeout: SLOW });
-  return ((await page.locator(".results .panel-body .banner").first().textContent()) ?? "").trim();
-};
+await t.launch();
+const page = await t.newPage();
+const shot = (name) => t.shot(page, name);
+const open = (id) => t.open(page, id);
+const setCode = (text) => t.setCode(page, text);
+const setFile = (name, text) => t.setFile(page, name, text);
+const runTests = (expected) => t.runTests(page, expected);
 
 try {
   // ---------------- the course map greys out what cannot run here ----------------
@@ -61,8 +29,8 @@ try {
   const locked = page.locator(".lesson-list li.locked");
   const names = (await locked.locator("span:first-child").allTextContents()).map((t) => t.trim());
   console.log("      greyed out:", names.join(" | "));
-  check(names.length === 3, `exactly the 3 incompatible lessons are greyed out (${names.length})`);
-  check((await locked.locator(".badge", { hasText: "Server needed" }).count()) === 3, "each shows a 'Server needed' badge");
+  check(names.length === NOT_IN_BROWSER, `exactly the ${NOT_IN_BROWSER} lessons the compatibility report marks are greyed out (${names.length})`);
+  check((await locked.locator(".badge", { hasText: "Server needed" }).count()) === NOT_IN_BROWSER, "each shows a 'Server needed' badge");
   const tip = (await locked.first().getAttribute("title")) ?? "";
   check(/Not available in this version: .+Docker/.test(tip), `the tooltip says why (${tip.slice(0, 90)})`);
   check((await page.getByRole("link", { name: /Hello, World/ }).count()) === 1, "compatible lessons stay clickable");
@@ -149,13 +117,8 @@ try {
   const row = page.locator(".lesson-list li", { hasText: "std::vector" });
   check(((await row.textContent()) ?? "").includes("complete"), "completed lessons are marked on the course map");
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n").slice(0, 3).join(" | "));
+  t.crashed(e);
   await shot("w-failure");
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 200) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

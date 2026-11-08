@@ -171,11 +171,8 @@ ZTH_TEST("robust", "erasing a node with only a left child, only a right child, o
 ZTH_TEST("robust", "a long random sequence of inserts and erases always agrees with std::set") {
     Tree t;
     std::set<int> model;
-    unsigned long long state = 31337;
-    auto next = [&](int mod) {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<int>((state >> 33) % static_cast<unsigned>(mod));
-    };
+    zth::Lcg rng(31337);
+    auto next = [&](int mod) { return rng.below(mod); };
     for (int step = 0; step < 1500; ++step) {
         const int v = next(60) - 20;
         if (next(3) != 0) {

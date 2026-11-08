@@ -15,18 +15,6 @@ namespace {
 
 using std::size_t;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 // ---- API shape, as templates: a missing or wrongly-shaped operator is a clear test failure, not a compile error here.
 template <class V> constexpr bool has_plus = requires(const V& a, const V& b) { { a + b } -> std::same_as<V>; };
 template <class V> constexpr bool has_minus = requires(const V& a, const V& b) { { a - b } -> std::same_as<V>; };
@@ -164,12 +152,12 @@ void subscript_bounds_test() {
     NEED(has_subscript<V>&& has_const_subscript<V>, "`v[i]` needs a const and a non-const overload", {
         V v(7, 8);
         const V c(7, 8);
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)v[2]; }));
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)v[100]; }));
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c[2]; }));
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c[static_cast<size_t>(-1)]; }));
-        ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)v[1]; }));
-        ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)c[0]; }));
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)v[2]);
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)v[100]);
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)c[2]);
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)c[static_cast<size_t>(-1)]);
+        ZTH_EXPECT_NO_THROW((void)v[1]);
+        ZTH_EXPECT_NO_THROW((void)c[0]);
     })
 }
 
@@ -252,11 +240,8 @@ template <class V>
 void property_test() {
     NEED(has_plus<V>&& has_minus<V>&& has_times_right<V>&& has_times_left<V>&& has_negate<V>&& has_eq<V>&& has_plus_eq<V>&& has_dot<V>,
          "+, -, *, unary -, ==, += and dot must all exist", {
-        unsigned long long state = 99;
-        auto next = [&] {
-            state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-            return static_cast<int>((state >> 33) % 201) - 100;
-        };
+        zth::Lcg rng(99);
+        auto next = [&] { return static_cast<int>(rng.next() % 201) - 100; };
         for (int i = 0; i < 300; ++i) {
             const V a(next(), next()), b(next(), next()), c(next(), next());
             const int k = next();

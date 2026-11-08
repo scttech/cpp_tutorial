@@ -2,17 +2,12 @@
 // -fsanitize) is played back into the app, and the results panel must explain it in plain language.
 // (No lesson uses sanitizers yet, so the page cannot ask for them itself: this proves the display and the rules.)
 //   usage: node sanitizers.mjs      env: APP_URL (default http://localhost:5173), RUNNER_URL (default http://localhost:8080), SHOTS
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:5173";
+const t = createSuite();
+const { APP, SHOTS, check } = t;
 const RUNNER = process.env.RUNNER_URL ?? "http://localhost:8080";
-const SHOTS = process.env.SHOTS;
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
 
 const SAN = ["-std=c++20", "-fsanitize=address,undefined"];
 async function realResult(source) {
@@ -30,13 +25,9 @@ const leak = await realResult("int main() {\n    int* p = new int[10];\n    p[0]
 const overflow = await realResult("int main(int argc, char**) {\n    int big = 2147483647;\n    big += argc;\n    return big;\n}\n");
 check(uaf.report?.kind === "heap-use-after-free" && leak.report?.kind === "leak" && overflow.report?.kind === "signed-integer-overflow", "the runner produced the three real reports");
 
-const browser = await chromium.launch();
-const consoleErrors = [];
+await t.launch();
 try {
-  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
-  const page = await ctx.newPage();
-  page.on("pageerror", (e) => consoleErrors.push(String(e)));
-  page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
+  const page = await t.newPage();
   let answer = uaf;
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "POST, GET, OPTIONS" };
   await page.route("**/run", (route) => {
@@ -78,14 +69,9 @@ try {
   await page.getByRole("button", { name: /^▶ Run$/ }).click();
   await page.waitForTimeout(800);
   check((await page.locator(".runtime-card").count()) === 0, "no report, no card");
-  await ctx.close();
+  await page.context().close();
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n").slice(0, 3).join(" | "));
+  t.crashed(e);
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 160) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

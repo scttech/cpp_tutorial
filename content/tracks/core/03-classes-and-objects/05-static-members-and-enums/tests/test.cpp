@@ -224,11 +224,8 @@ ZTH_TEST("robust", "Order::allowed(from, to) is static and gives the whole trans
 ZTH_TEST("robust", "ids keep counting up for many orders made one at a time") { many_ids_test<Order>(); }
 ZTH_TEST("robust", "id() and status() work on a const order") { const_test<Order>(); }
 ZTH_TEST("robust", "a long random sequence of steps always follows the rules") {
-    unsigned long long state = 2024;
-    auto next = [&] {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<unsigned>(state >> 33);
-    };
+    zth::Lcg rng(2024);
+    auto next = [&] { return rng.next(); };
     for (int round = 0; round < 200; ++round) {
         Order o;
         Status model = Status::Created;

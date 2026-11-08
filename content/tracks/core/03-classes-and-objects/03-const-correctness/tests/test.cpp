@@ -11,18 +11,6 @@ namespace {
 
 using std::size_t;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 // ---- What can be done with a `const G&`? Each is false (not a compile error in this hidden file) if the class is not const-correct.
 template <class G> constexpr bool c_rows = requires(const G& g) { g.rows(); };
 template <class G> constexpr bool c_cols = requires(const G& g) { g.cols(); };
@@ -135,9 +123,9 @@ void const_bounds_test() {
         ::zth::fail("at() has no const overload");
     } else {
         const G g(2, 3, 0);
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)g.at(0, 3); }));
-        ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)g.at(2, 0); }));
-        ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)g.at(1, 2); }));
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)g.at(0, 3));
+        ZTH_EXPECT_THROWS(std::out_of_range, (void)g.at(2, 0));
+        ZTH_EXPECT_NO_THROW((void)g.at(1, 2));
     }
 }
 
@@ -183,18 +171,18 @@ ZTH_TEST("works", "row_sum takes the grid by const reference and adds up one row
 
 // ---- Robust --------------------------------------------------------------------------------------
 ZTH_TEST("robust", "a Grid needs at least one row and one column (std::invalid_argument)") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { Grid g(0, 3); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { Grid g(3, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { Grid g(0, 0); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { Grid g(1, 1); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Grid g(0, 3));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Grid g(3, 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Grid g(0, 0));
+    ZTH_EXPECT_NO_THROW(Grid g(1, 1));
 }
 ZTH_TEST("robust", "at() outside the grid throws std::out_of_range (row AND column are checked)") {
     Grid g(2, 3);
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { g.at(0, 3) = 1; }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { g.at(2, 0) = 1; }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { g.at(5, 5) = 1; }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { g.at(1, 2) = 1; }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)g.row_text(2); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, g.at(0, 3) = 1);
+    ZTH_EXPECT_THROWS(std::out_of_range, g.at(2, 0) = 1);
+    ZTH_EXPECT_THROWS(std::out_of_range, g.at(5, 5) = 1);
+    ZTH_EXPECT_NO_THROW(g.at(1, 2) = 1);
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)g.row_text(2));
 }
 ZTH_TEST("robust", "at() on a const Grid also checks its bounds") { const_bounds_test<Grid>(); }
 ZTH_TEST("robust", "total() is cached: asking again does not add the cells up again") {
@@ -236,11 +224,8 @@ ZTH_TEST("robust", "a long random sequence of writes, fills and reads always agr
     const size_t R = 4, C = 5;
     Grid g(R, C, 0);
     std::vector<int> model(R * C, 0);
-    unsigned long long state = 12345;
-    auto next = [&] {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<unsigned>(state >> 33);
-    };
+    zth::Lcg rng(12345);
+    auto next = [&] { return rng.next(); };
     for (int step = 0; step < 600; ++step) {
         unsigned op = next() % 5;
         size_t r = next() % R, c = next() % C;

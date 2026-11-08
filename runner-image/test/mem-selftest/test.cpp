@@ -2,6 +2,7 @@
 // Every "expect-*" test below must produce the status named in its title, using deliberately buggy code.
 #define ZTH_TRACK_ALLOCATIONS
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "zth_test.hpp"
@@ -132,4 +133,44 @@ ZTH_TEST("works", "Tracked: copying a vector copies every element") {
     zth::Tracked::reset();
     std::vector<zth::Tracked> w = v;
     ZTH_EXPECT_EQ(zth::Tracked::copies, 3);
+}
+
+// ---- the helpers for hidden tests: exceptions, the random generator, the source layout ----------------------
+ZTH_TEST("works", "clean: ZTH_EXPECT_THROWS accepts the expected type and a derived type, with commas in the code") {
+    ZTH_EXPECT_THROWS(std::logic_error, throw std::out_of_range("derived from logic_error"));
+    ZTH_EXPECT_THROWS(std::out_of_range, std::vector<int>().at(1));
+    ZTH_EXPECT_THROWS(std::invalid_argument, int a = 1, b = 2; (void)a; (void)b; throw std::invalid_argument("commas are fine"));
+}
+ZTH_TEST("works", "clean: ZTH_EXPECT_NO_THROW accepts code that does not throw") { ZTH_EXPECT_NO_THROW(int x = 1; (void)x); }
+ZTH_TEST("works", "expect-fail throws-nothing: code that throws nothing") { ZTH_EXPECT_THROWS(std::out_of_range, (void)1); }
+ZTH_TEST("works", "expect-fail throws-wrong-type: the wrong exception type") { ZTH_EXPECT_THROWS(std::out_of_range, throw std::invalid_argument("bad argument")); }
+ZTH_TEST("works", "expect-fail no-throw: code that throws") { ZTH_EXPECT_NO_THROW(throw std::runtime_error("boom")); }
+ZTH_TEST("works", "clean: Lcg is deterministic, in range, and not constant") {
+    zth::Lcg a(42), b(42);
+    bool varied = false;
+    int first = a.below(1000);
+    ZTH_EXPECT_EQ(first, b.below(1000));
+    for (int i = 0; i < 200; ++i) {
+        const int x = a.below(10), y = b.below(10);
+        ZTH_EXPECT_EQ(x, y);
+        ZTH_EXPECT_TRUE(x >= 0 && x < 10);
+        varied = varied || x != first % 10;
+    }
+    ZTH_EXPECT_TRUE(varied);
+}
+ZTH_TEST("works", "clean: source_layout finds namespaces, leftovers, using-directives and unnamed namespaces") {
+    const auto ok = zth::source_layout("#pragma once\n#include <vector>\nnamespace geo {\nnamespace detail { int h; }\nstruct P {};\n}\n");
+    ZTH_EXPECT_EQ(ok.leftover, std::string(""));
+    ZTH_EXPECT_EQ(ok.top_level_namespaces.size(), std::size_t{1});
+    ZTH_EXPECT_EQ(ok.top_level_namespaces[0], std::string("geo"));
+    ZTH_EXPECT_TRUE(ok.has_detail);
+    ZTH_EXPECT_FALSE(ok.using_directive);
+    ZTH_EXPECT_FALSE(ok.unnamed_namespace);
+    const auto bad = zth::source_layout("using namespace std;\nnamespace { int x; }\nint global_function() { return 1; }\nnamespace a::b { }\n");
+    ZTH_EXPECT_TRUE(bad.using_directive);
+    ZTH_EXPECT_TRUE(bad.unnamed_namespace);
+    ZTH_EXPECT_TRUE(bad.leftover.find("global_function") != std::string::npos);
+    ZTH_EXPECT_TRUE(bad.leftover.find("using namespace std;") != std::string::npos);
+    ZTH_EXPECT_EQ(bad.top_level_namespaces.size(), std::size_t{1});
+    ZTH_EXPECT_EQ(bad.top_level_namespaces[0], std::string("a"));
 }

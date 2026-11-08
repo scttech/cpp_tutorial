@@ -10,18 +10,6 @@
 
 namespace {
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 std::string s(const Text& t) { return std::string(t.c_str()); }
 
 // `a = b` must give back `a` itself, by reference. Written as a template so a wrong shape is a failed test, not a compile error.
@@ -226,10 +214,10 @@ ZTH_TEST("robust", "at() checks its index (const and non-const)") {
     const Text& c = a;
     ZTH_EXPECT_EQ(a.at(2), 'c');
     ZTH_EXPECT_EQ(c.at(0), 'a');
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)a.at(3); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c.at(3); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)a.at(3));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)c.at(3));
     Text e;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)e.at(0); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)e.at(0));
 }
 ZTH_TEST("robust", "long texts are copied completely") {
     std::string big(100000, 'q');

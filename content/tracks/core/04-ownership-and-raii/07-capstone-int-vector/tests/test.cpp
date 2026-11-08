@@ -15,18 +15,6 @@ namespace {
 
 using V = std::vector<int>;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 V vec(const IntVector& v) { return V(v.begin(), v.end()); }
 
 IntVector seq(int n) {  // 0, 1, ..., n-1, built with push_back
@@ -221,28 +209,28 @@ ZTH_TEST("works", "everything above leaks nothing and frees nothing twice") {
 ZTH_TEST("robust", "at(), front(), back(), pop_back() on a bad index or an empty vector throw std::out_of_range") {
     IntVector v{1, 2, 3};
     const IntVector& c = v;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)v.at(3); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c.at(3); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)v.at(2); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)v.at(3));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)c.at(3));
+    ZTH_EXPECT_NO_THROW((void)v.at(2));
     IntVector e;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)e.front(); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)e.back(); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { e.pop_back(); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)e.front());
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)e.back());
+    ZTH_EXPECT_THROWS(std::out_of_range, e.pop_back());
     const IntVector& ce = e;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)ce.front(); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)ce.back(); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)ce.front());
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)ce.back());
     ZTH_EXPECT_TRUE(e.empty());
 }
 ZTH_TEST("robust", "insert and erase check their position (std::out_of_range) and change nothing when they throw") {
     IntVector v{1, 2, 3};
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { v.insert(4, 9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { v.erase(3); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { v.erase(100); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, v.insert(4, 9));
+    ZTH_EXPECT_THROWS(std::out_of_range, v.erase(3));
+    ZTH_EXPECT_THROWS(std::out_of_range, v.erase(100));
     ZTH_EXPECT_EQ(vec(v), (V{1, 2, 3}));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { v.insert(3, 4); }));  // == size() is allowed
+    ZTH_EXPECT_NO_THROW(v.insert(3, 4));  // == size() is allowed
     IntVector e;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { e.erase(0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { e.insert(1, 1); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, e.erase(0));
+    ZTH_EXPECT_THROWS(std::out_of_range, e.insert(1, 1));
 }
 ZTH_TEST("robust", "push_back of one of the vector's own elements works even when it has to reallocate") {
     IntVector v{5, 6, 7, 8};  // full: capacity 4
@@ -408,11 +396,8 @@ ZTH_TEST("robust", "a std::vector of IntVectors keeps its values while it grows,
 ZTH_TEST("robust", "a long random sequence of operations always agrees with std::vector (and size <= capacity)") {
     IntVector mine;
     V model;
-    unsigned long long state = 777;
-    auto next = [&](int mod) {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<int>((state >> 33) % static_cast<unsigned>(mod));
-    };
+    zth::Lcg rng(777);
+    auto next = [&](int mod) { return rng.below(mod); };
     for (int step = 0; step < 3000; ++step) {
         const int op = next(14);
         const int value = next(1000) - 500;

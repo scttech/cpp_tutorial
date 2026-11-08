@@ -35,7 +35,7 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Lessons needing the server | Shown greyed out, marked "server needed" | Available |
 
 The static build is meant to be deployed to GitHub Pages by [.github/workflows/pages.yml](.github/workflows/pages.yml) on
-every push to `main`, so it tracks the docker-compose version. Lessons the browser compiler cannot teach are greyed out and marked
+every push to `master`, so it tracks the docker-compose version. Lessons the browser compiler cannot teach are greyed out and marked
 "server needed". Which ones is decided by a compatibility check, not by hand: it runs every lesson's starter, solution
 and mutants through the in-browser runner and writes [content/wasm-compat.json](content/wasm-compat.json). The workflow
 fails if that file is stale, so a new lesson needs no other change. Both builds share the same UI, lesson format and
@@ -90,7 +90,7 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ```bash
 cd app && npm test                                   # 119 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
 cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking, sanitizers), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang, every sanitizer rule vs real sanitizer output
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (6 scripts; wasm.mjs separately, see above)
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (7 scripts built on tools/e2e/lib.mjs; wasm.mjs separately, see above)
 cd wasm-runner && npm install && npm test            # the in-browser (WASM) runner on small programs; no Docker needed
 cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```
@@ -101,10 +101,12 @@ The validator and e2e need the runner (`docker compose up -d runner`); e2e also 
 
 - **A badge**: add an entry to a file in [content/badges/](content/badges/). Rules are data (`lesson-count`, `module-complete`, `tier-complete`, `streak-days`, ...), so no code change is needed. Badges whose rules refer to content that does not exist yet appear under "coming soon".
 - **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
-- **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a `mutants/` folder of plausible wrong solutions that the tests must reject.
+- **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a list of **mutants**: plausible wrong solutions that the tests must reject.
+  - **Mutants**: write them in the lesson's `mutants.json` (the source of truth): `{ "name", "why", "edits": [{ "old", "new" }] }`, where `old` must appear exactly once in the solution file. Then run `npm run mutants` in `tools/validate-content` to generate the `mutants/` directories (commit both; CI and `npm run validate` check that they match). Never edit a file in `mutants/` by hand. Changing a solution? Run `npm run mutants` and the validator: an `old` that no longer matches is reported by name.
   - Memory lessons: put `#define ZTH_TRACK_ALLOCATIONS` at the top of `tests/test.cpp`, then use `zth::mem::Scope` with `ZTH_EXPECT_NO_MEMORY_BUGS(scope)` / `ZTH_EXPECT_ALLOCS_AT_MOST(scope, n)`, and `zth::Tracked` to count copies and moves. See [runner-image/include/zth_test.hpp](runner-image/include/zth_test.hpp).
   - A module whose lessons are not all written yet sets `inProgress: true` in its `module.yaml`: finishing the lessons that exist does not complete it or award its Module Master badge (the test-out still can). Remove the flag when the module is finished (Modules 1-4 are).
   - Sanitizer lessons: put `-fsanitize=address,undefined` in the lesson's `flags` and `requires: [sanitizers]` (the static build then greys the lesson out); raise `limits.memoryMb` to 256 (sanitized programs use more memory). A sanitizer report ends only the test it happened in (status "Crashed", `stopped by a sanitizer: ...`); the results panel explains the first report in plain language and offers the raw one. Leaks are reported by LeakSanitizer in plain runs; in tests use `ZTH_TRACK_ALLOCATIONS`, which also poisons freed blocks under AddressSanitizer so a read after `delete` is a report, not a silent garbage value. To add or change an explanation, edit [content/diagnostics/runtime.yaml](content/diagnostics/runtime.yaml) (every rule needs a `trigger` program, checked by `runtime-check.mjs`).
+  - Harness helpers for hidden tests (all in [runner-image/include/zth_test.hpp](runner-image/include/zth_test.hpp)): `ZTH_EXPECT_THROWS(Ex, code)` / `ZTH_EXPECT_NO_THROW(code)` (the failure message quotes the code and what was thrown instead), `zth::Lcg` (a seeded random generator, so a failing random test is reproducible), and `zth::source_layout_of("file.hpp")` (what is at file scope: namespaces, `using namespace`, leftovers).
   - More harness helpers for hidden tests: `ZTH_EXPECT_NO_RAW_MEMORY("main.cpp")` (scans the learner's source for `new`/`delete`/`malloc`/`free`), `zth::dirty_stack()` (makes uninitialized reads reproducible), and placement-new over `0xAB`-filled memory to expose member-initialization-order bugs.
 
 Backend tests (need Docker):

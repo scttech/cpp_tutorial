@@ -1,0 +1,6 @@
+[
+  {"name": "exclusive-end", "why": "uses c < end so the end value is never printed.", "edits": [{"old": "    for (long long c = start; c <= end; c += step) {\n", "new": "    for (long long c = start; c < end; c += step) {\n"}]},
+  {"name": "int-loop-counter-overflows", "why": "int loop counter: c += step overflows (UB) near INT_MAX and the loop never ends.", "edits": [{"old": "    for (long long c = start; c <= end; c += step) {\n", "new": "    for (int c = start; c <= end; c += step) {\n"}]},
+  {"name": "integer-division", "why": "computes C * 9 / 5 + 32 in integer arithmetic before converting to double.", "edits": [{"old": "        const double fahrenheit = static_cast<double>(c) * 9.0 / 5.0 + 32.0;\n", "new": "        const double fahrenheit = static_cast<double>(c * 9 / 5 + 32);\n"}]},
+  {"name": "no-fixed-precision", "why": "forgets std::fixed, so 32.0 prints as 32.", "edits": [{"old": "    std::cout << std::fixed << std::setprecision(1);\n", "new": "    \n"}]}
+]

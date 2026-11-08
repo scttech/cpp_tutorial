@@ -12,18 +12,6 @@
 namespace {
 
 // true if `f()` throws an Ex (or something derived from it); any other outcome, including a different exception, is false
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 const std::string kMax = "$92233720368547758.07";   // LLONG_MAX cents
 const std::string kMin = "-$92233720368547758.08";  // LLONG_MIN cents
 
@@ -72,27 +60,27 @@ ZTH_TEST("works", "the cents constructor is explicit: a plain number must not tu
 
 // ---- Robust --------------------------------------------------------------------------------------
 ZTH_TEST("robust", "cents outside 0..99 throw std::invalid_argument, and so does negative dollars") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(1, 100); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(1, 1000); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(1, -1); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(-1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(-5, 50); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(1, 100));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(1, 1000));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(1, -1));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(-1, 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(-5, 50));
 }
 ZTH_TEST("robust", "the edges of the valid range are accepted") {
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { (void)Money(0, 0); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { (void)Money(0, 99); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { (void)Money(7, 0); }));
+    ZTH_EXPECT_NO_THROW((void)Money(0, 0));
+    ZTH_EXPECT_NO_THROW((void)Money(0, 99));
+    ZTH_EXPECT_NO_THROW((void)Money(7, 0));
     ZTH_EXPECT_EQ(Money(1, 99).cents(), 199LL);
 }
 ZTH_TEST("robust", "an amount that does not fit in a long long throws std::overflow_error; the largest one that fits does not") {
     ZTH_EXPECT_EQ(Money(92233720368547758LL, 7).cents(), LLONG_MAX);
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(92233720368547758LL, 8); }));
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(92233720368547759LL, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(LLONG_MAX, 0); }));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(92233720368547758LL, 8));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(92233720368547759LL, 0));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(LLONG_MAX, 0));
 }
 ZTH_TEST("robust", "an invalid argument is reported before an overflow: Money(LLONG_MAX, 100) is invalid_argument") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(LLONG_MAX, 100); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Money(LLONG_MAX, -1); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(LLONG_MAX, 100));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Money(LLONG_MAX, -1));
 }
 ZTH_TEST("robust", "to_string works at both ends of the range (negating LLONG_MIN would overflow)") {
     ZTH_EXPECT_EQ(Money(LLONG_MAX).to_string(), kMax);
@@ -100,9 +88,9 @@ ZTH_TEST("robust", "to_string works at both ends of the range (negating LLONG_MI
     ZTH_EXPECT_EQ(Money(LLONG_MIN + 1).to_string(), std::string("-$92233720368547758.07"));
 }
 ZTH_TEST("robust", "plus throws std::overflow_error instead of wrapping around") {
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(LLONG_MAX).plus(Money(1)); }));
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(LLONG_MIN).plus(Money(-1)); }));
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([] { (void)Money(1).plus(Money(LLONG_MAX)); }));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(LLONG_MAX).plus(Money(1)));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(LLONG_MIN).plus(Money(-1)));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)Money(1).plus(Money(LLONG_MAX)));
 }
 ZTH_TEST("robust", "plus is exact right up to the limits") {
     ZTH_EXPECT_EQ(Money(LLONG_MAX).plus(Money(0)).cents(), LLONG_MAX);

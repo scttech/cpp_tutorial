@@ -24,5 +24,18 @@ if (!leak?.message?.includes("1 allocation(s) (100 bytes)")) {
   console.log(`FAIL  leak report must count only the learner's allocation (1 block, 100 bytes), got: ${leak?.message}`);
   bad++;
 }
+// ZTH_EXPECT_THROWS / ZTH_EXPECT_NO_THROW must say what went wrong, quoting the code
+for (const [name, wanted] of [
+  ["expect-fail throws-nothing", ["`(void)1`", "to throw std::out_of_range", "nothing was thrown"]],
+  ["expect-fail throws-wrong-type", ["to throw std::out_of_range", "something else", "bad argument"]],
+  ["expect-fail no-throw", ["not to throw", "boom"]],
+]) {
+  const t = res.tests.find((x) => x.name.startsWith(name));
+  const missing = wanted.filter((w) => !(t?.message ?? "").includes(w));
+  if (!t || missing.length) {
+    console.log(`FAIL  the message of "${name}" should contain ${JSON.stringify(missing)}, got: ${t?.message}`);
+    bad++;
+  }
+}
 console.log(bad ?`\n${bad} harness self-test(s) failed` : "\nharness self-test passed");
 process.exit(bad ? 1 : 0);

@@ -15,18 +15,6 @@ namespace {
 
 using V = std::vector<int>;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 V vec(const Buffer& b) { return V(b.begin(), b.end()); }
 
 Buffer seq(std::size_t n) {  // 0, 1, 2, ..., n-1
@@ -142,12 +130,12 @@ ZTH_TEST("works", "building, copying, moving, resizing and destroying Buffers le
 ZTH_TEST("robust", "at() throws std::out_of_range for an index >= size (const and non-const)") {
     Buffer b = seq(3);
     const Buffer& c = b;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)b.at(3); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c.at(3); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)c.at(1000); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)b.at(2); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)b.at(3));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)c.at(3));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)c.at(1000));
+    ZTH_EXPECT_NO_THROW((void)b.at(2));
     Buffer e;
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)e.at(0); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)e.at(0));
 }
 ZTH_TEST("robust", "assigning a Buffer to itself, by copy or by move, leaves it intact") {
     Buffer a = seq(4);

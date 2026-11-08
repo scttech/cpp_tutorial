@@ -1,0 +1,12 @@
+[
+  {"name": "at-or-off-by-one", "why": "uses > instead of >=, so index == size reads one past the end.", "edits": [{"old": "    if (index >= a.size()) return fallback;  // unsigned index: no need to test for < 0\n", "new": "    if (index > a.size()) return fallback;\n"}]},
+  {"name": "at-or-signed-compare", "why": "compares as int, so a huge unsigned index (-1) looks negative and passes the check.", "edits": [{"old": "    if (index >= a.size()) return fallback;  // unsigned index: no need to test for < 0\n", "new": "    if (static_cast<int>(index) >= static_cast<int>(a.size())) return fallback;\n"}]},
+  {"name": "index-of-last-match", "why": "returns the last match instead of the first.", "edits": [{"old": "    for (std::size_t i = 0; i < a.size(); ++i) {\n", "new": "    for (std::size_t i = a.size(); i-- > 0;) {\n"}]},
+  {"name": "index-of-not-found-npos", "why": "returns size_t(-1) instead of a.size() when absent.", "edits": [{"old": "    return a.size();\n", "new": "    return static_cast<std::size_t>(-1);\n"}]},
+  {"name": "index-of-skips-last", "why": "never looks at the last element.", "edits": [{"old": "    for (std::size_t i = 0; i < a.size(); ++i) {\n", "new": "    for (std::size_t i = 0; i + 1 < a.size(); ++i) {\n"}]},
+  {"name": "sum-int-accumulator", "why": "accumulates in int, which overflows.", "edits": [{"old": "    long long total = 0;  // long long: INT_MAX + INT_MAX does not fit in an int\n", "new": "    int total = 0;\n"}]},
+  {"name": "sum-off-by-one", "why": "stops one element early.", "edits": [{"old": "    for (std::size_t i = 0; i < count; ++i) total += data[i];\n", "new": "    for (std::size_t i = 0; i + 1 < count; ++i) total += data[i];\n"}]},
+  {"name": "sum-skips-first", "why": "starts at index 1.", "edits": [{"old": "    for (std::size_t i = 0; i < count; ++i) total += data[i];\n", "new": "    for (std::size_t i = 1; i < count; ++i) total += data[i];\n"}]},
+  {"name": "transpose-first-row-only", "why": "only the first row is transposed.", "edits": [{"old": "    for (std::size_t r = 0; r < m.size(); ++r) {\n", "new": "    for (std::size_t r = 0; r < 1; ++r) {\n"}]},
+  {"name": "transpose-same-index", "why": "writes result[r][c] instead of result[c][r], so nothing is transposed.", "edits": [{"old": "            result[c][r] = m[r][c];\n", "new": "            result[r][c] = m[r][c];\n"}]}
+]

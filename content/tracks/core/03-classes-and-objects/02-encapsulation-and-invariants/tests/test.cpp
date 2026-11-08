@@ -13,18 +13,6 @@ namespace {
 using Hist = std::vector<long long>;
 
 // true if `f()` throws an Ex (or something derived from it); any other outcome, including a different exception, is false
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 long long sum_of(const Hist& h) { return std::accumulate(h.begin(), h.end(), 0LL); }
 
 // The three invariants that can be read through the public interface.
@@ -100,18 +88,18 @@ ZTH_TEST("works", "a transfer without enough money returns false and changes not
 
 // ---- Robust --------------------------------------------------------------------------------------
 ZTH_TEST("robust", "an empty owner or a negative opening balance is rejected with std::invalid_argument") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { BankAccount a(""); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { BankAccount a("", 100); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { BankAccount a("Ada", -1); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { BankAccount a("Ada", 0); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { BankAccount a("A", LLONG_MAX); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, BankAccount a(""));
+    ZTH_EXPECT_THROWS(std::invalid_argument, BankAccount a("", 100));
+    ZTH_EXPECT_THROWS(std::invalid_argument, BankAccount a("Ada", -1));
+    ZTH_EXPECT_NO_THROW(BankAccount a("Ada", 0));
+    ZTH_EXPECT_NO_THROW(BankAccount a("A", LLONG_MAX));
 }
 ZTH_TEST("robust", "a deposit or withdrawal of zero or less throws std::invalid_argument and changes nothing") {
     BankAccount a("Ada", 100);
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { a.deposit(0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { a.deposit(-5); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { (void)a.withdraw(0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { (void)a.withdraw(-5); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, a.deposit(0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, a.deposit(-5));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)a.withdraw(0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)a.withdraw(-5));
     ZTH_EXPECT_EQ(a.balance(), 100LL);
     ZTH_EXPECT_EQ(a.history(), (Hist{100}));
 }
@@ -123,7 +111,7 @@ ZTH_TEST("robust", "a refused withdrawal leaves no trace in the history") {
 }
 ZTH_TEST("robust", "a deposit that would overflow throws std::overflow_error and changes nothing") {
     BankAccount a("Ada", LLONG_MAX - 5);
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([&] { a.deposit(10); }));
+    ZTH_EXPECT_THROWS(std::overflow_error, a.deposit(10));
     ZTH_EXPECT_EQ(a.balance(), LLONG_MAX - 5);
     ZTH_EXPECT_EQ(a.history().size(), std::size_t{1});
     a.deposit(5);  // exactly reaching the maximum is fine
@@ -147,8 +135,8 @@ ZTH_TEST("robust", "owner(), balance() and history() are const member functions 
 }
 ZTH_TEST("robust", "a transfer of zero or less throws std::invalid_argument and changes nothing") {
     BankAccount a("Ada", 100), b("Bob", 50);
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { (void)a.transfer_to(b, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { (void)a.transfer_to(b, -30); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)a.transfer_to(b, 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)a.transfer_to(b, -30));
     ZTH_EXPECT_EQ(a.balance(), 100LL);
     ZTH_EXPECT_EQ(b.balance(), 50LL);
     ZTH_EXPECT_EQ(a.history(), (Hist{100}));
@@ -162,7 +150,7 @@ ZTH_TEST("robust", "a transfer is recorded as a withdrawal for one account and a
 }
 ZTH_TEST("robust", "a transfer is all or nothing: if the receiver would overflow, neither account changes") {
     BankAccount a("Ada", 100), b("Bob", LLONG_MAX - 1);
-    ZTH_EXPECT_TRUE(throws<std::overflow_error>([&] { (void)a.transfer_to(b, 5); }));
+    ZTH_EXPECT_THROWS(std::overflow_error, (void)a.transfer_to(b, 5));
     ZTH_EXPECT_EQ(a.balance(), 100LL);
     ZTH_EXPECT_EQ(b.balance(), LLONG_MAX - 1);
     ZTH_EXPECT_EQ(a.history(), (Hist{100}));
@@ -178,11 +166,8 @@ ZTH_TEST("robust", "transferring to the same account changes nothing (but still 
 }
 ZTH_TEST("robust", "the invariants survive a long, messy sequence of operations") {
     BankAccount a("Ada", 1000), b("Bob", 10);
-    std::uint64_t seed = 12345;
-    auto next = [&seed](long long mod) {  // a small deterministic pseudo-random generator
-        seed = seed * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<long long>((seed >> 33) % static_cast<std::uint64_t>(mod));
-    };
+    zth::Lcg rng(12345);
+    auto next = [&](long long mod) { return static_cast<long long>(rng.next() % static_cast<std::uint64_t>(mod)); };
     for (int i = 0; i < 2000; ++i) {
         BankAccount& from = next(2) ? a : b;
         BankAccount& to = (&from == &a) ? b : a;

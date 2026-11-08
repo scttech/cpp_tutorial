@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "node harness-selftest.mjs && node sanitizer-selftest.mjs && node validate.mjs && node friendly-check.mjs && node runtime-check.mjs",
+    "validate": "node mutants.mjs --check && node harness-selftest.mjs && node sanitizer-selftest.mjs && node validate.mjs && node friendly-check.mjs && node runtime-check.mjs",
+    "mutants": "node mutants.mjs",
+    "mutants:check": "node mutants.mjs --check",
     "compat": "node compat-wasm.mjs",
     "compat:check": "node compat-wasm.mjs --check"
   },

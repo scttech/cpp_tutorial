@@ -1,31 +1,17 @@
 // End-to-end check of the learner loop against a running dev server + runner.
 //   prerequisites: `docker compose up -d runner`, and `npm run dev` in /app
 //   usage: node run.mjs            env: APP_URL (default http://localhost:5173), SHOTS (screenshot dir)
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:5173";
-const SHOTS = process.env.SHOTS;
+const t = createSuite();
+const { APP, check, shot } = t;
 const LESSON = "core.foundations.hello-world";
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
-const shot = async (page, name) => SHOTS && page.screenshot({ path: `${SHOTS}/${name}.png` });
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-const consoleErrors = [];
-page.on("pageerror", (e) => consoleErrors.push(String(e)));
-page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-page.on("dialog", (d) => d.accept()); // confirm() prompts
+await t.launch();
+const page = await t.newPage();
 
-async function setCode(text) {
-  await page.locator(".monaco-editor .view-lines").first().click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.insertText(text); // bypasses auto-closing brackets / auto-indent
-}
+const setCode = (text) => t.setCode(page, text);
 // Click Run Tests, then wait for a result banner matching `expected` (avoids reading a stale result).
 const runTests = async (expected) => {
   await page.getByRole("button", { name: /Run Tests/ }).click();
@@ -104,13 +90,8 @@ try {
   await page.getByText(/Cannot reach the runner/).waitFor({ timeout: 10000 });
   check(true, "unreachable runner shows a friendly message");
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n")[0]);
+  t.crashed(e);
   await shot(page, "error");
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 160) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

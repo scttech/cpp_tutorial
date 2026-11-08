@@ -18,18 +18,6 @@ std::string str(const Fraction& f) {
 }
 
 // true if `f()` throws exactly an Ex (or something derived from it); any other outcome is false
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 // API-shape checks as templates: if the learner's class does not have the shape, these are false instead of a
 // compile error inside this hidden file.
 template <class F>
@@ -127,13 +115,13 @@ ZTH_TEST("works", "printing: 3/4, -3/4, and a whole number without the denominat
 
 // ---- Robust --------------------------------------------------------------------------------------
 ZTH_TEST("robust", "a zero denominator throws std::invalid_argument") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Fraction(1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { (void)Fraction(0, 0); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Fraction(1, 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, (void)Fraction(0, 0));
 }
 ZTH_TEST("robust", "dividing by a zero fraction throws std::domain_error (and by a non-zero one does not)") {
-    ZTH_EXPECT_TRUE(throws<std::domain_error>([] { (void)(Fraction(1, 2) / Fraction(0)); }));
-    ZTH_EXPECT_TRUE(throws<std::domain_error>([] { (void)(Fraction(1, 2) / Fraction(0, 5)); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { (void)(Fraction(0) / Fraction(1, 2)); }));
+    ZTH_EXPECT_THROWS(std::domain_error, (void)(Fraction(1, 2) / Fraction(0)));
+    ZTH_EXPECT_THROWS(std::domain_error, (void)(Fraction(1, 2) / Fraction(0, 5)));
+    ZTH_EXPECT_NO_THROW((void)(Fraction(0) / Fraction(1, 2)));
 }
 ZTH_TEST("robust", "an integer works on either side of + - * /  (so the operators are not members)") {
     mixed_test<Fraction>();

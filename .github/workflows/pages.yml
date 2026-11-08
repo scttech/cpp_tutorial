@@ -1,11 +1,11 @@
-# Static build for GitHub Pages: the in-browser (WebAssembly) runner, tracking `main`.
+# Static build for GitHub Pages: the in-browser (WebAssembly) runner, tracking the default branch (`master`).
 # Lessons the browser compiler cannot teach are greyed out ("Server needed"), decided by the compatibility check
 # (content/wasm-compat.json), so adding content needs no other change here.
 name: Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]   # this repository's default branch; a push here verifies and deploys
   pull_request:
   workflow_dispatch:
 
@@ -44,6 +44,11 @@ jobs:
 
       - name: WASM runner self-test
         run: npm test --prefix wasm-runner
+
+      # Each lesson's mutants/ directories are generated from its mutants.json. If this fails: run `npm run mutants` in
+      # tools/validate-content and commit the result.
+      - name: Mutant directories match mutants.json
+        run: npm run mutants:check --prefix tools/validate-content
 
       # Re-runs only the lessons whose files, the harness or the runner changed, then insists the committed report
       # matches. If this fails: run `npm run compat` in tools/validate-content and commit content/wasm-compat.json.

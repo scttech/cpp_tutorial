@@ -17,6 +17,7 @@
 #include <csignal>
 #endif
 #include <cctype>
+#include <exception>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -66,6 +67,69 @@ inline void fail(std::string msg) {
         g_message = std::move(msg);
     }
 }
+
+// ---- a small deterministic random number generator for property-style tests ---------------------
+// The same seed always gives the same numbers, on every run and every machine, so a failing random test is reproducible.
+struct Lcg {
+    unsigned long long state;
+    explicit Lcg(unsigned long long seed) : state(seed) {}
+    unsigned next() {  // 31 pseudo-random bits
+        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+        return static_cast<unsigned>(state >> 33);
+    }
+    int below(int n) { return static_cast<int>(next() % static_cast<unsigned>(n)); }  // 0 .. n-1
+};
+
+// ---- expecting exceptions ---------------------------------------------------------------------
+#ifdef __cpp_exceptions
+enum class ThrowKind { None, Expected, Other };
+struct ThrowOutcome {
+    ThrowKind kind = ThrowKind::None;
+    std::string what;  // the message of what was thrown, when it is a std::exception
+};
+
+// Calls f and says what happened: nothing was thrown, an `Ex` (or something derived from it) was thrown, or something else.
+template <class Ex, class F>
+ThrowOutcome try_call(F&& f) {
+    ThrowOutcome out;
+    if constexpr (std::is_base_of_v<std::exception, Ex>) {
+        try {
+            f();
+        } catch (const std::exception& e) {  // one handler, so that Ex == std::exception does not shadow a later one
+            out.kind = dynamic_cast<const Ex*>(&e) ? ThrowKind::Expected : ThrowKind::Other;
+            out.what = e.what();
+        } catch (...) {
+            out.kind = ThrowKind::Other;
+            out.what = "(not a std::exception)";
+        }
+    } else {
+        try {
+            f();
+        } catch (const Ex&) {
+            out.kind = ThrowKind::Expected;
+        } catch (const std::exception& e) {
+            out.kind = ThrowKind::Other;
+            out.what = e.what();
+        } catch (...) {
+            out.kind = ThrowKind::Other;
+            out.what = "(not a std::exception)";
+        }
+    }
+    return out;
+}
+
+// true if f throws an Ex (or a type derived from it): for the odd place where a plain yes/no is needed
+template <class Ex, class F>
+bool throws(F&& f) {
+    return try_call<Ex>(f).kind == ThrowKind::Expected;
+}
+
+inline std::string shorten(std::string code) {
+    for (char& c : code)
+        if (c == '\n') c = ' ';
+    return code.size() > 90 ? code.substr(0, 87) + "..." : code;
+}
+#endif
 
 // ---- value formatting for failure messages ---------------------------------------------------
 template <typename T, typename = void>
@@ -324,6 +388,78 @@ struct Tracked {
     bool operator==(const Tracked& o) const { return value == o.value; }
 };
 inline std::ostream& operator<<(std::ostream& os, const Tracked& t) { return os << t.value; }
+
+
+// ---- what is at file scope in a header? (for "everything must be inside the namespace" checks) ----------
+struct SourceLayout {
+    std::vector<std::string> top_level_namespaces;  // the first name of each `namespace x { ... }` at file scope
+    std::string leftover;            // whatever else is at file scope (other than preprocessor lines), trimmed
+    bool using_directive = false;    // `using namespace x;` anywhere
+    bool unnamed_namespace = false;  // `namespace { ... }` anywhere
+    bool has_detail = false;         // a namespace called `detail` anywhere
+};
+
+// `code` should have its comments and literals blanked (strip_comments_and_literals).
+inline SourceLayout source_layout(const std::string& code) {
+    auto is_word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    auto is_space = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
+    SourceLayout L;
+    std::string out;
+    const std::size_t n = code.size();
+    std::size_t i = 0;
+    while (i < n) {
+        if (code[i] == '#') {  // a preprocessor line
+            while (i < n && code[i] != '\n') ++i;
+            continue;
+        }
+        if (code.compare(i, 9, "namespace") == 0 && (i == 0 || !is_word(code[i - 1])) && (i + 9 >= n || !is_word(code[i + 9]))) {
+            std::size_t j = out.size();
+            while (j > 0 && is_space(out[j - 1])) --j;
+            const bool after_using = j >= 5 && out.compare(j - 5, 5, "using") == 0;
+            std::size_t k = i + 9;
+            while (k < n && code[k] != '{' && code[k] != ';' && code[k] != '=') ++k;
+            if (!after_using && k < n && code[k] == '{') {  // a namespace block: skip all of it
+                std::string name;
+                for (std::size_t m = i + 9; m < k; ++m)
+                    if (!is_space(code[m])) name += code[m];
+                if (!name.empty()) L.top_level_namespaces.push_back(name.substr(0, name.find("::")));
+                int depth = 0;
+                std::size_t m = k;
+                for (; m < n; ++m) {
+                    if (code[m] == '{') {
+                        ++depth;
+                    } else if (code[m] == '}' && --depth == 0) {
+                        ++m;
+                        break;
+                    }
+                }
+                i = m;
+                continue;
+            }
+        }
+        out += code[i];
+        ++i;
+    }
+    // facts that can be anywhere, also inside the namespaces
+    for (std::size_t p = 0; (p = code.find("namespace", p)) != std::string::npos; p += 9) {
+        std::size_t q = p + 9;
+        while (q < n && is_space(code[q])) ++q;
+        if (q < n && code[q] == '{') L.unnamed_namespace = true;
+        std::size_t b = p;
+        while (b > 0 && is_space(code[b - 1])) --b;
+        if (b >= 5 && code.compare(b - 5, 5, "using") == 0) L.using_directive = true;
+    }
+    if (code.find("namespace detail") != std::string::npos) L.has_detail = true;
+    std::size_t a = 0;
+    while (a < out.size() && is_space(out[a])) ++a;
+    std::size_t z = out.size();
+    while (z > a && is_space(out[z - 1])) --z;
+    L.leftover = out.substr(a, z - a);
+    return L;
+}
+
+// The layout of one of the learner's files (read from the current directory).
+inline SourceLayout source_layout_of(const char* file) { return source_layout(strip_comments_and_literals(read_file(file))); }
 
 }  // namespace zth
 
@@ -669,6 +805,33 @@ inline int run_all() {
             return;                                                                                 \
         }                                                                                           \
     } while (0)
+
+// Passes if the code throws an `Ex` (or a type derived from it). A different exception, or none at all, is a clear failure.
+//   ZTH_EXPECT_THROWS(std::out_of_range, v.at(10));     (the code may contain commas and several statements)
+// ZTH_EXPECT_NO_THROW(code) fails, quoting the message, if the code throws anything.
+#ifdef __cpp_exceptions
+#define ZTH_EXPECT_THROWS(Ex, ...)                                                                                   \
+    do {                                                                                                             \
+        const ::zth::ThrowOutcome zth_t = ::zth::try_call<Ex>([&] { __VA_ARGS__; });                                 \
+        if (zth_t.kind == ::zth::ThrowKind::None) {                                                                  \
+            ::zth::fail("expected `" + ::zth::shorten(#__VA_ARGS__) + "` to throw " #Ex ", but nothing was thrown"); \
+            return;                                                                                                  \
+        }                                                                                                            \
+        if (zth_t.kind == ::zth::ThrowKind::Other) {                                                                 \
+            ::zth::fail("expected `" + ::zth::shorten(#__VA_ARGS__) + "` to throw " #Ex ", but it threw something else: " + zth_t.what); \
+            return;                                                                                                  \
+        }                                                                                                            \
+    } while (0)
+
+#define ZTH_EXPECT_NO_THROW(...)                                                                                     \
+    do {                                                                                                             \
+        const ::zth::ThrowOutcome zth_t = ::zth::try_call<std::exception>([&] { __VA_ARGS__; });                     \
+        if (zth_t.kind != ::zth::ThrowKind::None) {                                                                  \
+            ::zth::fail("expected `" + ::zth::shorten(#__VA_ARGS__) + "` not to throw, but it threw: " + zth_t.what); \
+            return;                                                                                                  \
+        }                                                                                                            \
+    } while (0)
+#endif
 
 // Run the learner's main() with the given stdin; returns zth::Captured {out, exit_code}.
 #define ZTH_RUN_USER_MAIN(...) ::zth::run_main(&zth_user_main, ##__VA_ARGS__)

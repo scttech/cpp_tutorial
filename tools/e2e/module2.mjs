@@ -2,68 +2,12 @@
 // solution (including the multi-file ones), the Fast tier is driven by allocation counting, the module completes
 // and awards its badges, and the test-out still completes the module on its own.
 //   usage: node module2.mjs        env: APP_URL (default http://localhost:5173), SHOTS (screenshot dir)
-import { readFile, readdir } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:5173";
-const SHOTS = process.env.SHOTS;
-const M2 = new URL("../../content/tracks/core/02-data-and-memory/", import.meta.url);
-const solutionFiles = async (dir) => {
-  const base = new URL(`${dir}/solution/`, M2);
-  const out = {};
-  for (const f of await readdir(fileURLToPath(base))) out[f] = await readFile(fileURLToPath(new URL(f, base)), "utf8");
-  return out;
-};
+const t = createSuite({ track: "02-data-and-memory/" });
+const { APP, check, shot, open, setCode, setFile, runTests, solutionFiles, solve, newPage } = t;
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
-
-const browser = await chromium.launch();
-const consoleErrors = [];
-async function newPage() {
-  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } }); // fresh storage
-  const page = await ctx.newPage();
-  page.on("pageerror", (e) => consoleErrors.push(String(e)));
-  page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-  page.on("dialog", (d) => d.accept());
-  return page;
-}
-const shot = async (page, name) => SHOTS && page.screenshot({ path: `${SHOTS}/${name}.png` });
-
-async function open(page, lessonId) {
-  await page.goto(`${APP}/#/lesson/${lessonId}`);
-  await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
-}
-async function setCode(page, text) {
-  await page.locator(".monaco-editor .view-lines").first().click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.insertText(text);
-}
-async function setFile(page, name, text) {
-  await page.getByRole("tab", { name: new RegExp(`^${name.replace(".", "\\.")}`) }).click();
-  await page.waitForTimeout(120);
-  await setCode(page, text);
-}
-const runTests = async (page, expected) => {
-  await page.getByRole("tab", { name: "Tests" }).click();
-  await page.getByRole("button", { name: /Run Tests/ }).click();
-  await page.locator(".results .panel-body .banner", { hasText: expected }).first().waitFor({ timeout: 90000 });
-  return ((await page.locator(".results .panel-body .banner").first().textContent()) ?? "").trim();
-};
-/** Solve a lesson with its reference solution; `files` lists the editable files (tab order). */
-async function solve(page, id, dir, label) {
-  await open(page, id);
-  const sol = await solutionFiles(dir);
-  const first = await runTests(page, /did not compile|tests passed|failed/);
-  check(!/All tests passed/.test(first), `${label}: the initial code does not pass (${first})`);
-  for (const [name, text] of Object.entries(sol)) await setFile(page, name, text);
-  const b = await runTests(page, /All tests passed/);
-  check(/All tests passed/.test(b), `${label}: ${b}`);
-}
+await t.launch();
 
 try {
   const page = await newPage();
@@ -156,12 +100,7 @@ try {
   await shot(fresh, "m2-testout-home");
   await fresh.close();
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n").slice(0, 3).join(" | "));
+  t.crashed(e);
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 160) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

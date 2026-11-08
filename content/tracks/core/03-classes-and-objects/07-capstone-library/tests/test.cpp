@@ -18,18 +18,6 @@ using lib::Library;
 using lib::Status;
 using Ids = std::vector<int>;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 // A copy of a book (so that the tests do not depend on Book's getters being const: another test checks that).
 lib::Book B(Library& L, int id) { return L.book(id); }
 
@@ -121,64 +109,8 @@ void const_book_test() {
     }
 }
 
-// ---- source scan of library.hpp --------------------------------------------------------------------------------
-bool is_word_char(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; }
-
-struct Layout {
-    std::string leftover;
-    std::vector<std::string> namespaces;
-    bool using_directive = false;
-};
-
-Layout analyze(const std::string& code) {
-    Layout L;
-    std::string out;
-    const std::size_t n = code.size();
-    std::size_t i = 0;
-    while (i < n) {
-        if (code[i] == '#') {
-            while (i < n && code[i] != '\n') ++i;
-            continue;
-        }
-        if (code.compare(i, 9, "namespace") == 0 && (i == 0 || !is_word_char(code[i - 1])) && (i + 9 >= n || !is_word_char(code[i + 9]))) {
-            std::size_t j = out.size();
-            while (j > 0 && std::isspace(static_cast<unsigned char>(out[j - 1]))) --j;
-            const bool after_using = j >= 5 && out.compare(j - 5, 5, "using") == 0;
-            std::size_t k = i + 9;
-            while (k < n && code[k] != '{' && code[k] != ';' && code[k] != '=') ++k;
-            if (after_using) {
-                L.using_directive = true;
-            } else if (k < n && code[k] == '{') {
-                std::string name;
-                for (std::size_t m = i + 9; m < k; ++m)
-                    if (!std::isspace(static_cast<unsigned char>(code[m]))) name += code[m];
-                L.namespaces.push_back(name.substr(0, name.find("::")));
-                int depth = 0;
-                std::size_t m = k;
-                for (; m < n; ++m) {
-                    if (code[m] == '{') ++depth;
-                    else if (code[m] == '}' && --depth == 0) { ++m; break; }
-                }
-                i = m;
-                continue;
-            }
-        }
-        out += code[i];
-        ++i;
-    }
-    for (std::size_t p = 0; (p = code.find("namespace", p)) != std::string::npos; p += 9) {
-        std::size_t b = p;
-        while (b > 0 && std::isspace(static_cast<unsigned char>(code[b - 1]))) --b;
-        if (b >= 5 && code.compare(b - 5, 5, "using") == 0) L.using_directive = true;
-    }
-    std::size_t a = 0;
-    while (a < out.size() && std::isspace(static_cast<unsigned char>(out[a]))) ++a;
-    std::size_t z = out.size();
-    while (z > a && std::isspace(static_cast<unsigned char>(out[z - 1]))) --z;
-    L.leftover = out.substr(a, z - a);
-    return L;
-}
-Layout my_layout() { return analyze(::zth::strip_comments_and_literals(::zth::read_file("library.hpp"))); }
+// ---- source scan of library.hpp (zth::source_layout reads the learner's header) ---------------------------------
+zth::SourceLayout my_layout() { return zth::source_layout_of("library.hpp"); }
 
 }  // namespace
 
@@ -290,23 +222,23 @@ ZTH_TEST("works", "to_string gives each status its name") {
 // ================================================ Robust ======================================================
 ZTH_TEST("robust", "an unknown member or book is std::out_of_range, in every function that takes an id") {
     Library L = make(1, 1);
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(9, 1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(1, 9, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(0, 1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(1, 0, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(-1, 1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.checkout(1, -1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.return_book(9, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.return_book(0, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.mark_lost(9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.book(9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.book(0); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.fines_owed(9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.loans(9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { (void)L.loans_of(9); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.pay_fine(9, 5); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)L.book(1); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { (void)L.loans(1); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(9, 1, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(1, 9, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(0, 1, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(1, 0, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(-1, 1, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.checkout(1, -1, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.return_book(9, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.return_book(0, 0));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.mark_lost(9));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.book(9));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.book(0));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.fines_owed(9));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.loans(9));
+    ZTH_EXPECT_THROWS(std::out_of_range, (void)L.loans_of(9));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.pay_fine(9, 5));
+    ZTH_EXPECT_NO_THROW((void)L.book(1));
+    ZTH_EXPECT_NO_THROW((void)L.loans(1));
     ZTH_EXPECT_TRUE(B(L, 1).status() == Status::Available);  // none of that changed anything
 }
 ZTH_TEST("robust", "a failed checkout with an unknown id changes nothing") {
@@ -352,18 +284,18 @@ ZTH_TEST("robust", "partial payments reduce what is owed; paying more than owed 
     ZTH_EXPECT_EQ(L.fines_owed(1), 250LL);
     L.pay_fine(1, 100);
     ZTH_EXPECT_EQ(L.fines_owed(1), 150LL);
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.pay_fine(1, 151); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.pay_fine(1, 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.pay_fine(1, -5); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.pay_fine(1, 151));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.pay_fine(1, 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.pay_fine(1, -5));
     ZTH_EXPECT_EQ(L.fines_owed(1), 150LL);
-    ZTH_EXPECT_FALSE(throws<std::exception>([&] { L.pay_fine(1, 150); }));  // exactly what is owed
+    ZTH_EXPECT_NO_THROW(L.pay_fine(1, 150));  // exactly what is owed
     ZTH_EXPECT_EQ(L.fines_owed(1), 0LL);
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.pay_fine(1, 1); }));  // nothing owed: any payment is too much
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.pay_fine(1, 1));  // nothing owed: any payment is too much
 }
 ZTH_TEST("robust", "pay_fine checks the member before the amount") {
     Library L = make(1, 0);
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.pay_fine(5, -1); }));
-    ZTH_EXPECT_TRUE(throws<std::out_of_range>([&] { L.pay_fine(0, 0); }));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.pay_fine(5, -1));
+    ZTH_EXPECT_THROWS(std::out_of_range, L.pay_fine(0, 0));
 }
 ZTH_TEST("robust", "a lost book that was on loan costs its borrower the lost fee and leaves their loans") {
     Library L = make(2, 2);
@@ -445,20 +377,20 @@ ZTH_TEST("robust", "each member has their own loan count and their own fines") {
 }
 ZTH_TEST("robust", "an empty name, title or author is std::invalid_argument and the library is unchanged") {
     Library L;
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.add_member(""); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.add_book("", "Someone"); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { L.add_book("Something", ""); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.add_member(""));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.add_book("", "Someone"));
+    ZTH_EXPECT_THROWS(std::invalid_argument, L.add_book("Something", ""));
     ZTH_EXPECT_EQ(L.member_count(), std::size_t{0});
     ZTH_EXPECT_EQ(L.book_count(), std::size_t{0});
     ZTH_EXPECT_EQ(L.add_member("Ada"), 1);  // the failed attempts did not use up an id
     ZTH_EXPECT_EQ(L.add_book("Dune", "Frank Herbert"), 1);
 }
 ZTH_TEST("robust", "a Book needs a positive id, a title and an author (std::invalid_argument)") {
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { lib::Book b("Dune", "Frank Herbert", 0); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { lib::Book b("Dune", "Frank Herbert", -3); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { lib::Book b("", "Frank Herbert", 1); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([] { lib::Book b("Dune", "", 1); }));
-    ZTH_EXPECT_FALSE(throws<std::exception>([] { lib::Book b("Dune", "Frank Herbert", 1); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, lib::Book b("Dune", "Frank Herbert", 0));
+    ZTH_EXPECT_THROWS(std::invalid_argument, lib::Book b("Dune", "Frank Herbert", -3));
+    ZTH_EXPECT_THROWS(std::invalid_argument, lib::Book b("", "Frank Herbert", 1));
+    ZTH_EXPECT_THROWS(std::invalid_argument, lib::Book b("Dune", "", 1));
+    ZTH_EXPECT_NO_THROW(lib::Book b("Dune", "Frank Herbert", 1));
 }
 ZTH_TEST("robust", "huge fines do not overflow an int") {
     Library L = make(1, 1);
@@ -475,11 +407,8 @@ ZTH_TEST("robust", "a long random sequence of operations always agrees with a si
     struct MB { int status = 0; int borrower = 0; int due = 0; };  // 0 Available, 1 OnLoan, 2 Lost
     MB books[B + 1];
     long long fines[M + 1] = {};
-    unsigned long long state = 4242;
-    auto next = [&](int mod) {
-        state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-        return static_cast<int>((state >> 33) % static_cast<unsigned>(mod));
-    };
+    zth::Lcg rng(4242);
+    auto next = [&](int mod) { return rng.below(mod); };
     int today = 0;
     auto loans_of_model = [&](int m) {
         int c = 0;
@@ -543,11 +472,11 @@ ZTH_TEST("robust", "a long random sequence of operations always agrees with a si
 ZTH_TEST("clean", "library.hpp does not use new, delete, malloc or free") { ZTH_EXPECT_NO_RAW_MEMORY("library.hpp"); }
 ZTH_TEST("clean", "library.hpp has no `using namespace` directive") { ZTH_EXPECT_FALSE(my_layout().using_directive); }
 ZTH_TEST("clean", "everything in library.hpp is inside namespace lib") {
-    const Layout L = my_layout();
+    const auto L = my_layout();
     if (!L.leftover.empty()) {
         ::zth::fail("there is code outside any namespace: `" + L.leftover.substr(0, 70) + "...` (move it inside namespace lib)");
         return;
     }
-    ZTH_EXPECT_EQ(L.namespaces.size(), std::size_t{1});
-    ZTH_EXPECT_TRUE(!L.namespaces.empty() && L.namespaces[0] == "lib");
+    ZTH_EXPECT_EQ(L.top_level_namespaces.size(), std::size_t{1});
+    ZTH_EXPECT_TRUE(!L.top_level_namespaces.empty() && L.top_level_namespaces[0] == "lib");
 }

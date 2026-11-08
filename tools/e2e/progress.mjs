@@ -3,42 +3,20 @@
 //   usage: node progress.mjs        env: APP_URL (default http://localhost:5173), SHOTS (screenshot dir)
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createSuite } from "./lib.mjs";
 
-const APP = process.env.APP_URL ?? "http://localhost:5173";
-const SHOTS = process.env.SHOTS;
+const t = createSuite({ track: "01-foundations/" });
+const { APP, check, shot } = t;
 const M1 = new URL("../../content/tracks/core/01-foundations/", import.meta.url);
 const solution = (dir, file) => readFile(fileURLToPath(new URL(`${dir}/solution/${file}`, M1)), "utf8");
 const HELLO = "core.foundations.hello-world";
 
-let failures = 0;
-const check = (ok, what) => {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${what}`);
-  if (!ok) failures++;
-};
 
-const browser = await chromium.launch();
-const consoleErrors = [];
+await t.launch();
 
-async function newPage(opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, acceptDownloads: true });
-  if (opts.init) await ctx.addInitScript(opts.init);
-  const page = await ctx.newPage();
-  page.on("pageerror", (e) => consoleErrors.push(String(e)));
-  page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
-  page.on("dialog", (d) => d.accept());
-  return page;
-}
-const shot = async (page, name) => SHOTS && page.screenshot({ path: `${SHOTS}/${name}.png` });
-const openLesson = async (page, id) => {
-  await page.goto(`${APP}/#/lesson/${id}`);
-  await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
-};
-const setCode = async (page, text) => {
-  await page.locator(".monaco-editor .view-lines").first().click();
-  await page.keyboard.press("Control+A");
-  await page.keyboard.insertText(text);
-};
+const newPage = (opts = {}) => t.newPage({ ...opts, acceptDownloads: true });
+const openLesson = (page, id) => t.open(page, id);
+const setCode = (page, text) => t.setCode(page, text);
 const click = async (page, name, waitFor) => {
   await page.getByRole("button", { name }).click();
   await page.locator(".results .panel-body", { hasText: waitFor }).first().waitFor({ timeout: 40000 });
@@ -192,12 +170,7 @@ try {
   await shot(old, "p4-migrated-profile");
   await old.close();
 } catch (e) {
-  failures++;
-  console.log("FAIL  unexpected error:", e.message.split("\n").slice(0, 4).join(" | "));
+  t.crashed(e);
 }
 
-const real = consoleErrors.filter((e) => !/Failed to load resource|net::ERR/.test(e));
-check(real.length === 0, `no unexpected browser console errors${real.length ? ": " + real[0].slice(0, 200) : ""}`);
-await browser.close();
-console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
-process.exit(failures ? 1 : 0);
+await t.finish();

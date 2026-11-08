@@ -12,18 +12,6 @@ namespace {
 
 using NodeP = std::shared_ptr<Node>;
 
-template <class Ex, class F>
-bool throws(F&& f) {
-    try {
-        f();
-    } catch (const Ex&) {
-        return true;
-    } catch (...) {
-        return false;
-    }
-    return false;
-}
-
 NodeP mk(const char* name) { return Node::make(name); }
 
 std::string names(const NodeP& n) {
@@ -185,18 +173,18 @@ ZTH_TEST("robust", "a grandchild we still hold keeps its own subtree alive but n
 }
 ZTH_TEST("robust", "null nodes are std::invalid_argument") {
     NodeP a = mk("a");
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(nullptr, a); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(a, nullptr); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(nullptr, nullptr); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(nullptr, a));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(a, nullptr));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(nullptr, nullptr));
     ZTH_EXPECT_TRUE(a->children().empty());
     Node::detach(nullptr);  // harmless
 }
 ZTH_TEST("robust", "a node cannot be placed under itself or under one of its own descendants (std::invalid_argument)") {
     Sample s;
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(s.root, s.root); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(s.notes, s.root); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(s.docs, s.docs); }));
-    ZTH_EXPECT_TRUE(throws<std::invalid_argument>([&] { Node::add_child(s.notes, s.docs); }));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(s.root, s.root));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(s.notes, s.root));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(s.docs, s.docs));
+    ZTH_EXPECT_THROWS(std::invalid_argument, Node::add_child(s.notes, s.docs));
     // nothing changed
     ZTH_EXPECT_EQ(names(s.root), std::string("docs,music"));
     ZTH_EXPECT_TRUE(s.root->parent() == nullptr);
