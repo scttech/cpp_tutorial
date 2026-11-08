@@ -55,6 +55,10 @@ async function validate(dir) {
       if (t.status === "fail" && !t.message) errors.push(`test "${t.name}" fails without a message`);
     }
     for (const tier of declared) if (!sol.tests.some((t) => t.tier === tier)) errors.push(`declared tier "${tier}" has no tests`);
+    // A passing solution must also END cleanly: a sanitizer report or a non-zero exit would show the learner a scary card
+    // next to "All tests passed".
+    if (sol.report) errors.push(`solution passes its tests but a sanitizer reported: ${sol.report.summary} (${sol.report.location ? sol.report.location.file + ":" + sol.report.location.line : "no location"})`);
+    else if (sol.tests.every((t) => t.status === "pass") && sol.exitCode !== 0) errors.push(`solution passes every test but the run ended with exit code ${sol.exitCode} (signal ${sol.signal ?? "none"})`);
   }
 
   // 2. starter

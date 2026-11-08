@@ -1,0 +1,211 @@
+# Friendly explanations for what the SANITIZERS report while a program runs (lessons built with -fsanitize=...).
+# Rules are tried IN ORDER against the report's one-line `summary` (for example "AddressSanitizer: heap-use-after-free");
+# the first match wins. The raw report is always still available on the Console tab.
+#
+#   id        unique name
+#   match     JavaScript regex tested against the summary
+#   title     a few words: what happened
+#   friendly  plain-language explanation. Placeholders: {where} = file:line of the bad access (or "your code"),
+#             {freed} / {allocated} = file:line where the memory was freed / allocated (when the report says),
+#             {access} = "READ of size 4". `backticks` render as code. Apostrophes are doubled ('') inside single quotes.
+#   lesson    (optional) lesson id with the full explanation
+#   flags     (optional, for the trigger) compiler flags; default: -std=c++20 -fsanitize=address,undefined
+#   trigger   a program that makes the REAL sandbox produce this report; tools/validate-content/runtime-check.mjs
+#             runs every trigger and checks the rule fires (and that no earlier rule shadows it)
+
+# ---- memory errors (AddressSanitizer) -----------------------------------------------------------------
+- id: heap-use-after-free
+  match: '^AddressSanitizer: (heap-use-after-free|use-after-poison)'   # use-after-poison: the test harness poisons the blocks it keeps after a delete
+  title: "Used memory after it was freed"
+  friendly: "The program touched heap memory ({where}) after it had been given back. It was freed at {freed}. A pointer keeps its old address after `delete`: it does not know the memory is gone, so reading or writing through it is undefined behavior. Stop using the pointer after freeing (or set it to `nullptr`), and prefer a `std::vector`, `std::string` or smart pointer, which free for you."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main() {
+        int* p = new int(5);
+        delete p;
+        return *p;
+    }
+
+- id: stack-use-after-scope
+  match: '^AddressSanitizer: stack-use-after-scope'
+  title: "Used a variable after its block ended"
+  friendly: "The program used a local variable ({where}) after the `{ }` block it was declared in had ended. The variable no longer exists, but a pointer or reference to it is still around. Keep the variable alive as long as anything refers to it, or copy the value instead of keeping its address."
+  lesson: core.data-and-memory.references
+  trigger: |
+    int* g;
+    int main() {
+        { int x = 3; g = &x; }
+        return *g;
+    }
+
+- id: stack-use-after-return
+  match: '^AddressSanitizer: stack-use-after-return'
+  title: "Used a local variable after its function returned"
+  friendly: "The program used the address of a local variable ({where}) after the function that owned it had returned. Locals live on the stack and are destroyed when the function ends, so a pointer or reference to one must never be returned. Return the value itself, or return something that owns its memory (such as a `std::vector` or `std::string`)."
+  lesson: core.data-and-memory.references
+  trigger: |
+    int* make() { int x = 7; return &x; }
+    int main() { return *make(); }
+
+- id: heap-buffer-overflow
+  match: '^AddressSanitizer: heap-buffer-overflow'
+  title: "Went past the end of a heap array"
+  friendly: "The program did a {access} at {where}, just outside a block of heap memory (a `new[]`, a `std::vector` or a `std::string`). That is a bug in an index or a loop bound: the last valid index is `size() - 1`, so `i <= n` and `v[v.size()]` are one too far. Check the loop condition, or use `.at(i)`, which throws instead."
+  lesson: core.data-and-memory.vector
+  trigger: |
+    #include <vector>
+    int main() { std::vector<int> v{1, 2, 3}; return v[3]; }
+
+- id: stack-buffer-overflow
+  match: '^AddressSanitizer: stack-buffer-overflow'
+  title: "Went past the end of an array on the stack"
+  friendly: "The program did a {access} at {where}, outside a local array. The valid indices of an array of `n` elements are `0` to `n - 1`. Check the index (and the loop bound) that reaches this line."
+  lesson: core.data-and-memory.arrays
+  trigger: |
+    int main(int argc, char**) {
+        int a[4] = {1, 2, 3, 4};
+        int* p = a;
+        return p[argc + 4];
+    }
+
+- id: global-buffer-overflow
+  match: '^AddressSanitizer: global-buffer-overflow'
+  title: "Went past the end of a global array"
+  friendly: "The program did a {access} at {where}, outside a global (or `static`) array. The valid indices of an array of `n` elements are `0` to `n - 1`."
+  lesson: core.data-and-memory.arrays
+  trigger: |
+    int g[3] = {1, 2, 3};
+    int main(int argc, char**) {
+        int* p = g;
+        return p[argc + 2];
+    }
+
+- id: double-free
+  match: '^AddressSanitizer: double-free'
+  title: "Freed the same memory twice"
+  friendly: "`delete` (or `free`) was called twice on the same memory: the second call is at {where}. The first one freed it at {freed}. Two owners both think they must free it. Give the memory exactly one owner, and let that owner free it; a `std::unique_ptr` makes a second free impossible."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main() {
+        int* p = new int(5);
+        delete p;
+        delete p;
+    }
+
+- id: bad-free
+  match: '^AddressSanitizer: bad-free'
+  title: "Freed memory that was not allocated"
+  friendly: "`delete` (or `free`) was called at {where} on an address that is not the start of a heap block: it may be a local variable, a pointer into the middle of an array, or an address that was never allocated. Only pass `delete` exactly what `new` returned."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main() {
+        int x = 3;
+        int* p = &x;
+        delete p;
+    }
+
+- id: alloc-dealloc-mismatch
+  match: '^AddressSanitizer: alloc-dealloc-mismatch'
+  title: "Freed with the wrong kind of delete"
+  friendly: "The memory allocated at {allocated} was freed at {where} with the wrong form of delete. Memory from `new[]` must be freed with `delete[]`, and memory from `new` with `delete`. Mixing them is undefined behavior. A `std::vector` removes the problem."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main() {
+        int* p = new int[4];
+        delete p;
+    }
+
+- id: leak
+  match: '^LeakSanitizer: leak'
+  title: "Memory was never freed"
+  friendly: "Memory allocated at {allocated} was never freed: when the program ended, nothing pointed to it any more, so nothing could free it. Every `new` needs exactly one matching `delete`, on every path (including early returns and exceptions). The easy fix is to stop using `new`: let a `std::vector`, `std::string` or `std::unique_ptr` own the memory."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main() {
+        int* p = new int[10];
+        p[0] = 1;
+        p = nullptr;
+    }
+
+- id: stack-overflow
+  match: '^AddressSanitizer: stack-overflow'
+  title: "The stack ran out"
+  friendly: "The program used up its whole stack, almost always because a function calls itself without ever stopping (or without getting closer to the stop condition), at {where}. Check the base case of the recursion, or use a loop."
+  trigger: |
+    int f(int n) { return f(n + 1) + 1; }
+    int main() { return f(0); }
+
+- id: segv
+  match: '^AddressSanitizer: segv'
+  title: "Read or wrote an address that does not exist"
+  friendly: "The program accessed an invalid address at {where}. The usual causes are a pointer that was never set, one that points to something freed, or an index far out of range. Check where the pointer on that line comes from."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main(int argc, char**) {
+        int* p = reinterpret_cast<int*>(static_cast<long>(argc) * 4096);
+        return *p;
+    }
+
+# ---- undefined behavior (UBSan) -----------------------------------------------------------------------
+- id: signed-integer-overflow
+  match: '^UndefinedBehaviorSanitizer: (signed integer overflow|negation of)'
+  title: "A signed integer overflowed"
+  friendly: "An `int` calculation at {where} went beyond the largest (or smallest) value the type can hold. For signed integers that is undefined behavior, not a wrap-around: the compiler may assume it never happens. Use a wider type (`long long`), or check before you add or multiply (for example `a > INT_MAX - b`)."
+  lesson: core.foundations.operators-and-integers
+  trigger: |
+    int main(int argc, char**) {
+        int big = 2147483647;
+        big += argc;
+        return big;
+    }
+
+- id: division-by-zero
+  match: '^UndefinedBehaviorSanitizer: division by zero'
+  title: "Divided by zero"
+  friendly: "The program divided by zero at {where} (`/` or `%` with a zero on the right). Integer division by zero is undefined behavior. Check the divisor first."
+  lesson: core.foundations.operators-and-integers
+  trigger: |
+    int main(int argc, char**) { return 10 / (argc - 1); }
+
+- id: bad-shift
+  match: '^UndefinedBehaviorSanitizer: (shift exponent|left shift of)'
+  title: "Shifted by a bad amount"
+  friendly: "A shift (`<<` or `>>`) at {where} used an amount that is negative or at least as large as the number of bits in the type, or shifted a negative number left. Both are undefined behavior. Keep the shift amount between 0 and the type's width minus one."
+  lesson: core.foundations.operators-and-integers
+  trigger: |
+    int main(int argc, char**) { return 1 << (argc + 40); }
+
+- id: null-pointer
+  match: '^UndefinedBehaviorSanitizer: ((load of|store to) null pointer|member access within null pointer|member call on null pointer|reference binding to null pointer|null pointer passed as argument)'
+  title: "Used a null pointer"
+  friendly: "The program used a pointer that was `nullptr` at {where} (reading through it, writing through it, calling a member on it, or passing it where a valid pointer is required). Check the pointer before you use it, and find out why it is null: usually a search that found nothing or a variable that was never set."
+  lesson: core.data-and-memory.pointers
+  trigger: |
+    int main(int argc, char**) {
+        int* p = argc > 5 ? &argc : nullptr;
+        return *p;
+    }
+
+- id: index-out-of-bounds
+  match: '^UndefinedBehaviorSanitizer: index'
+  title: "Index outside an array"
+  friendly: "An index at {where} is outside the array it is used with. For an array of `n` elements the valid indices are `0` to `n - 1`. Check the index and the loop condition."
+  lesson: core.data-and-memory.arrays
+  trigger: |
+    int main(int argc, char**) {
+        int a[4] = {1, 2, 3, 4};
+        return a[argc + 4];
+    }
+
+- id: invalid-value
+  match: '^UndefinedBehaviorSanitizer: load of value'
+  title: "A value that the type cannot have"
+  friendly: "The program read a value at {where} that is not valid for its type (for example a `bool` that is neither 0 nor 1, or an `enum` value outside its range). This usually comes from reading an uninitialized variable or from a bad cast. Initialize the variable, and do not cast arbitrary numbers to `bool` or `enum`."
+  trigger: |
+    #include <cstring>
+    int main() {
+        bool b;
+        unsigned char c = 2;
+        std::memcpy(&b, &c, 1);
+        return b;
+    }

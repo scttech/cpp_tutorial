@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Build it in layers, running the tests each time. (1) The constructors and the destructor, so that an IntVector exists and cleans up. (2) push_back with the doubling rule, plus at/front/back. (3) Copy and move (the rule of five) and swap. (4) pop_back, insert, erase, clear. (5) reserve, shrink_to_fit, resize. A private `reallocate(new_capacity)` helper that makes a new block, copies the elements and releases the old one is used by half of them."
+  - level: 2
+    text: "reallocate(c): `int* bigger = c ? new int[c] : nullptr; std::copy(data_, data_ + size_, bigger); delete[] data_; data_ = bigger; capacity_ = c;`. push_back when full: new capacity is `capacity_ ? capacity_ * 2 : 1`. Careful: `value` may be an element of this vector, so write `bigger[size_] = value;` BEFORE `delete[] data_`. insert: take `const int copy = value;` first, make room (reallocate if full), shift with `std::copy_backward(data_ + pos, data_ + size_, data_ + size_ + 1)`, then `data_[pos] = copy`."
+  - level: 3
+    text: "erase: `std::copy(data_ + pos + 1, data_ + size_, data_ + pos); --size_;`. reserve(n): `if (n > capacity_) reallocate(n);`. shrink_to_fit: `if (capacity_ != size_) reallocate(size_);`. resize(n, value): copy the value into a local first, `if (n > capacity_) reallocate(n);`, fill `[size_, n)` when growing, then `size_ = n`. Moves: `std::exchange` the three members; copy assignment: `if (this != &other) { IntVector copy(other); swap(copy); }`. All the checked functions throw `std::out_of_range`."
+  - level: 4
+    text: |
+      IntVector(std::initializer_list<int> init) : size_(init.size()), capacity_(init.size()), data_(init.size() ? new int[init.size()] : nullptr) { std::copy(init.begin(), init.end(), data_); }
+      explicit IntVector(std::size_t count, int value = 0) : size_(count), capacity_(count), data_(count ? new int[count] : nullptr) { std::fill(data_, data_ + size_, value); }
+      void push_back(const int& value) {
+          if (size_ < capacity_) { data_[size_++] = value; return; }
+          const std::size_t new_capacity = capacity_ ? capacity_ * 2 : 1;
+          int* bigger = new int[new_capacity];
+          bigger[size_] = value;                       // before the old block is released: value may live in it
+          std::copy(data_, data_ + size_, bigger);
+          delete[] data_; data_ = bigger; capacity_ = new_capacity; ++size_;
+      }

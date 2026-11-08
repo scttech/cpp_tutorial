@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getLesson } from "../content/loader";
-import type { CompileDiagnostic, RunResult, Tier, TestResult } from "../runner/types";
+import { explainReport } from "../diagnostics/runtimeReports";
+import type { CompileDiagnostic, ReportFrame, RunResult, RuntimeReport, Tier, TestResult } from "../runner/types";
 
 const TIERS: { id: Tier; label: string }[] = [
   { id: "works", label: "Works" },
@@ -46,6 +47,7 @@ export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump 
       <div className="panel-body">
         {error && <p className="banner error" role="alert">{error}</p>}
         {!result && !error && <p className="muted">Press <b>Run Tests</b> (Ctrl+Shift+Enter) to check your solution, or <b>Run</b> (Ctrl+Enter) to just run it.</p>}
+        {result?.report && tab !== "problems" && <RuntimeCard report={result.report} raw={result.stderr} stopped={result.tests.filter((t) => t.message?.startsWith("stopped by a sanitizer")).length} />}
         {result && tab === "tests" && <Tests result={result} kind={kind} declared={declaredTiers} nErr={nErr} onStart={() => setTab("problems")} />}
         {result && tab === "console" && <Console result={result} />}
         {result && tab === "problems" && <Problems diags={result.diagnostics} onJump={onJump} raw={result.compileOutput} />}
@@ -105,6 +107,54 @@ function Tests({ result, kind, declared, nErr, onStart }: { result: RunResult; k
         );
       })}
     </>
+  );
+}
+
+/** What a sanitizer found, in plain language: the headline, the explanation, where it happened and where the memory came from. */
+function RuntimeCard({ report, raw, stopped }: { report: RuntimeReport; raw: string; stopped: number }) {
+  const why = explainReport(report);
+  const at = (f: ReportFrame) => `${f.file}:${f.line}`;
+  return (
+    <div className="runtime-card" role="alert">
+      <p className="banner error">
+        <b>{why?.title ?? report.summary}</b>
+        {report.location && (
+          <>
+            {" "}at <code>{report.location.file}:{report.location.line}</code>
+          </>
+        )}
+        {stopped > 1 && <span className="muted"> ({stopped} tests were stopped by a sanitizer; this is the first)</span>}
+      </p>
+      {why && (
+        <p className="start-here">
+          <Inline text={why.text} />
+        </p>
+      )}
+      <LessonLink id={why?.lesson ?? undefined} />
+      {(report.frames.length > 0 || report.allocatedAt || report.freedAt) && (
+        <ul className="frames">
+          {report.frames.map((f, i) => (
+            <li key={i}>
+              {i === 0 ? "happened in" : "called from"} <code>{f.function || "(unknown)"}</code> at <code>{at(f)}</code>
+            </li>
+          ))}
+          {report.freedAt && (
+            <li>
+              freed at <code>{at(report.freedAt)}</code>
+            </li>
+          )}
+          {report.allocatedAt && (
+            <li>
+              allocated at <code>{at(report.allocatedAt)}</code>
+            </li>
+          )}
+        </ul>
+      )}
+      <details className="raw">
+        <summary>Sanitizer report ({report.tool})</summary>
+        <pre className="console err">{raw}</pre>
+      </details>
+    </div>
   );
 }
 

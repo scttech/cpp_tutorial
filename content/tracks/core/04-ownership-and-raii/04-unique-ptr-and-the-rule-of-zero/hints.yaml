@@ -1,0 +1,26 @@
+ladder:
+  - level: 1
+    text: "Start with the read-only members, they are the easy ones: size, height and to_vector are short recursive functions on a `const Node*`. Then insert (a pointer-to-unique_ptr walk), then contains, clone and erase. The tests build on each other, so insert + to_vector first makes every later test informative."
+  - level: 2
+    text: "Write small private static helpers that take `const Node*` and return early for null: `static std::size_t count(const Node* n) { return n ? 1 + count(n->left.get()) + count(n->right.get()) : 0; }`, the same shape for height (`std::max` of the two sides) and an in-order `collect` (left, push the value, right). `.get()` gives the raw pointer to look at; nothing is deleted by it."
+  - level: 3
+    text: "insert: `std::unique_ptr<Node>* link = &root_; while (*link) { if (value == (*link)->value) return false; link = value < (*link)->value ? &(*link)->left : &(*link)->right; } *link = std::make_unique<Node>(value); return true;`. erase: walk `link` the same way to the node (return false if `*link` is null); no left child: `*link = std::move(n.right)`; no right child: `*link = std::move(n.left)`; both: find `smallest` = leftmost link in n.right, copy its value into n.value, then `*smallest = std::move((*smallest)->right)`. clone: recursive helper that make_unique's a copy of each node and clones both children."
+  - level: 4
+    text: |
+      bool erase(int value) {
+          std::unique_ptr<Node>* link = &root_;
+          while (*link && (*link)->value != value) link = value < (*link)->value ? &(*link)->left : &(*link)->right;
+          if (!*link) return false;
+          Node& n = **link;
+          if (!n.left) *link = std::move(n.right);
+          else if (!n.right) *link = std::move(n.left);
+          else {
+              std::unique_ptr<Node>* smallest = &n.right;
+              while ((*smallest)->left) smallest = &(*smallest)->left;
+              n.value = (*smallest)->value;
+              *smallest = std::move((*smallest)->right);
+          }
+          return true;
+      }
+      static std::unique_ptr<Node> clone_node(const Node* n) { if (!n) return nullptr; auto c = std::make_unique<Node>(n->value);
+          c->left = clone_node(n->left.get()); c->right = clone_node(n->right.get()); return c; }

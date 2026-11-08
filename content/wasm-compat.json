@@ -7,7 +7,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./library.hpp:32:23: error: cannot use 'throw' with exceptions disabled |    32 |         if (id_ <= 0) throw std::invalid_argument(\"Book: the id must be positive\"); |       |                       ^"
       ],
-      "hash": "41cb49805e191310"
+      "hash": "0af47637e27a8ae1"
     },
     "core.classes.const-correctness": {
       "wasm": false,
@@ -15,7 +15,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./grid.hpp:14:37: error: cannot use 'throw' with exceptions disabled |    14 |         if (rows == 0 || cols == 0) throw std::invalid_argument(\"Grid: rows and cols must each be at least 1\"); |       |                                     ^"
       ],
-      "hash": "de290d07c480385a"
+      "hash": "68ec0bf98d7a0c90"
     },
     "core.classes.constructors": {
       "wasm": false,
@@ -23,7 +23,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./money.hpp:39:13: error: cannot use 'throw' with exceptions disabled |    39 |             throw std::overflow_error(\"Money: the sum does not fit\"); |       |             ^"
       ],
-      "hash": "258abf260dfeede1"
+      "hash": "02a8e45542fdee10"
     },
     "core.classes.encapsulation": {
       "wasm": false,
@@ -31,7 +31,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./account.hpp:18:29: error: cannot use 'throw' with exceptions disabled |    18 |         if (owner_.empty()) throw std::invalid_argument(\"BankAccount: the owner's name is empty\"); |       |                             ^"
       ],
-      "hash": "ed0f3c5c326291a8"
+      "hash": "ace420ba61fc17d0"
     },
     "core.classes.namespaces": {
       "wasm": false,
@@ -39,7 +39,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./geometry.hpp:58:25: error: cannot use 'throw' with exceptions disabled |    58 |     if (points.empty()) throw std::invalid_argument(\"bounding_box: no points\"); |       |                         ^"
       ],
-      "hash": "d36d091d725c2bcd"
+      "hash": "5598e84e51ce474b"
     },
     "core.classes.operators": {
       "wasm": false,
@@ -47,12 +47,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./vec2.hpp:39:20: error: cannot use 'throw' with exceptions disabled |    39 |         if (i > 1) throw std::out_of_range(\"Vec2: index must be 0 or 1\"); |       |                    ^"
       ],
-      "hash": "0f7c21f5ee86b3c7"
+      "hash": "52837653e7f32612"
     },
     "core.classes.static-and-enums": {
       "wasm": true,
       "mutants": 28,
-      "hash": "8969bfa4afa53be3"
+      "hash": "9a0e13c0d6ba8a38"
     },
     "core.classes.test-out": {
       "wasm": false,
@@ -60,12 +60,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./fraction.hpp:14:24: error: cannot use 'throw' with exceptions disabled |    14 |         if (den_ == 0) throw std::invalid_argument(\"Fraction: the denominator is zero\"); |       |                        ^"
       ],
-      "hash": "6b5a00f2943e03d4"
+      "hash": "3e9fdef93fc4c031"
     },
     "core.data-and-memory.arrays": {
       "wasm": true,
       "mutants": 10,
-      "hash": "96ef8a247b38fd94"
+      "hash": "16e968a96051802a"
     },
     "core.data-and-memory.capstone-inventory": {
       "wasm": false,
@@ -73,42 +73,42 @@
       "details": [
         "solution does not build: main.cpp:37:28: error: call to deleted function 'from_chars' |    37 |     const auto [ptr, ec] = std::from_chars(s.data(), end, out); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
       ],
-      "hash": "a55b99f09dcc4999"
+      "hash": "5fb4ab74e0befe1c"
     },
     "core.data-and-memory.find-the-bug": {
       "wasm": true,
       "mutants": 14,
-      "hash": "2f19076e68c0f165"
+      "hash": "873adf843efa12cb"
     },
     "core.data-and-memory.pointers": {
       "wasm": true,
       "mutants": 17,
-      "hash": "70d3a68de5ce85ae"
+      "hash": "a0b26697a40e3073"
     },
     "core.data-and-memory.references": {
       "wasm": true,
       "mutants": 13,
-      "hash": "788874b5e1b13a00"
+      "hash": "30ac9b209f6d24f4"
     },
     "core.data-and-memory.strings": {
       "wasm": true,
       "mutants": 13,
-      "hash": "d470f8641d5c0ce0"
+      "hash": "6b27f9813cf4c01b"
     },
     "core.data-and-memory.structs": {
       "wasm": true,
       "mutants": 19,
-      "hash": "dddb4863a9bd861f"
+      "hash": "bb27843a415daf0b"
     },
     "core.data-and-memory.test-out": {
       "wasm": true,
       "mutants": 8,
-      "hash": "67c34f0831a67d98"
+      "hash": "56caca8edd84696c"
     },
     "core.data-and-memory.vector": {
       "wasm": true,
       "mutants": 12,
-      "hash": "72fdc52d1774fea4"
+      "hash": "f47b29c212b30f1e"
     },
     "core.foundations.capstone-unit-converter": {
       "wasm": false,
@@ -116,7 +116,7 @@
       "details": [
         "solution does not build: main.cpp:71:28: error: call to deleted function 'from_chars' |    71 |     const auto [ptr, ec] = std::from_chars(first, last, value); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
       ],
-      "hash": "cb4a42cce45d0b76"
+      "hash": "a966fa9b9e530f94"
     },
     "core.foundations.control-flow": {
       "wasm": false,
@@ -124,42 +124,90 @@
       "details": [
         "solution fails \"primes_up_to(5,000,000) finishes in time and finds 348513 primes\" [fail]: expected 348513, got 348425"
       ],
-      "hash": "d61864223a73024c"
+      "hash": "58bbf95dc650e4ef"
     },
     "core.foundations.functions": {
       "wasm": true,
       "mutants": 5,
-      "hash": "9204add6ec7636e9"
+      "hash": "6542d75ee8eadc0b"
     },
     "core.foundations.headers-and-build-model": {
       "wasm": true,
       "mutants": 4,
-      "hash": "ffa6339157e47d72"
+      "hash": "00ff983d09496056"
     },
     "core.foundations.hello-world": {
       "wasm": true,
       "mutants": 0,
-      "hash": "67e23be843e287cf"
+      "hash": "1a853c974e944022"
     },
     "core.foundations.io-basics": {
       "wasm": true,
       "mutants": 5,
-      "hash": "c804f853cbf8c747"
+      "hash": "d193d6704485fafd"
     },
     "core.foundations.operators-and-integers": {
       "wasm": true,
       "mutants": 4,
-      "hash": "25be3dfb38f43b86"
+      "hash": "4320c7a138d1e1d2"
     },
     "core.foundations.test-out": {
       "wasm": true,
       "mutants": 4,
-      "hash": "a68151d7582b280d"
+      "hash": "26a005c2d66d114d"
     },
     "core.foundations.variables-and-types": {
       "wasm": true,
       "mutants": 2,
-      "hash": "375f9ef3c66e4873"
+      "hash": "e12a5b4e4cbd42b0"
+    },
+    "core.ownership.capstone-vector": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "9df199a80192db3e"
+    },
+    "core.ownership.find-the-bug": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "36a1af55d99746df"
+    },
+    "core.ownership.raii": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "0a943dfe55e9bd5d"
+    },
+    "core.ownership.rule-of-five": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "ac0f4b2214a70956"
+    },
+    "core.ownership.rule-of-three": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "c8f7f8af164776d6"
+    },
+    "core.ownership.shared-ptr": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "c12c81eefa8a643f"
+    },
+    "core.ownership.test-out": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "7b3ed065753a9589"
+    },
+    "core.ownership.unique-ptr": {
+      "wasm": false,
+      "reason": "needs sanitizers",
+      "declared": true,
+      "hash": "db9b5a8cf415c70b"
     }
   }
 }

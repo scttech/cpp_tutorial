@@ -1,0 +1,15 @@
+id: core.ownership.rule-of-three
+title: "Copying and the rule of three"
+module: core.ownership
+type: lesson
+estimatedMinutes: 50
+concepts: [copy-constructor, copy-assignment, rule-of-three, deep-copy, shallow-copy, double-free, self-assignment, aliasing, strong-exception-safety, raw-owning-pointer]
+prerequisites: [core.ownership.raii]
+files:
+  editable: [text.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-fsanitize=address,undefined"]
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: [sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [shallow-copy, double-free, self-assignment-use-after-free, assignment-leaks-old-buffer, assignment-returns-by-value, missing-null-terminator, append-from-own-buffer, delete-array-mismatch]

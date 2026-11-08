@@ -31,6 +31,33 @@ export interface TestResult {
   tier?: "works" | "robust" | "fast" | "clean";
 }
 
+/** One line of a sanitizer's stack trace. `user` is true for the learner's own files. */
+export interface Frame {
+  function: string;
+  file: string;
+  line: number;
+  column: number;
+  user: boolean;
+}
+
+/** What a sanitizer (AddressSanitizer, LeakSanitizer, UBSan, ThreadSanitizer) found, parsed from the program's stderr. */
+export interface RuntimeReport {
+  tool: "AddressSanitizer" | "LeakSanitizer" | "ThreadSanitizer" | "UndefinedBehaviorSanitizer";
+  /** One lowercase word or phrase: heap-use-after-free, double-free, leak, signed-integer-overflow, ... */
+  kind: string;
+  /** e.g. "AddressSanitizer: heap-use-after-free": what the friendly rules match against. */
+  summary: string;
+  /** "READ of size 4" / "WRITE of size 8" for memory errors. */
+  access?: string;
+  /** The first frame in the learner's code (where it happened). */
+  location?: { file: string; line: number; column: number; function: string };
+  /** Learner-code frames of the failing stack, innermost first (at most 5). */
+  frames: Frame[];
+  /** Memory errors: where the block was freed and where it was allocated (learner code only). */
+  freedAt?: Frame;
+  allocatedAt?: Frame;
+}
+
 export interface RunResult {
   compiled: boolean;
   diagnostics: CompileDiagnostic[];
@@ -42,6 +69,8 @@ export interface RunResult {
   signal: string | null;
   timedOut: boolean;
   metrics?: Record<string, number>;
+  /** Set when a sanitizer reported a problem (only for jobs built with -fsanitize). */
+  report?: RuntimeReport;
   timings: { compileMs: number; runMs: number };
 }
 

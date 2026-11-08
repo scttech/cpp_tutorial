@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Press Run and read the card: it names the kind of mistake and the line. Fix that function, run again, and the next bug appears. The compiler's warnings in the Problems tab already point at several of these (look for words like 'reference to stack memory', 'address of local', 'temporary')."
+  - level: 2
+    text: "For each bug ask: what does this reference / view / pointer / capture refer to, and when does that thing die? 1, 2 and 6: the thing is a local or a temporary string that dies at the end of the function or statement, so give the CALLER its own value (return a std::string). 3: erase moves the elements and invalidates the iterator. 4: the counter variable dies when make_counter returns. 5: count the reference counts."
+  - level: 3
+    text: "1/2/6: change the return type to `std::string` in bugs.hpp AND main.cpp. 3: `v.erase(std::remove_if(v.begin(), v.end(), [](int x) { return x % 2 == 0; }), v.end());`. 4: capture by value in an init-capture: `[n = start]() mutable { return n++; }`. 5: `auto a = std::make_shared<Widget>(Widget{id}); std::shared_ptr<Widget> b = a;` (a copy shares the count)."
+  - level: 4
+    text: |
+      std::string longest_word(const std::vector<std::string>& words) { std::string best; for (const auto& w : words) if (w.size() > best.size()) best = w; return best; }
+      std::string label_of(int id) { return "item number " + std::to_string(id) + " in the long warehouse"; }
+      std::function<int()> make_counter(int start) { return [n = start]() mutable { return n++; }; }
+      int use_twice(int id) { auto a = std::make_shared<Widget>(Widget{id}); std::shared_ptr<Widget> b = a; return a->id + b->id; }
+      std::string describe(int n) { return "number " + std::to_string(n) + (n % 2 == 0 ? " is even" : " is odd") + " (and this sentence is long enough to need the heap)"; }

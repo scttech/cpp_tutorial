@@ -126,3 +126,43 @@ int main(){ std::printf("%d", (int)getuid()); }`);
     expect(await leftoverSandboxes()).toBe(0);
   });
 });
+
+describe("sanitizers", () => {
+  const SAN = ["-std=c++20", "-fsanitize=address,undefined"];
+
+  it("a clean program runs normally under the sanitizers, inside the 128 MB limit", async () => {
+    const r = await run('#include <iostream>\n#include <vector>\nint main(){ std::vector<int> v(1000, 7); std::cout << v[999] << std::endl; }', { flags: SAN });
+    expect(r.compiled).toBe(true);
+    expect(r.stdout).toBe("7\n");
+    expect(r.exitCode).toBe(0);
+    expect(r.report).toBeUndefined();
+  });
+
+  it("reports a use-after-free with a file and line, and ends with exit code 77", async () => {
+    const r = await run("int main() {\n    int* p = new int(5);\n    delete p;\n    return *p;\n}\n", { flags: SAN });
+    expect(r.exitCode).toBe(77);
+    expect(r.report).toMatchObject({ tool: "AddressSanitizer", kind: "heap-use-after-free" });
+    expect(r.report.location).toMatchObject({ file: "main.cpp", line: 4 });
+    expect(r.report.freedAt).toMatchObject({ file: "main.cpp", line: 3 });
+    expect(r.report.allocatedAt).toMatchObject({ file: "main.cpp", line: 2 });
+  });
+
+  it("reports undefined behavior and a leak", async () => {
+    const ub = await run("int main(int argc, char**) { int x = 2147483647; x += argc; return x; }", { flags: SAN });
+    expect(ub.report).toMatchObject({ tool: "UndefinedBehaviorSanitizer", kind: "signed-integer-overflow" });
+    const leak = await run("int main() { int* p = new int[4]; p[0] = 1; p = nullptr; }", { flags: SAN });
+    expect(leak.exitCode).toBe(77);
+    expect(leak.report).toMatchObject({ tool: "LeakSanitizer", kind: "leak" });
+  });
+
+  it("does not look for a report in a build without sanitizers, and a sanitizer flag outside the allow-list is rejected", async () => {
+    const plain = await run("int main() { int* p = nullptr; return *p; }");
+    expect(plain.report).toBeUndefined();
+    const res = await app.inject({
+      method: "POST",
+      url: "/run",
+      payload: { mode: "run", userFiles: { "main.cpp": "int main(){}" }, flags: ["-fsanitize=memory"] },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

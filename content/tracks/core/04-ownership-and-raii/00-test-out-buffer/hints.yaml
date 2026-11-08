@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Work in the order of the lessons. First the constructor and the destructor (so that a Buffer exists and cleans up), then the accessors (at, begin/end), then the copy constructor and copy assignment, then the move constructor and move assignment and swap, then resize and ==. Run the tests after each step: the failure messages name the rule that is broken."
+  - level: 2
+    text: "Constructor: `size_(n), data_(n ? new int[n] : nullptr)` and `std::fill(data_, data_ + size_, fill)`. Copy constructor: the same allocation, then `std::copy(other.data_, other.data_ + size_, data_)`. Copy assignment: `if (this != &other) { Buffer copy(other); swap(copy); } return *this;`. Moves: `std::exchange(other.size_, 0)` and `std::exchange(other.data_, nullptr)`, both `noexcept`."
+  - level: 3
+    text: "resize(n): `if (n == size_) return;` allocate `n ? new int[n] : nullptr`, copy `std::min(n, size_)` old values, `std::fill` the rest with 0, `delete[] data_`, then take the new pointer and size. Move assignment: `if (this != &other) { delete[] data_; size_ = std::exchange(other.size_, 0); data_ = std::exchange(other.data_, nullptr); } return *this;`. swap: `std::swap` the two members."
+  - level: 4
+    text: |
+      explicit Buffer(std::size_t n, int fill = 0) : size_(n), data_(n ? new int[n] : nullptr) { std::fill(data_, data_ + size_, fill); }
+      ~Buffer() { delete[] data_; }
+      Buffer(const Buffer& o) : size_(o.size_), data_(o.size_ ? new int[o.size_] : nullptr) { std::copy(o.data_, o.data_ + size_, data_); }
+      Buffer(Buffer&& o) noexcept : size_(std::exchange(o.size_, 0)), data_(std::exchange(o.data_, nullptr)) {}
+      void swap(Buffer& o) noexcept { std::swap(size_, o.size_); std::swap(data_, o.data_); }
+      int& at(std::size_t i) { if (i >= size_) throw std::out_of_range("Buffer: index out of range"); return data_[i]; }
+      friend bool operator==(const Buffer& a, const Buffer& b) { return a.size_ == b.size_ && std::equal(a.begin(), a.end(), b.begin()); }

@@ -6,7 +6,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      clang-18 lld-18 libc++-18-dev libc++abi-18-dev g++-14 python3 \
+      clang-18 lld-18 libc++-18-dev libc++abi-18-dev libclang-rt-18-dev llvm-18 g++-14 python3 \
  && ln -s /usr/bin/clang++-18 /usr/local/bin/clang++ \
  && ln -s /usr/bin/clang-18 /usr/local/bin/clang \
  && rm -rf /var/lib/apt/lists/* \

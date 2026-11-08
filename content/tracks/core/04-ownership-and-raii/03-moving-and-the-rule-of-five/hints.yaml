@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Run the tests and read the first failures: the buffer pointer after `std::move` is different, which means the compiler fell back to a COPY. Add the move constructor first (steal the pointer and the size, leave the source empty), then the move assignment, then fix swap. Keep every move `noexcept`."
+  - level: 2
+    text: "Move constructor: `Text(Text&& other) noexcept : size_(std::exchange(other.size_, 0)), data_(std::exchange(other.data_, nullptr)) {}`. `std::exchange(x, v)` hands back the old value of x and stores v, so each member is taken and the source's set to empty in one expression."
+  - level: 3
+    text: "Move assignment: `if (this != &other) { delete[] data_; size_ = std::exchange(other.size_, 0); data_ = std::exchange(other.data_, nullptr); } return *this;` (release first, then steal; the `if` makes `a = std::move(a)` harmless). Swap: `std::swap(size_, other.size_); std::swap(data_, other.data_);` and keep `noexcept`."
+  - level: 4
+    text: |
+      Text(Text&& other) noexcept : size_(std::exchange(other.size_, 0)), data_(std::exchange(other.data_, nullptr)) {}
+      Text& operator=(Text&& other) noexcept {
+          if (this != &other) {
+              delete[] data_;
+              size_ = std::exchange(other.size_, 0);
+              data_ = std::exchange(other.data_, nullptr);
+          }
+          return *this;
+      }
+      void swap(Text& other) noexcept { std::swap(size_, other.size_); std::swap(data_, other.data_); }

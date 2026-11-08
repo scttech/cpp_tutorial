@@ -41,6 +41,28 @@ export interface TestResult {
   tier?: Tier;
 }
 
+/** One line of a sanitizer stack trace (only frames in the learner's own files are kept). */
+export interface ReportFrame {
+  function: string;
+  file: string;
+  line: number;
+  column: number;
+  user: boolean;
+}
+
+/** What a sanitizer found while the program ran (Docker runner, builds with -fsanitize only). */
+export interface RuntimeReport {
+  tool: "AddressSanitizer" | "LeakSanitizer" | "ThreadSanitizer" | "UndefinedBehaviorSanitizer";
+  kind: string;
+  /** e.g. "AddressSanitizer: heap-use-after-free": what the friendly rules match. */
+  summary: string;
+  access?: string;
+  location?: { file: string; line: number; column: number; function: string };
+  frames: ReportFrame[];
+  freedAt?: ReportFrame;
+  allocatedAt?: ReportFrame;
+}
+
 export interface RunResult {
   compiled: boolean;
   diagnostics: CompileDiagnostic[];
@@ -51,6 +73,8 @@ export interface RunResult {
   exitCode: number | null;
   signal: string | null;
   timedOut: boolean;
+  /** Set when a sanitizer reported a problem. */
+  report?: RuntimeReport;
   timings: { compileMs: number; runMs: number };
 }
 

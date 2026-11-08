@@ -20,8 +20,8 @@ signatures as they are.
    - arrays are followed by a *canary* value; if it changes, something wrote past the end.
 
 On a normal development machine, a tool called **AddressSanitizer** (`-fsanitize=address`) finds most of these for you
-with an exact line number. It is not available in this browser-based runner yet, so this challenge makes you do the
-detective work by hand: that is a skill worth having.
+with an exact line number. This challenge deliberately leaves it off, so you do the detective work by hand: that is a
+skill worth having. (In Module 4 the sanitizers are switched on, and the *Lifetime Bugs* challenge uses them.)
 
 ## The six bugs
 

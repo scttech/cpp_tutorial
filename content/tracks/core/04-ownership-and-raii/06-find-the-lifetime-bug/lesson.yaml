@@ -1,0 +1,15 @@
+id: core.ownership.find-the-bug
+title: "Debug challenge: Lifetime Bugs"
+module: core.ownership
+type: debug
+estimatedMinutes: 55
+concepts: [dangling-reference, dangling-string-view, dangling-c-str, iterator-invalidation, lambda-capture-lifetime, shared-ptr-from-raw-pointer, double-free, sanitizer-report, debugging]
+prerequisites: [core.ownership.shared-ptr]
+files:
+  editable: [main.cpp, bugs.hpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra", "-fsanitize=address,undefined"]
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: [sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [return-reference-to-local, string-view-of-temporary, c-str-of-temporary, erase-in-a-loop, lambda-captures-local-by-reference, two-shared-ptrs-from-one-raw-pointer, static-buffer-instead-of-ownership]

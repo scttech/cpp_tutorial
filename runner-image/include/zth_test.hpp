@@ -343,6 +343,22 @@ inline std::atomic<std::size_t> g_allocs{0}, g_frees{0}, g_live_blocks{0}, g_liv
 inline std::atomic<std::size_t> g_quarantined{0};
 inline const char* g_problem = nullptr;  // first problem seen, e.g. "double free"
 
+// Under AddressSanitizer a quarantined (freed, never reused) block is also POISONED, so reading or writing it ends the
+// test with a heap-use-after-free report instead of just seeing the 0xDD bytes.
+#if defined(__SANITIZE_ADDRESS__)
+#define ZTH_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define ZTH_ASAN 1
+#endif
+#endif
+#ifdef ZTH_ASAN
+#include <sanitizer/asan_interface.h>
+#define ZTH_POISON(p, n) ASAN_POISON_MEMORY_REGION((p), (n))
+#else
+#define ZTH_POISON(p, n) ((void)0)
+#endif
+
 constexpr std::uint32_t kLive = 0xA110CA7Eu, kFreed = 0xDEADF4EEu;
 constexpr std::size_t kQuarantineLimit = 16u << 20;  // beyond this, freed blocks are really released
 
@@ -384,6 +400,7 @@ inline void release(void* p, std::uint32_t array) {
     std::memset(p, 0xDD, h->size);
     if (g_quarantined.load(std::memory_order_relaxed) + h->size + sizeof(Header) <= kQuarantineLimit) {
         g_quarantined.fetch_add(h->size + sizeof(Header), std::memory_order_relaxed);  // keep it: never reused, so the poison stays visible
+        ZTH_POISON(p, h->size);
     } else {
         std::free(h);
     }
@@ -470,13 +487,34 @@ inline int run_all(int argc, char** argv) {
     return failed == 0 ? 0 : 1;
 }
 #else
+// A sanitizer (AddressSanitizer, UBSan, ...) that finds a problem ends its process with this exit code (the sandbox sets
+// ASAN_OPTIONS/UBSAN_OPTIONS=exitcode=77), so "a sanitizer stopped the test" differs from "the test failed".
+constexpr int kSanitizerExit = 77;
+
+// One line that says what the sanitizer found: the `runtime error: ...` line (UBSan), else the SUMMARY line (ASan/TSan).
+inline std::string sanitizer_headline(const std::string& report) {
+    std::istringstream in(report);
+    std::string line, runtime, summary, first;
+    while (std::getline(in, line)) {
+        if (first.empty() && !line.empty() && line.find("=====") == std::string::npos) first = line;
+        if (runtime.empty() && line.find("runtime error:") != std::string::npos) runtime = line;
+        if (summary.empty() && line.rfind("SUMMARY:", 0) == 0) summary = line;
+    }
+    return !runtime.empty() ? runtime : !summary.empty() ? summary : first;
+}
+
 inline int run_all() {
     int passed = 0, failed = 0;
     for (const auto& t : registry()) {
         std::fflush(stdout);
         std::cout.flush();
+        std::fflush(stderr);
+        // The child's stderr goes to a file, so a sanitizer report can be attached to THIS test; it is passed on afterwards.
+        char err_path[] = "/tmp/zth-stderr-XXXXXX";
+        const int err_fd = mkstemp(err_path);
         pid_t pid = fork();
         if (pid == 0) {  // child: run one test
+            if (err_fd >= 0) dup2(err_fd, 2);
             alarm(t.timeout_s);
             auto t0 = std::chrono::steady_clock::now();
             t.fn();
@@ -487,7 +525,17 @@ inline int run_all() {
         }
         int status = 0;
         waitpid(pid, &status, 0);
-        if (WIFSIGNALED(status)) {
+        std::string captured;
+        if (err_fd >= 0) {
+            captured = read_file(err_path);
+            close(err_fd);
+            unlink(err_path);
+            if (!captured.empty()) std::fputs(captured.c_str(), stderr);
+        }
+        if (WIFEXITED(status) && WEXITSTATUS(status) == kSanitizerExit) {
+            emit(t.tier, t.name, "error", "stopped by a sanitizer: " + sanitizer_headline(captured), 0);
+            ++failed;
+        } else if (WIFSIGNALED(status)) {
             int sig = WTERMSIG(status);
             if (sig == SIGALRM) {
                 emit(t.tier, t.name, "timeout", "test did not finish in " + std::to_string(t.timeout_s) + "s (infinite loop?)", 0);

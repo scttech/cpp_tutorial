@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "Press Run first: the report says which memory was never freed and where it was allocated (the Session's token). Both classes need a destructor, and both must forbid copying. Do ScopeGuard first (it is the smaller one), run the tests, then Session."
+  - level: 2
+    text: "ScopeGuard: `~ScopeGuard()` runs `on_exit_()` if it holds a function (`if (!on_exit_) return;`), inside try/catch(...) so an exception cannot escape. dismiss() empties the function (`on_exit_ = nullptr;`), and active() is `static_cast<bool>(on_exit_)`. Session: `~Session()` logs the close and does `delete token_;`."
+  - level: 3
+    text: "Delete the copies with `ClassName(const ClassName&) = delete;` and `ClassName& operator=(const ClassName&) = delete;` in the public section of BOTH classes. Use `delete token_;` (it came from `new int`, not `new int[...]`). Log with `log_.push_back(\"close \" + name_);` before or after the delete: either order is fine."
+  - level: 4
+    text: |
+      ~ScopeGuard() {
+          if (!on_exit_) return;
+          try { on_exit_(); } catch (...) {}
+      }
+      ScopeGuard(const ScopeGuard&) = delete;
+      ScopeGuard& operator=(const ScopeGuard&) = delete;
+      void dismiss() noexcept { on_exit_ = nullptr; }
+      bool active() const noexcept { return static_cast<bool>(on_exit_); }
+      // Session: ~Session() { log_.push_back("close " + name_); delete token_; }  plus the two deleted copies

@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import type { Config } from "./config.js";
 import { parseDiagnostics } from "./diagnostics.js";
+import { parseRuntimeReport } from "./runtimeReport.js";
 import { JobQueue, QueueFullError } from "./queue.js";
 import type { RunResult, Sandbox } from "./types.js";
 import { normalize, runBodySchema } from "./validate.js";
@@ -63,6 +64,10 @@ export async function buildServer(deps: { sandbox: Sandbox; config: Config; logg
       timedOut: raw.timedOut,
       timings: { compileMs: raw.compileMs, runMs: raw.runMs },
     };
+    if (job.flags.some((f) => f.startsWith("-fsanitize="))) {
+      const report = parseRuntimeReport(raw.stderr);
+      if (report) result.report = report;
+    }
     return result;
   });
 

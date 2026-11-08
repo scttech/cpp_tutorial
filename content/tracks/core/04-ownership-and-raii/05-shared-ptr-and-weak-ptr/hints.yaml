@@ -1,0 +1,20 @@
+ladder:
+  - level: 1
+    text: "Press Run first: the leak report points at the nodes that are never freed. The cause is in the members: parent_ is a shared_ptr, so parent and child own each other. Change `parent_` to a `std::weak_ptr<Node>` and `parent()` to `return parent_.lock();`, then fill in the TODO functions one at a time."
+  - level: 2
+    text: "add_child: copy both arguments into local shared_ptrs first (they can be references into a children list); throw std::invalid_argument for null; walk up from `parent` with `for (auto p = parent; p; p = p->parent())` and throw if you meet `child`; call detach(child); then `child->parent_ = parent;` and `parent->children_.push_back(child);`. detach: lock the parent, `siblings.erase(std::remove(siblings.begin(), siblings.end(), node), siblings.end());` and reset the weak pointer."
+  - level: 3
+    text: "depth: count `parent()` calls until null. path: collect the names while walking up, then join them in reverse with '/'. subtree_size: `1 + ` the subtree_size of each child. find: return root if its name matches, else try each child and return the first hit (null if the root is null). Remember detach and add_child both start with `const std::shared_ptr<Node> x = x_arg;` so an argument that points into the vector being erased cannot dangle."
+  - level: 4
+    text: |
+      std::weak_ptr<Node> parent_;                 std::shared_ptr<Node> parent() const { return parent_.lock(); }
+      static void detach(const std::shared_ptr<Node>& node_ref) {
+          const std::shared_ptr<Node> node = node_ref;          // own copy: node_ref may be the element we erase
+          if (!node) return;
+          std::shared_ptr<Node> p = node->parent_.lock();
+          if (!p) return;
+          auto& s = p->children_;
+          s.erase(std::remove(s.begin(), s.end(), node), s.end());
+          node->parent_.reset();
+      }
+      std::size_t depth() const { std::size_t d = 0; for (std::shared_ptr<Node> p = parent(); p; p = p->parent()) ++d; return d; }

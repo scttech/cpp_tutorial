@@ -1,0 +1,21 @@
+ladder:
+  - level: 1
+    text: "Press Run: the sanitizer reports the second `delete[]` of the same buffer. The compiler's copy copied the POINTER. You need to give Text a copy constructor and a copy assignment that copy what the pointer points to. Do the copy constructor first, run the tests, then the assignment, then append."
+  - level: 2
+    text: "Copy constructor: `Text(const Text& other) : size_(other.size_), data_(new char[other.size_ + 1]) { std::memcpy(data_, other.data_, size_ + 1); }` (the +1 copies the terminating '\\0'). Assignment: first `if (this == &other) return *this;`, then allocate a new buffer and copy into it, THEN `delete[] data_;`, then `data_ = copy; size_ = other.size_; return *this;`."
+  - level: 3
+    text: "append: `const std::size_t add = std::strlen(s); char* bigger = new char[size_ + add + 1];` copy the old characters (size_ bytes) and then `s` (add + 1 bytes, with its '\\0') into it, and only THEN `delete[] data_; data_ = bigger; size_ += add;`. Because `s` may point into data_, the old buffer must still exist while you copy from `s`. Return early for nullptr."
+  - level: 4
+    text: |
+      Text(const Text& other) : size_(other.size_), data_(new char[other.size_ + 1]) { std::memcpy(data_, other.data_, size_ + 1); }
+      Text& operator=(const Text& other) {
+          if (this == &other) return *this;
+          char* copy = new char[other.size_ + 1];
+          std::memcpy(copy, other.data_, other.size_ + 1);
+          delete[] data_;
+          data_ = copy;
+          size_ = other.size_;
+          return *this;
+      }
+      void append(const char* s) { if (!s) return; const std::size_t add = std::strlen(s); char* bigger = new char[size_ + add + 1];
+          std::memcpy(bigger, data_, size_); std::memcpy(bigger + size_, s, add + 1); delete[] data_; data_ = bigger; size_ += add; }
