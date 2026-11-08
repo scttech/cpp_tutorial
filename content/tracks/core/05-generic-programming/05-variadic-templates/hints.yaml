@@ -1,0 +1,21 @@
+ladder:
+  - level: 1
+    text: "Each function is a stub that takes one fixed argument. Turn them into variadic templates one by one, starting with the shortest: `template <class... Ts> ... (const Ts&... args)`. The folds (sum, all_true, any_true, all_equal) are each one line. The test file checks every function on zero, one and several arguments."
+  - level: 2
+    text: "count_of: `sizeof...(Ts)`. sum: `(0 + ... + args)` (the 0 makes the empty pack work, and the result has the common type). all_true: `(... && args)`; any_true: `(... || args)`. all_equal: `template <class T, class... Ts>` and `((first == rest) && ...)`. All of them constexpr."
+  - level: 3
+    text: "format: a lambda `put(const auto& arg)` that finds the next `{}` from `pos`, writes the text before it and then the argument, and moves `pos` past the braces (and does nothing when there is no `{}` left); call it for every argument with a fold over the comma operator `(put(args), ...);`, then write the rest of the format string. make_owned: `Args&&... args` and `new T(std::forward<Args>(args)...)`. for_each_arg: `(f(std::forward<Args>(args)), ...);`"
+  - level: 4
+    text: |
+      template <class... Ts> constexpr std::size_t count_of(const Ts&...) { return sizeof...(Ts); }
+      template <class... Ts> constexpr auto sum(const Ts&... args) { return (0 + ... + args); }
+      template <class... Ts> constexpr bool all_true(const Ts&... args) { return (... && args); }
+      template <class... Ts> constexpr bool any_true(const Ts&... args) { return (... || args); }
+      template <class T, class... Ts> constexpr bool all_equal(const T& first, const Ts&... rest) { return ((first == rest) && ...); }
+      template <class... Args> std::string interpolate(std::string_view fmt, const Args&... args) {
+          std::ostringstream os; std::size_t pos = 0;
+          auto put = [&](const auto& arg) { auto b = fmt.find("{}", pos); if (b == std::string_view::npos) return; os << fmt.substr(pos, b - pos) << arg; pos = b + 2; };
+          (put(args), ...); os << fmt.substr(pos); return os.str();
+      }
+      template <class T, class... Args> std::unique_ptr<T> make_owned(Args&&... args) { return std::unique_ptr<T>(new T(std::forward<Args>(args)...)); }
+      template <class F, class... Args> void for_each_arg(F&& f, Args&&... args) { (f(std::forward<Args>(args)), ...); }

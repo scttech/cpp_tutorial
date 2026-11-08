@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Two numbers are enough: head_ (the array index of the OLDEST element) and size_. The element at logical position i is data_[(head_ + i) % N]. Write slot(i) first and use it everywhere. Start with capacity/size/empty/full, push (const& and &&), operator[] and pop; the first tests then pass. The iterators come last; the stub iterator class already has the typedefs."
+  - level: 2
+    text: "push: `if (full()) return false; data_[slot(size_)] = value; ++size_; return true;` (the && overload moves). pop: `if (empty()) return std::nullopt; T& oldest = data_[head_]; head_ = (head_ + 1) % N; --size_; return std::optional<T>(std::move(oldest));`. push_overwrite: when full replace data_[head_] and advance head_; else push. emplace: like push with `T(std::forward<Args>(args)...)`. clear: assign `T{}` to every live slot, then head_ = size_ = 0."
+  - level: 3
+    text: "front() is data_[head_], back() is data_[slot(size_ - 1)], operator[](i) is data_[slot(i)]. begin() is iterator(this, 0), end() is iterator(this, size_). The iterator: operator* returns (*owner_)[index_], operator-> its address, ++ increments index_ (the postfix returns the old copy), == compares owner_ and index_, and `operator Iter<true>() const requires(!Const) { return Iter<true>(owner_, index_); }`. The class header: `template <std::default_initializable T, std::size_t N> requires(N > 0) && std::movable<T> class RingBuffer`."
+  - level: 4
+    text: |
+      size_type slot(size_type i) const noexcept { return (head_ + i) % N; }
+      bool push(const T& value) { if (full()) return false; data_[slot(size_)] = value; ++size_; return true; }
+      bool push(T&& value) { if (full()) return false; data_[slot(size_)] = std::move(value); ++size_; return true; }
+      template <class... Args> bool emplace(Args&&... args) { if (full()) return false; data_[slot(size_)] = T(std::forward<Args>(args)...); ++size_; return true; }
+      void push_overwrite(T value) { if (full()) { data_[head_] = std::move(value); head_ = (head_ + 1) % N; } else { data_[slot(size_)] = std::move(value); ++size_; } }
+      std::optional<T> pop() { if (empty()) return std::nullopt; T& oldest = data_[head_]; head_ = (head_ + 1) % N; --size_; return std::optional<T>(std::move(oldest)); }
+      void clear() { for (size_type i = 0; i < size_; ++i) data_[slot(i)] = T{}; head_ = 0; size_ = 0; }

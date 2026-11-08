@@ -195,6 +195,139 @@
     struct A { int v; void set(int n) { v = n; } };
     int main() { const A a{1}; a.set(2); }
 
+# ---- templates ----------------------------------------------------------------------------------
+# An error reported INSIDE the standard library (its file is under /usr): the cause is nearly always in your own code. Kept ABOVE the
+# general rules (invalid-operands, no-matching-function, deleted-function...) so those do not describe library internals.
+- id: library-internal-error
+  match: '^(?!in instantiation of|candidate |because |and |expanded from|.*declared here|.*marked deleted)'
+  fileMatch: '^/usr/'
+  friendly: "This error is reported INSIDE the standard library, but the library is almost never the problem: it was asked to do something your type does not support (for example `std::sort` needs `operator<`, a `std::vector` copy needs copyable elements). Scroll down to the notes and find the `in instantiation of ... requested here` line that points at YOUR file: that is the call to fix, and the first error above says what is missing."
+  lesson: core.generics.reading-errors
+  trigger: |
+    #include <algorithm>
+    #include <vector>
+    struct P { int x; };
+    int main() { std::vector<P> v(3); std::sort(v.begin(), v.end()); }
+
+- id: template-instantiation-note
+  match: '^in instantiation of (.+?) requested here'
+  friendly: "The error above is INSIDE a template. It was found while the compiler was building $1 for the types you used. This note is one step of the chain from your call down to the error: the last one that points at your own file is the call to look at (are the arguments the right types? does your type support the operations the template uses?)."
+  lesson: core.generics.reading-errors
+  trigger: |
+    struct Point { int x, y; };
+    template <class T> T sum(T a, T b) { return a + b; }
+    int main() { Point p{1, 2}; sum(p, p); }
+
+- id: template-conflicting-types
+  match: 'candidate template ignored: deduced conflicting types for parameter ''(\w+)'' \(''(.+?)'' vs\. ''(.+?)''\)'
+  friendly: "The compiler deduced `$1` from two arguments and got two different types: `$2` and `$3`. A template parameter stands for ONE type. Either give the two arguments different template parameters (`template <class T, class U>`), or make the arguments the same type (a cast, or `f<$3>(...)` to name the type yourself)."
+  lesson: core.generics.function-templates
+  trigger: |
+    template <class T> T min_of(T a, T b) { return b < a ? b : a; }
+    int main() { return min_of(1, 2.5); }
+
+- id: template-cannot-infer
+  match: 'candidate template ignored: couldn''t infer template argument ''(\w+)'''
+  friendly: "The compiler cannot work out what `$1` is from the arguments (it does not appear in any parameter type, for example because it is only the return type). Name it yourself: `f<int>(...)`, or add a parameter whose type mentions `$1`."
+  lesson: core.generics.function-templates
+  trigger: |
+    template <class T> T make() { return T(); }
+    int main() { return make(); }
+
+- id: template-cannot-match
+  match: 'candidate template ignored: could not match ''(.+?)'' against ''(.+?)'''
+  friendly: "This template expects an argument of the shape `$1`, but you passed a `$2`. Template arguments are deduced from the exact shape of the argument type and no conversions are tried, so the types must match the pattern."
+  lesson: core.generics.function-templates
+  trigger: |
+    #include <vector>
+    template <class T> void f(std::vector<T>) {}
+    int main() { f(5); }
+
+- id: template-constraints-not-satisfied
+  match: 'candidate template ignored: constraints not satisfied \[with (.+?)\]'
+  friendly: "This template has a requirement (a concept or a `requires` clause) and the types you used [$1] do not meet it. The notes that start with `because` say exactly which requirement failed."
+  lesson: core.generics.concepts
+  trigger: |
+    #include <concepts>
+    #include <string>
+    template <class T> concept Number = std::integral<T> || std::floating_point<T>;
+    template <Number T> T twice(T x) { return x + x; }
+    int main() { std::string s = "a"; twice(s); }
+
+- id: class-constraints-not-satisfied
+  match: 'constraints not satisfied for class template ''(\w+)'' \[with (.+?)\]'
+  friendly: "`$1` has a requirement on its template arguments (a concept), and [$2] do not meet it. The `because` notes say which requirement failed."
+  lesson: core.generics.concepts
+  trigger: |
+    #include <concepts>
+    #include <string>
+    template <class T> concept Number = std::integral<T> || std::floating_point<T>;
+    template <Number T> struct Acc { T total{}; };
+    int main() { Acc<std::string> a; }
+
+- id: concept-not-satisfied
+  match: '^because ''(.+?)'' does not satisfy ''(.+?)'''
+  friendly: "`$1` does not meet the requirement `$2`. If `$2` is built from other requirements, the next `because` lines go one level deeper to the part that failed."
+  lesson: core.generics.concepts
+  trigger: |
+    #include <concepts>
+    #include <string>
+    template <class T> concept Number = std::integral<T> || std::floating_point<T>;
+    template <Number T> T twice(T x) { return x + x; }
+    int main() { std::string s = "a"; twice(s); }
+
+- id: constraint-evaluated-false
+  match: '^because ''(.+?)'' evaluated to false'
+  friendly: "This is the innermost check that failed: the compile-time condition `$1` is false for the type you used."
+  lesson: core.generics.concepts
+  trigger: |
+    #include <concepts>
+    #include <string>
+    template <class T> concept Number = std::integral<T> || std::floating_point<T>;
+    template <Number T> T twice(T x) { return x + x; }
+    int main() { std::string s = "a"; twice(s); }
+
+- id: template-ctad-failed
+  match: 'no viable constructor or deduction guide for deduction of template arguments of ''(\w+)'''
+  friendly: "`$1` is a class template, so it needs its template arguments, and the compiler could not deduce them from how you constructed it. Write them out: `$1<int> name;`."
+  lesson: core.generics.class-templates
+  trigger: |
+    template <class T> struct Stack { T t; };
+    int main() { Stack s; }
+
+- id: template-missing-typename
+  match: 'missing ''typename'' prior to dependent type name ''(.+?)'''
+  friendly: "`$1` names a type that depends on a template parameter. Until the template is used the compiler cannot know it is a type (it could be a value), so you must say so: write `typename $1`."
+  lesson: core.generics.class-templates
+  trigger: |
+    #include <vector>
+    template <class C> int first_of(const C& c) { C::value_type x = c[0]; return x; }
+    int main() { std::vector<int> v{1}; return first_of(v); }
+
+- id: template-argument-not-constant
+  match: 'non-type template argument is not a constant expression'
+  friendly: "A non-type template argument (the `4` in `Buffer<4>`) must be known at COMPILE time. A plain variable is not: declare it `constexpr` (`constexpr int n = 4;`) or use a literal."
+  lesson: core.generics.class-templates
+  trigger: |
+    template <int N> struct Buf { int a[N]; };
+    int main() { int n = 4; Buf<n> b; return 0; }
+
+- id: template-undefined
+  match: 'implicit instantiation of undefined template ''(.+?)'''
+  friendly: "`$1` is declared but its definition is not available here: the header that defines it is not included, or there is no specialization for these template arguments."
+  lesson: core.generics.specialization
+  trigger: |
+    template <class T> struct Box;
+    int main() { Box<int> b; return 0; }
+
+- id: template-static-assert
+  match: 'static assertion failed'
+  friendly: "A `static_assert` failed at compile time: the condition it checks is false for the types you used. The text after the colon is the author's explanation, and the `in instantiation` notes show which of your calls triggered it."
+  lesson: core.generics.type-traits
+  trigger: |
+    template <class T> void show(T) { static_assert(sizeof(T) <= 4, "T is too big to pass by value"); }
+    int main() { show(1.5); }
+
 - id: invalid-operands
   match: 'invalid operands to binary expression \((.+)\)'
   friendly: "That operator can't be applied to these two types: $1. Check that you are not mixing unrelated types (for example a string and a number), or that an `operator` overload exists."

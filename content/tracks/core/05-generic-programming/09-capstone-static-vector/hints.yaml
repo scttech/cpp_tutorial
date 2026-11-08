@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "The key idea: storage_ is raw bytes. An element only exists after placement new constructed it, and stops existing after its destructor ran. size_ counts the live ones, so [0, size_) is alive and everything after is raw memory. Write emplace_back, pop_back, clear and the destructor first (and the size functions), then the accessors; the first group of tests then passes. Then the special members, then insert/erase."
+  - level: 2
+    text: "emplace_back: `if (full()) return false; ::new (static_cast<void*>(storage_ + size_ * sizeof(T))) T(std::forward<Args>(args)...); ++size_; return true;`. pop_back: `if (empty()) return; --size_; std::destroy_at(ptr(size_));`. clear: pop_back until empty; the destructor calls clear(). The accessors use ptr(i) (already written): operator[](i) is *ptr(i), back() is *ptr(size_ - 1), begin() is data(), end() is data() + size_. data() is ptr(0) (or any pointer when empty)."
+  - level: 3
+    text: "Copy constructor: emplace_back(other[i]) for each element. Move constructor: emplace_back(std::move(other[i])) for each, then other.clear(). The two assignments: `if (this != &other) { clear(); ...the same loop... } return *this;`. insert(index, value): refuse when full or index > size_; index == size_ is emplace_back(std::move(value)); otherwise emplace_back(std::move(last)), then `for (i = size_ - 2; i > index; --i) (*this)[i] = std::move((*this)[i - 1]);`, then `(*this)[index] = std::move(value);`. erase(index): refuse index >= size_; `for (i = index; i + 1 < size_; ++i) (*this)[i] = std::move((*this)[i + 1]);` then pop_back()."
+  - level: 4
+    text: |
+      template <class... Args> bool emplace_back(Args&&... args) { if (full()) return false; ::new (static_cast<void*>(storage_ + size_ * sizeof(T))) T(std::forward<Args>(args)...); ++size_; return true; }
+      void pop_back() { if (empty()) return; --size_; std::destroy_at(ptr(size_)); }
+      void clear() noexcept { while (!empty()) pop_back(); }
+      ~StaticVector() { clear(); }
+      StaticVector(StaticVector&& other) noexcept(...) { for (size_type i = 0; i < other.size_; ++i) emplace_back(std::move(other[i])); other.clear(); }
+      bool insert(size_type index, T value) { if (full() || index > size_) return false; if (index == size_) return emplace_back(std::move(value)); emplace_back(std::move((*this)[size_ - 1])); for (size_type i = size_ - 2; i > index; --i) (*this)[i] = std::move((*this)[i - 1]); (*this)[index] = std::move(value); return true; }
+      bool erase(size_type index) { if (index >= size_) return false; for (size_type i = index; i + 1 < size_; ++i) (*this)[i] = std::move((*this)[i + 1]); pop_back(); return true; }

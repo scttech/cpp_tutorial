@@ -1,0 +1,15 @@
+id: core.generics.type-traits
+title: "auto, decltype and type traits"
+module: core.generics
+type: lesson
+estimatedMinutes: 60
+concepts: [auto-deduction, decltype, decltype-auto, declval, type-trait, void-t, detection-idiom, remove-cvref, trailing-return, if-constexpr-with-traits, trivially-copyable]
+prerequisites: [core.generics.variadic]
+files:
+  editable: [traits.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [auto-drops-references, auto-drops-const, decltype-auto-of-parenthesized-name, top-level-const-only, detection-needs-void-t, array-decays-to-pointer, string-literal-is-an-array, memcpy-on-non-trivial-types]

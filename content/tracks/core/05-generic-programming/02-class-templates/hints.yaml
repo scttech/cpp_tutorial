@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Start with Stack. The class is declared at the top and the members are stubs at the bottom: replace each stub body. Every member defined outside the class keeps its `template <class T>` line and the `Stack<T>::` in its name. The simplest ones just forward to the vector `items_`. Then do Matrix: transposed, identity, +, * and ==."
+  - level: 2
+    text: "Stack: push = `items_.push_back(value);` (for the rvalue version `items_.push_back(std::move(value));`). pop: `if (items_.empty()) return std::nullopt; std::optional<T> removed(std::move(items_.back())); items_.pop_back(); return removed;`. top: `return items_.empty() ? nullptr : &items_.back();`. The initializer_list constructor: `Stack(std::initializer_list<T> items) : items_(items) {}`."
+  - level: 3
+    text: "Matrix: transposed builds a `Matrix<T, C, R> result;` and sets `result(c, r) = (*this)(r, c);` in two loops. identity: `static_assert(R == C, \"...\"); Matrix m; for (i < R) m(i, i) = T{1}; return m;`. +=: add `data_[i] += other.data_[i]` for every i < R * C, `return *this;`; operator+ is `return a += b;`. operator*: for each r < R and c < C, `T sum{}; for (k < K) sum += a(r, k) * b(k, c); result(r, c) = sum;`. ==: `= default;`."
+  - level: 4
+    text: |
+      // stack.hpp
+      Stack(std::initializer_list<T> items) : items_(items) {}
+      template <class T> std::optional<T> Stack<T>::pop() { if (items_.empty()) return std::nullopt; std::optional<T> removed(std::move(items_.back())); items_.pop_back(); return removed; }
+      template <class T> typename Stack<T>::size_type Stack<T>::size() const { return items_.size(); }
+      // matrix.hpp
+      friend bool operator==(const Matrix&, const Matrix&) = default;
+      template <class T, std::size_t R, std::size_t C> Matrix<T, C, R> Matrix<T, R, C>::transposed() const {
+          Matrix<T, C, R> result;
+          for (std::size_t r = 0; r < R; ++r) for (std::size_t c = 0; c < C; ++c) result(c, r) = (*this)(r, c);
+          return result; }

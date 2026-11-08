@@ -1,0 +1,16 @@
+id: core.generics.reading-errors
+title: "Debug challenge: Reading Template Errors"
+module: core.generics
+type: debug
+estimatedMinutes: 50
+concepts: [template-error-messages, deduction-failure, dependent-name, typename-keyword, constraint-failure, instantiation-note, library-internal-error, non-type-template-argument, class-template-argument-deduction, constexpr]
+prerequisites: [core.generics.type-traits]
+files:
+  editable: [generic_bugs.hpp, main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+starterBroken: true     # the starter does not compile: reading the errors is the exercise
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [conflicting-deduced-types, missing-typename, concept-too-narrow, missing-operator-for-std-algorithm, class-template-needs-arguments, non-constant-template-argument, error-inside-the-library, read-the-first-error-first]

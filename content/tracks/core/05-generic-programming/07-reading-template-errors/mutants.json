@@ -1,0 +1,18 @@
+[
+  {"name": "largest-picks-the-smaller", "why": "the comparison is swapped.", "edits": [{"old": "return a < b ? b : a;", "new": "return a < b ? a : b;"}]},
+  {"name": "largest-returns-the-type-of-the-first-argument", "why": "largest(3, 4.5) is converted to int.", "edits": [{"old": "std::common_type_t<T, U> largest(T a, U b) {", "new": "T largest(T a, U b) {"}]},
+  {"name": "first-of-returns-the-last-element", "why": "c[c.size() - 1].", "edits": [{"old": "typename C::value_type x = c[0];", "new": "typename C::value_type x = c[c.size() - 1];"}]},
+  {"name": "twice-adds-one-more", "why": "x + x + x.", "edits": [{"old": "return x + x;", "new": "return x + x + x;"}]},
+  {"name": "twice-doubles-then-truncates-to-int", "why": "the result goes through an int.", "edits": [{"old": "    return x + x;\n}\n\n// ---- 4.", "new": "    return static_cast<T>(static_cast<int>(x + x));\n}\n\n// ---- 4."}]},
+  {"name": "number-admits-everything", "why": "no constraint at all.", "edits": [{"old": "concept Number = std::integral<T> || std::floating_point<T>;", "new": "concept Number = true;"}]},
+  {"name": "version-compares-only-the-major", "why": "the minor number is ignored.", "edits": [{"old": "return a.major != b.major ? a.major < b.major : a.minor < b.minor;", "new": "return a.major < b.major;"}]},
+  {"name": "version-compares-only-the-minor", "why": "the major number is ignored.", "edits": [{"old": "return a.major != b.major ? a.major < b.major : a.minor < b.minor;", "new": "return a.minor < b.minor;"}]},
+  {"name": "version-sorts-descending", "why": "greater instead of less.", "edits": [{"old": "return a.major != b.major ? a.major < b.major : a.minor < b.minor;", "new": "return a.major != b.major ? a.major > b.major : a.minor > b.minor;"}]},
+  {"name": "sorted-versions-does-not-sort", "why": "the vector is returned as it came.", "edits": [{"old": "    std::sort(v.begin(), v.end());\n", "new": ""}]},
+  {"name": "stack-pops-the-oldest", "why": "pop takes the front.", "edits": [{"old": "        T value = std::move(items_.back());\n        items_.pop_back();", "new": "        T value = std::move(items_.front());\n        items_.erase(items_.begin());"}]},
+  {"name": "stack-pop-forgets-to-remove", "why": "size never shrinks.", "edits": [{"old": "        items_.pop_back();\n", "new": ""}]},
+  {"name": "buffer-capacity-is-off-by-one", "why": "N + 1.", "edits": [{"old": "static constexpr std::size_t capacity() { return N; }", "new": "static constexpr std::size_t capacity() { return N + 1; }"}]},
+  {"name": "buffer-demo-returns-the-wrong-size", "why": "a Buffer<n + 1>.", "edits": [{"old": "    Buffer<n> b;\n    b.data[0] = 1;\n    return Buffer<n>::capacity();", "new": "    Buffer<n + 1> b;\n    b.data[0] = 1;\n    return Buffer<n + 1>::capacity();", "file": "main.cpp"}]},
+  {"name": "stack-demo-pops-in-the-wrong-order", "why": "top * 10 + the other: 34 instead of 43.", "edits": [{"old": "    return top * 10 + s.pop();", "new": "    return s.pop() * 10 + top;", "file": "main.cpp"}]},
+  {"name": "stack-demo-pushes-the-wrong-values", "why": "3 and 5.", "edits": [{"old": "    s.push(4);", "new": "    s.push(5);", "file": "main.cpp"}]}
+]

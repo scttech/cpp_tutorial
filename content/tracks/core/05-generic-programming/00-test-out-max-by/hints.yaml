@@ -1,0 +1,22 @@
+ladder:
+  - level: 1
+    text: "Three template parameters: the range (a forwarding reference, `Range&&`), the projection (`Proj proj`, by value) and an optional comparison with a default (`class Compare = std::less<>`, parameter `Compare comp = {}`). The function walks the range once, remembering the best element and its key. Run the tests: the failure messages say which kinds of call do not compile yet."
+  - level: 2
+    text: "`auto it = std::begin(range); const auto last = std::end(range); if (it == last) return it;` then `auto best = it; auto best_key = std::invoke(proj, *it);` and loop with `for (++it; it != last; ++it)`. Call the projection with `std::invoke` (not `proj(x)`): only std::invoke also accepts `&Person::age`."
+  - level: 3
+    text: "In the loop: `auto key = std::invoke(proj, *it); if (comp(best_key, key)) { best = it; best_key = std::move(key); }`. `comp(best_key, key)` means 'the new key is strictly better', so equal keys keep the first element, and the default std::less<> only ever needs `operator<`. Return `best` at the end."
+  - level: 4
+    text: |
+      template <class Range, class Proj, class Compare = std::less<>>
+      auto max_by(Range&& range, Proj proj, Compare comp = {}) {
+          auto it = std::begin(range);
+          const auto last = std::end(range);
+          if (it == last) return it;
+          auto best = it;
+          auto best_key = std::invoke(proj, *it);
+          for (++it; it != last; ++it) {
+              auto key = std::invoke(proj, *it);
+              if (comp(best_key, key)) { best = it; best_key = std::move(key); }
+          }
+          return best;
+      }

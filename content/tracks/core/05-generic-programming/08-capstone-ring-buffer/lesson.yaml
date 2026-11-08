@@ -1,0 +1,15 @@
+id: core.generics.capstone-ring-buffer
+title: "Capstone 1: RingBuffer<T, N>"
+module: core.generics
+type: capstone
+estimatedMinutes: 90
+concepts: [class-template, non-type-template-parameter, constrained-template, concepts, circular-buffer, modular-arithmetic, perfect-forwarding, variadic-template, iterator-class-template, const-and-non-const-iterator, std-array, allocation-counting]
+prerequisites: [core.generics.reading-errors]
+files:
+  editable: [ring_buffer.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 8000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [modulo-wraparound, full-vs-empty, push-onto-full, pop-from-empty, stale-element-after-clear, copy-where-move-was-possible, iterator-const-conversion, heap-storage-instead-of-array, n-equals-zero, default-constructible-requirement]

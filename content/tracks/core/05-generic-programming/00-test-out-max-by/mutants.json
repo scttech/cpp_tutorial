@@ -1,0 +1,11 @@
+[
+  {"name": "last-of-equal-keys-wins", "why": "a key that is not worse replaces the best, so the LAST of equal elements is chosen.", "edits": [{"old": "if (comp(best_key, key)) {", "new": "if (!comp(key, best_key)) {"}]},
+  {"name": "finds-the-minimum", "why": "the comparison arguments are swapped, so the smallest key wins.", "edits": [{"old": "if (comp(best_key, key)) {", "new": "if (comp(key, best_key)) {"}]},
+  {"name": "best-key-never-updated", "why": "every key is compared with the FIRST key, not with the best so far.", "edits": [{"old": "            best_key = std::move(key);\n", "new": ""}]},
+  {"name": "best-key-recomputed-every-time", "why": "the best element's key is computed again in every iteration: twice the projection calls.", "edits": [{"old": "if (comp(best_key, key)) {", "new": "if (comp(std::invoke(proj, *best), key)) {"}]},
+  {"name": "first-element-compared-with-itself", "why": "the loop starts at the first element again: one projection call too many.", "edits": [{"old": "for (++it; it != last; ++it) {", "new": "for (; it != last; ++it) {"}]},
+  {"name": "no-comparison-parameter", "why": "the optional third parameter is missing.", "edits": [{"old": "template <class Range, class Proj, class Compare = std::less<>>\nauto max_by(Range&& range, Proj proj, Compare comp = {}) {", "new": "template <class Range, class Proj>\nauto max_by(Range&& range, Proj proj) {\n    std::less<> comp;"}]},
+  {"name": "comparison-ignored", "why": "the keys are always compared with <, whatever the third argument says.", "edits": [{"old": "if (comp(best_key, key)) {", "new": "if (best_key < key) {"}]},
+  {"name": "empty-range-not-handled", "why": "an empty range is dereferenced.", "edits": [{"old": "    if (it == last) return it;\n", "new": ""}]},
+  {"name": "returns-end-instead-of-the-best", "why": "returns the iterator that ran off the end.", "edits": [{"old": "    return best;\n", "new": "    return it;\n"}]}
+]

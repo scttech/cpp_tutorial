@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Do the four concepts first (the first test group checks them on many types), then constrain the templates one by one. Where a template needs two overloads, remember that overloads can differ ONLY by their constraint. Every constrained template should reject the wrong types: the tests check that with a requires-expression."
+  - level: 2
+    text: "Integer: `std::integral<T> && !std::same_as<T, bool>`. Number: `Integer<T> || std::floating_point<T>` (reuse Integer by name!). Printable: `requires(std::ostream& os, const T& value) { os << value; }`. Sequence: a requires(const C& c) { typename C::value_type; c.begin(); c.end(); { c.size() } -> std::convertible_to<std::size_t>; }."
+  - level: 3
+    text: "mean: `template <Sequence S> requires Number<typename S::value_type> double mean(const S& values)`, with an early `return 0.0` for an empty sequence, and a `double` running total. larger: `auto larger(Number auto a, Number auto b) { return a < b ? b : a; }`. describe: add `template <Number T> std::string describe(const T&)` and `template <Integer T> ...` next to the unconstrained one. Accumulator: `template <Number T> class Accumulator`."
+  - level: 4
+    text: |
+      template <class T> concept Integer = std::integral<T> && !std::same_as<T, bool>;
+      template <class T> concept Number = Integer<T> || std::floating_point<T>;
+      template <Sequence S> requires Number<typename S::value_type>
+      double mean(const S& values) { if (values.size() == 0) return 0.0; double total = 0.0; for (const auto& v : values) total += static_cast<double>(v); return total / static_cast<double>(values.size()); }
+      auto larger(Number auto a, Number auto b) { return a < b ? b : a; }
+      template <Number T> std::string describe(const T&) { return "a number"; }
+      template <Integer T> std::string describe(const T&) { return "an integer"; }

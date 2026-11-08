@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Two independent parts: TypeName (class template specializations) and to_text (an if constexpr chain plus overloads). Do TypeName first: it is short and the tests for it are separate. Then build to_text one type at a time, running the tests: the test names say which kind of value is still wrong."
+  - level: 2
+    text: "TypeName: `template <> struct TypeName<int> { static std::string name() { return \"int\"; } };` for the four full ones. Partial ones keep the parameters: `template <class T> struct TypeName<T*> { static std::string name() { return \"pointer to \" + TypeName<T>::name(); } };` (the same shape for `const T`, `std::vector<T>`, and `template <class A, class B>` for std::pair)."
+  - level: 3
+    text: "to_text chain, in this order: bool -> char -> any other integral (`std::to_string`) -> floating point (an ostringstream: `os << value`) -> std::nullptr_t -> anything convertible to std::string_view (quote it) -> pointer (nullptr check, then `&` + to_text(*value)) -> range (`[`, elements separated by `, `, `]`) -> streamable (`os << value`) -> `<unprintable>`. Declare the std::pair and std::optional overloads ABOVE the generic function, define them below."
+  - level: 4
+    text: |
+      template <class A, class B> std::string to_text(const std::pair<A, B>& pair);     // declared BEFORE the generic function
+      template <class T> std::string to_text(const std::optional<T>& opt);
+      template <class T> std::string to_text(const T& value) {
+          if constexpr (std::is_same_v<T, bool>) { return value ? "true" : "false"; }
+          else if constexpr (std::is_same_v<T, char>) { return std::string("'") + value + "'"; }
+          else if constexpr (std::is_integral_v<T>) { return std::to_string(value); }
+          ...
+          else if constexpr (is_range<T>) { std::string out = "["; bool first = true; for (const auto& e : value) { if (!first) out += ", "; first = false; out += to_text(e); } return out + "]"; }
+      }
+      template <class A, class B> std::string to_text(const std::pair<A, B>& pair) { return "(" + to_text(pair.first) + ", " + to_text(pair.second) + ")"; }

@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "The program does not compile, so the Problems tab lists the errors. Read the FIRST one only: the friendly explanation under it says what kind of mistake it is, and the notes under the error say why. Fix it, run again. Do not try to understand the walls of notes inside the standard library: look for the one line that points at YOUR file."
+  - level: 2
+    text: "Six mistakes: (1) largest has ONE type parameter for two arguments of different types; (2) a dependent type name without `typename`; (3) a concept that is too narrow (what does the 'because' note say about 'double'?); (4) the error is in the standard library, but std::sort needs something that Version does not have; (5) a class template used without its argument; (6) a template argument that is not a compile-time constant."
+  - level: 3
+    text: "(1) `template <class T, class U> std::common_type_t<T, U> largest(T a, U b)`. (2) `typename C::value_type x = c[0];`. (3) `std::integral<T> || std::floating_point<T>`. (4) define `bool operator<(const Version&, const Version&)`: compare the major number, then the minor. (5) `Stack<int> s;`. (6) `constexpr std::size_t n = 4;`."
+  - level: 4
+    text: |
+      template <class T, class U> std::common_type_t<T, U> largest(T a, U b) { return a < b ? b : a; }
+      template <class C> typename C::value_type first_of(const C& c) { typename C::value_type x = c[0]; return x; }
+      template <class T> concept Number = std::integral<T> || std::floating_point<T>;
+      inline bool operator<(const Version& a, const Version& b) { return a.major != b.major ? a.major < b.major : a.minor < b.minor; }
+      // main.cpp:  Stack<int> s;    and    constexpr std::size_t n = 4;

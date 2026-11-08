@@ -1,0 +1,23 @@
+ladder:
+  - level: 1
+    text: "Do the traits one at a time, in the order of the file: plain, is_container, element_type, call_result_t, then the functions. The type-level tests print both the type they expected and the type they got. Specializations of the traits are where the work is; the functions are short."
+  - level: 2
+    text: "plain: three partial specializations (`T&`, `T&&`, `const T`), each deriving from `plain<T>` so that the stripping repeats. is_container: `struct is_container<T, std::void_t<typename T::value_type, decltype(std::declval<T&>().begin()), decltype(std::declval<T&>().end())>> : std::true_type {}`; is_container_v looks at `plain_t<T>`. element_type: primary template with a defaulted `class = void` and an EMPTY body; one specialization for containers (enable_if_t) and one for `T[N]`."
+  - level: 3
+    text: "call_result_t is `decltype(std::declval<F>()(std::declval<Args>()...))`. first_value: return type `auto`; first_ref: `decltype(auto)` and `return *c.begin();` (not `auto&`: the test also wants the const version). call_through: `decltype(auto)`, `noexcept(std::is_nothrow_invocable_v<F, Args...>)`, `return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);`. count_items: `if constexpr (is_container_v<T>) ... else if constexpr (std::is_array_v<T>) ... else ...`. copy_all: `if constexpr (std::is_trivially_copyable_v<T>)` memcpy (only when n > 0), else a loop."
+  - level: 4
+    text: |
+      template <class T> struct plain { using type = T; };
+      template <class T> struct plain<T&> : plain<T> {};
+      template <class T> struct plain<T&&> : plain<T> {};
+      template <class T> struct plain<const T> : plain<T> {};
+      template <class T> struct is_container<T, std::void_t<typename T::value_type, decltype(std::declval<T&>().begin()), decltype(std::declval<T&>().end())>> : std::true_type {};
+      template <class T> inline constexpr bool is_container_v = is_container<plain_t<T>>::value;
+      template <class T, class = void> struct element_type {};
+      template <class T> struct element_type<T, std::enable_if_t<is_container<T>::value>> { using type = typename T::value_type; };
+      template <class T, std::size_t N> struct element_type<T[N]> { using type = T; };
+      template <class T> using element_type_t = typename element_type<plain_t<T>>::type;
+      template <class F, class... Args> using call_result_t = decltype(std::declval<F>()(std::declval<Args>()...));
+      template <class C> auto first_value(const C& c) { return *c.begin(); }
+      template <class C> decltype(auto) first_ref(C& c) { return *c.begin(); }
+      template <class F, class... Args> decltype(auto) call_through(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) { return std::invoke(std::forward<F>(f), std::forward<Args>(args)...); }

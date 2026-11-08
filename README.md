@@ -13,14 +13,15 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Front end (lesson page, editor, tiers, hints) | Working |
 | Progress persistence | IndexedDB (localStorage fallback), export/import JSON, migration from the first release, streaks |
 | Badges | 44 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
-| Friendly compiler errors | 50 rules, each verified against real Clang output; raw message always one click away |
+| Friendly compiler errors | 64 rules (14 for template errors), each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
 | Module 3 Classes and Objects | **Complete**: test-out (a normalized `Fraction` with operators), six lessons (constructors/`explicit`, encapsulation and invariants, const correctness with `mutable` caches, operator overloading, `enum class` state machines with `static` members, namespaces/ADL/header hygiene) and the Library Management capstone: 8 items, 244 mutant solutions in total that must fail. Uses the Works, Robust and Clean tiers (Clean scans the header for `using namespace`, code outside the namespace, and raw `new`/`delete`) |
 | Module 4 Ownership and RAII | **Complete**: test-out (a `Buffer` that follows the rule of five), five lessons (destructors and RAII, copying and the rule of three, moving and the rule of five, `unique_ptr` and the rule of zero, `shared_ptr` and `weak_ptr`), a debug challenge (six lifetime bugs, each a sanitizer report) and the `IntVector` capstone: 8 items, 219 mutant solutions in total that must fail. Every lesson runs under AddressSanitizer and UBSan with allocation tracking; the Fast tier counts allocations (a move, a swap and a sort must allocate nothing) |
+| Module 5 Generic Programming | **Complete**: test-out (a generic `max_by`), six lessons (function templates, class templates, specialization and `if constexpr`, concepts, variadic templates and fold expressions, `auto`/`decltype`/type traits), a debug challenge ("Reading template errors": six different template errors, each with a friendly explanation) and two capstones (`RingBuffer<T, N>` and `StaticVector<T, N>` with manual object lifetimes): 10 items, about 200 mutant solutions in total that must fail. Fast tiers count copies, moves, constructions and heap allocations |
 | Sanitizers (Docker runner) | Working: a lesson turns them on with `flags: [..., "-fsanitize=address,undefined"]` and `requires: [sanitizers]`. Reports are symbolized, parsed (kind, file:line, where the memory was freed and allocated) and explained by [content/diagnostics/runtime.yaml](content/diagnostics/runtime.yaml): 18 rules, each verified against real sanitizer output. Module 4 uses them in every lesson |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
-| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 16 of 34 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. The GitHub Pages workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) builds and deploys it |
+| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 26 of 44 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. The GitHub Pages workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) builds and deploys it |
 | AI tutor, Modules 5-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
@@ -90,7 +91,7 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ```bash
 cd app && npm test                                   # 119 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
 cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking, sanitizers), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang, every sanitizer rule vs real sanitizer output
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (7 scripts built on tools/e2e/lib.mjs; wasm.mjs separately, see above)
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (8 scripts built on tools/e2e/lib.mjs; wasm.mjs separately, see above)
 cd wasm-runner && npm install && npm test            # the in-browser (WASM) runner on small programs; no Docker needed
 cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```

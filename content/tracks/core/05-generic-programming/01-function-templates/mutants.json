@@ -1,0 +1,16 @@
+[
+  {"name": "clamp-value-returns-a-copy", "why": "clamp_value returns a value instead of a reference to one of its arguments.", "edits": [{"old": "constexpr const T& clamp_value(", "new": "constexpr T clamp_value("}]},
+  {"name": "clamp-value-takes-its-parameters-by-value", "why": "the parameters are copies, so the returned reference points at a local that is gone.", "edits": [{"old": "constexpr const T& clamp_value(const T& value, const T& low, const T& high) {", "new": "constexpr const T& clamp_value(T value, T low, T high) {"}]},
+  {"name": "clamp-value-ignores-the-low-bound", "why": "only the upper bound is enforced.", "edits": [{"old": "return value < low ? low : (high < value ? high : value);", "new": "return high < value ? high : value;"}]},
+  {"name": "clamp-value-ignores-the-high-bound", "why": "only the lower bound is enforced.", "edits": [{"old": "return value < low ? low : (high < value ? high : value);", "new": "return value < low ? low : value;"}]},
+  {"name": "min-of-picks-the-larger", "why": "the comparison is the wrong way round.", "edits": [{"old": "return b < a ? b : a;  // equal: the first one", "new": "return a < b ? b : a;"}]},
+  {"name": "min-of-picks-the-second-when-equal", "why": "equal values give the second argument.", "edits": [{"old": "return b < a ? b : a;  // equal: the first one", "new": "return a < b ? a : b;"}]},
+  {"name": "min-of-returns-the-type-of-the-first-argument", "why": "min_of(3, 2.5) is converted to int.", "edits": [{"old": "constexpr std::common_type_t<A, B> min_of(const A& a, const B& b) {", "new": "constexpr A min_of(const A& a, const B& b) {"}]},
+  {"name": "min-of-needs-the-same-type-twice", "why": "one type parameter for both arguments: min_of(3, 2.5) cannot deduce T.", "edits": [{"old": "template <class A, class B>\nconstexpr std::common_type_t<A, B> min_of(const A& a, const B& b) {", "new": "template <class T>\nconstexpr T min_of(const T& a, const T& b) {"}]},
+  {"name": "min-of-list-ignores-the-last-element", "why": "the loop stops one element early.", "edits": [{"old": "for (++it; it != values.end(); ++it) {", "new": "for (++it; it + 1 != values.end(); ++it) {"}]},
+  {"name": "min-of-list-finds-the-largest", "why": "the comparison is the wrong way round.", "edits": [{"old": "if (*it < best) best = *it;", "new": "if (best < *it) best = *it;"}]},
+  {"name": "swap-values-calls-std-swap-directly", "why": "std::swap(a, b) ignores a type's own swap.", "edits": [{"old": "    using std::swap;\n    swap(a, b);", "new": "    std::swap(a, b);"}]},
+  {"name": "swap-values-moves-by-hand", "why": "three moves written out: correct, but a type's own swap is never used.", "edits": [{"old": "    using std::swap;\n    swap(a, b);", "new": "    T tmp = std::move(a);\n    a = std::move(b);\n    b = std::move(tmp);"}]},
+  {"name": "swap-values-does-nothing", "why": "the values are left as they were.", "edits": [{"old": "    using std::swap;\n    swap(a, b);", "new": "    (void)a;\n    (void)b;"}]},
+  {"name": "swap-values-loses-a-value", "why": "a is overwritten by b and b is left alone.", "edits": [{"old": "    using std::swap;\n    swap(a, b);", "new": "    a = std::move(b);"}]}
+]

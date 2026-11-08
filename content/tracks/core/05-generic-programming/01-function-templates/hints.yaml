@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "One function at a time, starting with clamp_value: replace `int` with a template parameter. `template <class T>` goes on the line before the function, and then T replaces int in the parameters and the result type. The tests say which kinds of call do not compile yet (for example 'clamp_value does not compile for std::string')."
+  - level: 2
+    text: "clamp_value: `template <class T> constexpr const T& clamp_value(const T& value, const T& low, const T& high) { return value < low ? low : (high < value ? high : value); }`: references so that nothing is copied, and only `<`. min_of: TWO parameters, `template <class A, class B> constexpr std::common_type_t<A, B> min_of(const A& a, const B& b)`, body `return b < a ? b : a;`."
+  - level: 3
+    text: "The braced-list overload is a second, separate template: `template <class T> constexpr T min_of(std::initializer_list<T> values)`: start with `*values.begin()` and keep the smaller. swap_values: `template <class T> void swap_values(T& a, T& b) { using std::swap; swap(a, b); }`: two lines, and the unqualified call is the whole point."
+  - level: 4
+    text: |
+      template <class T>
+      constexpr const T& clamp_value(const T& value, const T& low, const T& high) { return value < low ? low : (high < value ? high : value); }
+      template <class A, class B>
+      constexpr std::common_type_t<A, B> min_of(const A& a, const B& b) { return b < a ? b : a; }
+      template <class T>
+      constexpr T min_of(std::initializer_list<T> values) { auto it = values.begin(); T best = *it; for (++it; it != values.end(); ++it) if (*it < best) best = *it; return best; }
+      template <class T>
+      void swap_values(T& a, T& b) { using std::swap; swap(a, b); }

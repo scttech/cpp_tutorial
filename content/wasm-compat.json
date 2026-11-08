@@ -161,6 +161,56 @@
       "mutants": 2,
       "hash": "9e182db49ec31ca2"
     },
+    "core.generics.capstone-ring-buffer": {
+      "wasm": true,
+      "mutants": 30,
+      "hash": "58c8892b15a70624"
+    },
+    "core.generics.capstone-static-vector": {
+      "wasm": true,
+      "mutants": 26,
+      "hash": "9dc4d6aa34f3645c"
+    },
+    "core.generics.class-templates": {
+      "wasm": true,
+      "mutants": 22,
+      "hash": "2942a0f6360b47a0"
+    },
+    "core.generics.concepts": {
+      "wasm": true,
+      "mutants": 17,
+      "hash": "3ba5c212a0928530"
+    },
+    "core.generics.function-templates": {
+      "wasm": true,
+      "mutants": 14,
+      "hash": "e95bb58656e801e7"
+    },
+    "core.generics.reading-errors": {
+      "wasm": true,
+      "mutants": 16,
+      "hash": "dc0e75feeca44581"
+    },
+    "core.generics.specialization": {
+      "wasm": true,
+      "mutants": 19,
+      "hash": "51bc62d81bf929ed"
+    },
+    "core.generics.test-out": {
+      "wasm": true,
+      "mutants": 9,
+      "hash": "ee64a43985a2c533"
+    },
+    "core.generics.type-traits": {
+      "wasm": true,
+      "mutants": 27,
+      "hash": "f76d9b498247c5cd"
+    },
+    "core.generics.variadic": {
+      "wasm": true,
+      "mutants": 27,
+      "hash": "4b62ad281a85aa78"
+    },
     "core.ownership.capstone-vector": {
       "wasm": false,
       "reason": "needs sanitizers",

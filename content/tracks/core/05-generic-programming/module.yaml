@@ -1,0 +1,6 @@
+id: core.generics
+title: "Generic Programming"
+track: core
+order: 5
+summary: "Function and class templates, specialization, concepts, variadic templates, and type traits."
+testOut: core.generics.test-out   # "Generic max-by": passing it completes the module
