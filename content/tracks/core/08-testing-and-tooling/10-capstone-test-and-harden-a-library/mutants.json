@@ -1,0 +1,291 @@
+[
+  {
+    "name": "library-regression-doubled-quote",
+    "why": "csv.hpp has the bug \"doubled-quote\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    if (i + 1 < line.size() && line[i + 1] == '\"') {\n                        field += '\"';\n                        i += 2;\n                        continue;\n                    }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "library-regression-trailing-delimiter",
+    "why": "csv.hpp has the bug \"trailing-delimiter\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        ++i;  // the delimiter; when it was the last character the loop runs once more and adds the empty last field\n",
+        "new": "        ++i;  // the delimiter\n        if (i == line.size()) break;\n"
+      }
+    ]
+  },
+  {
+    "name": "library-regression-unterminated",
+    "why": "csv.hpp has the bug \"unterminated\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            if (!closed) throw ParseError(\"unterminated quote\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "library-regression-garbage-after-quote",
+    "why": "csv.hpp has the bug \"garbage-after-quote\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            if (i < line.size() && line[i] != delimiter) throw ParseError(\"unexpected character after closing quote\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "library-regression-crlf",
+    "why": "csv.hpp has the bug \"crlf\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    if (!line.empty() && line.back() == '\\r') line.remove_suffix(1);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "library-regression-format-delimiter",
+    "why": "csv.hpp has the bug \"format-delimiter\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    return field.find_first_of(std::string{delimiter, '\"', '\\r', '\\n'}) != std::string_view::npos;",
+        "new": "    return field.find_first_of(\"\\\"\\r\\n\") != std::string_view::npos;"
+      }
+    ]
+  },
+  {
+    "name": "library-regression-format-quotes",
+    "why": "csv.hpp has the bug \"format-quotes\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            for (const char c : field) {\n                if (c == '\"') out += '\"';\n                out += c;\n            }\n",
+        "new": "            out += field;\n"
+      }
+    ]
+  },
+  {
+    "name": "library-regression-document-quotes",
+    "why": "csv.hpp has the bug \"document-quotes\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        if (!at_end && text[i] == '\"') in_quotes = !in_quotes;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "library-regression-quadratic",
+    "why": "csv.hpp has the bug \"quadratic\" again: the tests or the hidden checks must fail.",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        } else {\n            out += field;\n        }",
+        "new": "        } else {\n            out = out + field;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "library-value-parameter",
+    "why": "format_line takes the row by value: clang-tidy reports it (Clean tier).",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "inline std::string format_line(const Row& row, char delimiter = ',') {",
+        "new": "inline std::string format_line(Row row, char delimiter = ',') {"
+      }
+    ]
+  },
+  {
+    "name": "library-size-compared-with-zero",
+    "why": "size() != 0 instead of empty(): clang-tidy reports it (Clean tier).",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            if (!detail::without_line_end(line).empty()) rows.push_back(parse_line(line, delimiter));",
+        "new": "            if (detail::without_line_end(line).size() != 0) rows.push_back(parse_line(line, delimiter));"
+      }
+    ]
+  },
+  {
+    "name": "library-unused-variable",
+    "why": "an unused variable: a compiler warning and a cppcheck finding (Clean tier).",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    Row row;\n    std::string field;\n",
+        "new": "    Row row;\n    int comma_count = 0;\n    std::string field;\n"
+      }
+    ]
+  },
+  {
+    "name": "library-nolint",
+    "why": "a NOLINT comment hides the finding instead of fixing it (Clean tier).",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "inline std::string format_line(const Row& row, char delimiter = ',') {",
+        "new": "inline std::string format_line(Row row, char delimiter = ',') {  // NOLINT(performance-unnecessary-value-param)"
+      }
+    ]
+  },
+  {
+    "name": "forgot-trailing-delimiter",
+    "why": "trailing-delimiter-lost: \"a,\" is never parsed (the round trip test is gone too).",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseLine, ATrailingDelimiterMeansAnEmptyLastField) {\n    EXPECT_EQ(csv::parse_line(\"a,b,\"), (Row{\"a\", \"b\", \"\"}));\n}\n",
+        "new": ""
+      },
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, WhatIsFormattedCanBeParsedBack) {\n    const std::vector<Row> rows = {Row{\"a\"}, Row{\"\", \"\"}, Row{\"x,y\", \"\\\"q\\\"\", \"multi\\nline\"}, Row{\"\", \"last\"}};\n    for (const Row& row : rows) {\n        EXPECT_EQ(csv::parse_line(csv::format_line(row)), row);\n    }\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-doubled-quotes",
+    "why": "doubled-quote-dropped: no test has a quote inside a quoted field (the round trip test is gone too).",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseLine, TwoQuotesInsideQuotesAreOneQuote) {\n    EXPECT_EQ(csv::parse_line(\"\\\"say \\\"\\\"hi\\\"\\\"\\\",x\"), (Row{\"say \\\"hi\\\"\", \"x\"}));\n}\n",
+        "new": ""
+      },
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, WhatIsFormattedCanBeParsedBack) {\n    const std::vector<Row> rows = {Row{\"a\"}, Row{\"\", \"\"}, Row{\"x,y\", \"\\\"q\\\"\", \"multi\\nline\"}, Row{\"\", \"last\"}};\n    for (const Row& row : rows) {\n        EXPECT_EQ(csv::parse_line(csv::format_line(row)), row);\n    }\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-quoting-the-delimiter",
+    "why": "format-does-not-quote-the-delimiter: format_line is never given a comma that must be quoted.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, QuotesAFieldThatContainsTheDelimiter) {\n    EXPECT_EQ(csv::format_line(Row{\"a,b\", \"c\"}), \"\\\"a,b\\\",c\");\n}\n",
+        "new": ""
+      },
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, WhatIsFormattedCanBeParsedBack) {\n    const std::vector<Row> rows = {Row{\"a\"}, Row{\"\", \"\"}, Row{\"x,y\", \"\\\"q\\\"\", \"multi\\nline\"}, Row{\"\", \"last\"}};\n    for (const Row& row : rows) {\n        EXPECT_EQ(csv::parse_line(csv::format_line(row)), row);\n    }\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-doubling-quotes-when-formatting",
+    "why": "format-does-not-double-quotes: neither the format test nor the round trip has a quote.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, DoublesTheQuotesInsideAQuotedField) {\n    EXPECT_EQ(csv::format_line(Row{\"say \\\"hi\\\"\"}), \"\\\"say \\\"\\\"hi\\\"\\\"\\\"\");\n}\n",
+        "new": ""
+      },
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(FormatLine, WhatIsFormattedCanBeParsedBack) {\n    const std::vector<Row> rows = {Row{\"a\"}, Row{\"\", \"\"}, Row{\"x,y\", \"\\\"q\\\"\", \"multi\\nline\"}, Row{\"\", \"last\"}};\n    for (const Row& row : rows) {\n        EXPECT_EQ(csv::parse_line(csv::format_line(row)), row);\n    }\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-unterminated",
+    "why": "unterminated-quote-accepted: no test for the unclosed quote.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseLine, AQuoteThatIsNeverClosedIsAnError) {\n    EXPECT_THROW(csv::parse_line(\"\\\"abc\"), ParseError);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-garbage-after-quote",
+    "why": "text-after-closing-quote-accepted: no test for text after the closing quote.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseLine, TextAfterAClosingQuoteIsAnError) {\n    EXPECT_THROW(csv::parse_line(\"\\\"abc\\\"def,x\"), ParseError);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-line-endings",
+    "why": "crlf-leaves-a-carriage-return: no test has a Windows line ending.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseLine, TheLineEndingIsNotPartOfTheLastField) {\n    EXPECT_EQ(csv::parse_line(\"a,b\\r\\n\"), (Row{\"a\", \"b\"}));\n    EXPECT_EQ(csv::parse_line(\"a,b\\n\"), (Row{\"a\", \"b\"}));\n}\n",
+        "new": ""
+      },
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseDocument, WindowsLineEndingsWork) {\n    const auto rows = csv::parse_document(\"a,b\\r\\nc,d\\r\\n\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[0], (Row{\"a\", \"b\"}));\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-quoted-line-breaks",
+    "why": "document-splits-quoted-line-breaks: no document with a line break inside quotes.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "TEST(ParseDocument, ALineBreakInsideQuotesBelongsToTheField) {\n    const auto rows = csv::parse_document(\"a,\\\"x\\ny\\\"\\nc,d\\n\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[0], (Row{\"a\", \"x\\ny\"}));\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "asserts-nothing",
+    "why": "the tests only call the functions: no bug is noticed.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "// ================================================ parse_line ===========================================================\n\nTEST(ParseLine, SplitsAtTheDelimiter) {\n    EXPECT_EQ(csv::parse_line(\"a,b,c\"), (Row{\"a\", \"b\", \"c\"}));\n}\n\nTEST(ParseLine, KeepsEmptyFieldsInTheMiddle) {\n    EXPECT_EQ(csv::parse_line(\"a,,c\"), (Row{\"a\", \"\", \"c\"}));\n}\n\nTEST(ParseLine, ATrailingDelimiterMeansAnEmptyLastField) {\n    EXPECT_EQ(csv::parse_line(\"a,b,\"), (Row{\"a\", \"b\", \"\"}));\n}\n\nTEST(ParseLine, TheEmptyLineIsOneEmptyField) {\n    EXPECT_EQ(csv::parse_line(\"\"), (Row{\"\"}));\n}\n\nTEST(ParseLine, ADelimiterInsideQuotesIsData) {\n    EXPECT_EQ(csv::parse_line(\"\\\"a,b\\\",c\"), (Row{\"a,b\", \"c\"}));\n}\n\nTEST(ParseLine, TwoQuotesInsideQuotesAreOneQuote) {\n    EXPECT_EQ(csv::parse_line(\"\\\"say \\\"\\\"hi\\\"\\\"\\\",x\"), (Row{\"say \\\"hi\\\"\", \"x\"}));\n}\n\nTEST(ParseLine, ACustomDelimiterWorks) {\n    EXPECT_EQ(csv::parse_line(\"a;b,c;d\", ';'), (Row{\"a\", \"b,c\", \"d\"}));\n}\n\nTEST(ParseLine, TheLineEndingIsNotPartOfTheLastField) {\n    EXPECT_EQ(csv::parse_line(\"a,b\\r\\n\"), (Row{\"a\", \"b\"}));\n    EXPECT_EQ(csv::parse_line(\"a,b\\n\"), (Row{\"a\", \"b\"}));\n}\n\nTEST(ParseLine, AQuoteThatIsNeverClosedIsAnError) {\n    EXPECT_THROW(csv::parse_line(\"\\\"abc\"), ParseError);\n}\n\nTEST(ParseLine, TextAfterAClosingQuoteIsAnError) {\n    EXPECT_THROW(csv::parse_line(\"\\\"abc\\\"def,x\"), ParseError);\n}\n\n// ================================================ format_line ==========================================================\n\nTEST(FormatLine, JoinsPlainFields) {\n    EXPECT_EQ(csv::format_line(Row{\"a\", \"b\", \"c\"}), \"a,b,c\");\n}\n\nTEST(FormatLine, QuotesAFieldThatContainsTheDelimiter) {\n    EXPECT_EQ(csv::format_line(Row{\"a,b\", \"c\"}), \"\\\"a,b\\\",c\");\n}\n\nTEST(FormatLine, DoublesTheQuotesInsideAQuotedField) {\n    EXPECT_EQ(csv::format_line(Row{\"say \\\"hi\\\"\"}), \"\\\"say \\\"\\\"hi\\\"\\\"\\\"\");\n}\n\nTEST(FormatLine, WhatIsFormattedCanBeParsedBack) {\n    const std::vector<Row> rows = {Row{\"a\"}, Row{\"\", \"\"}, Row{\"x,y\", \"\\\"q\\\"\", \"multi\\nline\"}, Row{\"\", \"last\"}};\n    for (const Row& row : rows) {\n        EXPECT_EQ(csv::parse_line(csv::format_line(row)), row);\n    }\n}\n\n// ================================================ parse_document =======================================================\n\nTEST(ParseDocument, OneRecordPerLine) {\n    const auto rows = csv::parse_document(\"a,b\\nc,d\\n\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[1], (Row{\"c\", \"d\"}));\n}\n\nTEST(ParseDocument, ALineBreakInsideQuotesBelongsToTheField) {\n    const auto rows = csv::parse_document(\"a,\\\"x\\ny\\\"\\nc,d\\n\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[0], (Row{\"a\", \"x\\ny\"}));\n}\n\nTEST(ParseDocument, BlankLinesAreSkippedAndAMissingFinalBreakIsFine) {\n    const auto rows = csv::parse_document(\"a\\n\\n\\nb\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[1], (Row{\"b\"}));\n}\n\nTEST(ParseDocument, WindowsLineEndingsWork) {\n    const auto rows = csv::parse_document(\"a,b\\r\\nc,d\\r\\n\");\n    ASSERT_EQ(rows.size(), 2u);\n    EXPECT_EQ(rows[0], (Row{\"a\", \"b\"}));\n}\n\nTEST(ParseDocument, AnUnclosedQuoteIsAnError) {\n    EXPECT_THROW(csv::parse_document(\"a,\\\"b\\nc\"), ParseError);\n}\n",
+        "new": "TEST(Csv, JustRuns) {\n    csv::parse_line(\"a,b\");\n    csv::format_line(csv::Row{\"a\"});\n    csv::parse_document(\"a\\n\");\n}\n"
+      }
+    ]
+  },
+  {
+    "name": "a-test-that-fails-on-good-code",
+    "why": "a wrong expectation: the tests must pass on the library first.",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "    EXPECT_EQ(csv::parse_line(\"a,,c\"), (Row{\"a\", \"\", \"c\"}));",
+        "new": "    EXPECT_EQ(csv::parse_line(\"a,,c\"), (Row{\"a\", \"c\"}));"
+      }
+    ]
+  },
+  {
+    "name": "a-warning-in-the-tests",
+    "why": "an unused variable is a compiler warning (Clean tier).",
+    "edits": [
+      {
+        "file": "csv_test.cpp",
+        "old": "    EXPECT_EQ(csv::parse_line(\"\"), (Row{\"\"}));",
+        "new": "    int leftover = 0;\n    EXPECT_EQ(csv::parse_line(\"\"), (Row{\"\"}));"
+      }
+    ]
+  }
+]

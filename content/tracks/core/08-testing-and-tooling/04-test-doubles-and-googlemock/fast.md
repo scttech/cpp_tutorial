@@ -1,0 +1,9 @@
+# Fast path: what's different in C++
+
+- **Mocking in C++ needs a seam.** Mocks work by overriding **virtual** functions, so the dependency must be an interface (a class with virtual functions and a virtual destructor) that the code receives by reference or pointer (dependency injection). Code that uses a concrete class or a global directly is not mockable; the alternatives are templates (inject the type as a template parameter, then the double needs no virtuals) or a link-time seam.
+- **GoogleMock** (`#include <gmock/gmock.h>`, link `gmock` + `gtest` + `gtest_main`): `MOCK_METHOD(Ret, name, (Args...), (const, override, noexcept))`, `EXPECT_CALL(obj, name(matchers)).Times(n).WillOnce(action).WillRepeatedly(action)`, `ON_CALL(...)` for a default behavior without an expectation, `InSequence`, matchers (`_`, `Eq`, `Gt`, `HasSubstr`, `ElementsAre`, `AllOf`) and actions (`Return`, `Throw`, `SetArgPointee`, `Invoke`, `DoAll`).
+- **Verification happens at destruction** of the mock (or `Mock::VerifyAndClearExpectations(&m)`): an expected call that never came is reported then. Set expectations **before** the code under test runs.
+- **`StrictMock` / `NaggyMock` (default) / `NiceMock`** decide what an unexpected call does: fail / warn / nothing.
+- **Hand-written fakes** are often better than mocks for stateful collaborators (an in-memory repository): they test state, survive refactoring and read like production code. Reach for a mock when the *call* is the behavior.
+- **Smells**: over-specified expectations (order and counts that do not matter), mocking types you own that are simple values, one mock per class "just in case", and a test whose assertions are all in `EXPECT_CALL`.
+- **Other mocking tools**: Trompeloeil (header-only, modern), FakeIt, Catch2 has none built in. Compile-time seams (templates) avoid virtual calls entirely when speed matters.

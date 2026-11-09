@@ -1,0 +1,8 @@
+# Fast path: what's different in C++
+
+- **The workflow of this capstone is the daily workflow of a C++ team**: write the test, watch it fail, make it pass; build with strict warnings and sanitizers; run clang-tidy and cppcheck; keep a budget for allocations and time where it matters; check formatting and run it all in CI.
+- **CSV quoting rules** (RFC 4180): fields containing the delimiter, a quote or a line break are quoted; a quote inside a quoted field is doubled; a line break inside quotes belongs to the field; a record ends at a line break outside quotes; CRLF and LF are both seen. Parsing is a small state machine (unquoted / quoted / after-closing-quote).
+- **Tests that find bugs**: round trips (`parse(format(x)) == x`), edge inputs (empty, one element, boundaries), error inputs (each documented exception), and a test per rule in the contract. Measure them with mutation testing: a suite that lets a broken copy through has a gap.
+- **Strings and performance**: `s = s + x` allocates a new string every time (quadratic); `s += x` grows geometrically. Pass big arguments by `const&`. `reserve` when you know the size. Count allocations in a test if the speed matters (a budget cannot flake the way timing does).
+- **Exceptions in a parser**: derive your own error type from a standard one (`struct ParseError : std::runtime_error`), so that callers can catch either. Use a specific type per kind of failure when callers need to react differently.
+- **Analyzers**: findings are fixed or (rarely, with a reason) suppressed on the line. A `.clang-tidy` file in the repository is the team's agreement on which checks matter.

@@ -1,0 +1,17 @@
+id: core.testing.googletest
+title: "GoogleTest"
+module: core.testing
+type: lesson
+estimatedMinutes: 50
+concepts: [googletest, test-macro, expect-vs-assert, test-fixture, test-f, parameterized-test, test-p, expect-throw, floating-point-comparison, test-filter, failure-message, test-naming]
+prerequisites: [core.testing.why-test]
+files:
+  editable: [ring_buffer_test.cpp]
+  readonly: [ring_buffer.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+libs: [gtest]
+grader: variants
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: [testing-tools]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [expect-where-assert-is-needed, fixture-state-shared-between-tests, signed-unsigned-comparison, throw-with-the-wrong-exception-type, parameterized-test-never-instantiated, comparing-doubles-with-equal, one-test-checks-everything, test-name-says-nothing]

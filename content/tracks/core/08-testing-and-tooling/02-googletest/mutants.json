@@ -1,0 +1,159 @@
+[
+  {
+    "name": "forgot-front",
+    "why": "front-returns-newest: front() is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, FrontIsTheOldestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.front(), 1);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-back",
+    "why": "back-returns-oldest: back() is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, BackIsTheNewestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.back(), 2);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-pop",
+    "why": "pop-does-not-remove: nothing looks at the size after a pop.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PopRemovesAndReturnsTheOldestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.pop(), 1);\n    EXPECT_EQ(buffer.size(), 1u);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-overwrite",
+    "why": "full-buffer-drops-the-newest / at-ignores-the-start: the wrap-around is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PushingOntoAFullBufferOverwritesTheOldestItem) {\n    fill({1, 2, 3, 4});\n    ASSERT_EQ(buffer.size(), 3u);  // no point looking at the items if the size is wrong\n    EXPECT_EQ(buffer.at(0), 2);\n    EXPECT_EQ(buffer.at(1), 3);\n    EXPECT_EQ(buffer.at(2), 4);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-pop-empty",
+    "why": "pop-empty-returns-garbage: pop() on an empty buffer is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PopOnAnEmptyBufferThrows) {\n    EXPECT_THROW(buffer.pop(), std::out_of_range);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-at-range",
+    "why": "at-allows-size: the index just beyond the last item is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, AtBeyondTheSizeThrows) {\n    fill({1, 2});\n    EXPECT_NO_THROW(buffer.at(1));\n    EXPECT_THROW(buffer.at(2), std::out_of_range);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-zero-capacity",
+    "why": "zero-capacity-allowed: the constructor check is never tested.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST(RingBuffer, ACapacityOfZeroIsRejected) {\n    EXPECT_THROW(RingBuffer b(0), std::invalid_argument);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-parameterized-test",
+    "why": "full() is never tested, and the Clean tier asks for a TEST_P.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "// A PARAMETERIZED test: the same body for several capacities. The capacity is the parameter (GetParam()).\nclass RingBufferCapacity : public ::testing::TestWithParam<std::size_t> {};\n\nTEST_P(RingBufferCapacity, IsFullExactlyWhenItHoldsItsCapacity) {\n    const std::size_t capacity = GetParam();\n    RingBuffer b(capacity);\n    for (std::size_t i = 0; i + 1 < capacity; ++i) b.push(static_cast<int>(i));\n    EXPECT_FALSE(b.full());\n    b.push(99);\n    EXPECT_TRUE(b.full());\n}\n\nINSTANTIATE_TEST_SUITE_P(Capacities, RingBufferCapacity, ::testing::Values(1u, 2u, 3u, 8u));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-assert",
+    "why": "no ASSERT_* anywhere (Clean tier).",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "    ASSERT_EQ(buffer.size(), 3u);  // no point looking at the items if the size is wrong",
+        "new": "    EXPECT_EQ(buffer.size(), 3u);"
+      }
+    ]
+  },
+  {
+    "name": "no-fixture",
+    "why": "plain TESTs only (Clean tier asks for a fixture).",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, FrontIsTheOldestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.front(), 1);\n}",
+        "new": "TEST(RingBuffer, FrontIsTheOldestItem) {\n    RingBuffer b(3);\n    b.push(1);\n    b.push(2);\n    EXPECT_EQ(b.front(), 1);\n}"
+      },
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, BackIsTheNewestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.back(), 2);\n}",
+        "new": "TEST(RingBuffer, BackIsTheNewestItem) {\n    RingBuffer b(3);\n    b.push(1);\n    b.push(2);\n    EXPECT_EQ(b.back(), 2);\n}"
+      },
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PopRemovesAndReturnsTheOldestItem) {\n    fill({1, 2});\n    EXPECT_EQ(buffer.pop(), 1);\n    EXPECT_EQ(buffer.size(), 1u);\n}",
+        "new": "TEST(RingBuffer, PopRemovesAndReturnsTheOldestItem) {\n    RingBuffer b(3);\n    b.push(1);\n    b.push(2);\n    EXPECT_EQ(b.pop(), 1);\n    EXPECT_EQ(b.size(), 1u);\n}"
+      },
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PushingOntoAFullBufferOverwritesTheOldestItem) {\n    fill({1, 2, 3, 4});\n    ASSERT_EQ(buffer.size(), 3u);  // no point looking at the items if the size is wrong\n    EXPECT_EQ(buffer.at(0), 2);\n    EXPECT_EQ(buffer.at(1), 3);\n    EXPECT_EQ(buffer.at(2), 4);\n}",
+        "new": "TEST(RingBuffer, PushingOntoAFullBufferOverwritesTheOldestItem) {\n    RingBuffer b(3);\n    for (int v : {1, 2, 3, 4}) b.push(v);\n    ASSERT_EQ(b.size(), 3u);\n    EXPECT_EQ(b.at(0), 2);\n    EXPECT_EQ(b.at(1), 3);\n    EXPECT_EQ(b.at(2), 4);\n}"
+      },
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, PopOnAnEmptyBufferThrows) {\n    EXPECT_THROW(buffer.pop(), std::out_of_range);\n}",
+        "new": "TEST(RingBuffer, PopOnAnEmptyBufferThrows) {\n    RingBuffer b(3);\n    EXPECT_THROW(b.pop(), std::out_of_range);\n}"
+      },
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "TEST_F(RingBufferTest, AtBeyondTheSizeThrows) {\n    fill({1, 2});\n    EXPECT_NO_THROW(buffer.at(1));\n    EXPECT_THROW(buffer.at(2), std::out_of_range);\n}",
+        "new": "TEST(RingBuffer, AtBeyondTheSizeThrows) {\n    RingBuffer b(3);\n    b.push(1);\n    b.push(2);\n    EXPECT_NO_THROW(b.at(1));\n    EXPECT_THROW(b.at(2), std::out_of_range);\n}"
+      }
+    ]
+  },
+  {
+    "name": "a-test-that-fails-on-good-code",
+    "why": "a wrong expectation: the tests must pass on the real buffer first.",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "    EXPECT_EQ(buffer.front(), 1);\n}",
+        "new": "    EXPECT_EQ(buffer.front(), 2);\n}"
+      }
+    ]
+  },
+  {
+    "name": "a-warning-in-the-tests",
+    "why": "an unused variable is a compiler warning (Clean tier).",
+    "edits": [
+      {
+        "file": "ring_buffer_test.cpp",
+        "old": "    EXPECT_EQ(buffer.pop(), 1);\n    EXPECT_EQ(buffer.size(), 1u);",
+        "new": "    int leftover = 0;\n    EXPECT_EQ(buffer.pop(), 1);\n    EXPECT_EQ(buffer.size(), 1u);"
+      }
+    ]
+  }
+]

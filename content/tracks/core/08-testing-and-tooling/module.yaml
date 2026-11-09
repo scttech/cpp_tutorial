@@ -1,0 +1,6 @@
+id: core.testing
+title: "Testing and Tooling"
+track: core
+order: 8
+summary: "Unit tests with GoogleTest and Catch2, test doubles with GoogleMock, compiler warnings, clang-tidy and cppcheck, sanitizers, fuzzing, coverage, formatting, and building and testing with CMake."
+testOut: core.testing.test-out   # "Test the Stack": passing it completes the module

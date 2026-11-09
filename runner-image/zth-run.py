@@ -140,7 +140,7 @@ def build(flags, user_sources, test_sources, compile_s, libs=()):
     and capture it, while the test sources provide the real main. (Renaming with -Dmain= would
     break the rule that main implicitly returns 0.)
     """
-    base = ["clang++", *flags, "-I/opt/zth/include", "-I" + WORK]
+    base = ["clang++", *flags, "-isystem/opt/zth/include", "-I" + WORK]
     if not test_sources:
         r = run_capped([*base, *user_sources, *link_flags(libs), "-o", "/work/a.out"], "", compile_s, 262144)
         return r["exitCode"] == 0 and not r["timedOut"], r["stderr"], r["timedOut"]
@@ -169,6 +169,7 @@ def build(flags, user_sources, test_sources, compile_s, libs=()):
 import re
 
 FINDING = re.compile(r"^(?:/work/)?([^\s:][^:\n]*):(\d+):(\d+): (warning|error|note|style|performance|portability|information): (.*)$")
+MAX_FINDINGS = 30
 NAME_OK = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_\-./]*$")
 CHECKS_OK = re.compile(r"^[A-Za-z0-9*,\-_.+ ]+$")
 
@@ -204,9 +205,10 @@ def analyzer_command(spec, flags):
         # Report findings in the learner's own files only, never in the framework or standard headers.
         cmd.append("--header-filter=/work/(" + "|".join(re.escape(f) for f in files) + ")$")
         std = [f for f in flags if f.startswith(("-std=", "-D"))]
-        return [*cmd, *[f for f in files if is_source(f)], "--", *std, "-I/opt/zth/include", "-I" + WORK]
+        return [*cmd, *[f for f in files if is_source(f)], "--", *std, "-isystem/opt/zth/include", "-I" + WORK]
     if tool == "cppcheck":
-        return ["cppcheck", "--quiet", "--enable=warning,style,performance,portability", "--inline-suppr", "--suppress=missingIncludeSystem",
+        return ["cppcheck", "--quiet", "--enable=" + (spec.get("checks") or "warning,style,performance,portability"), "--inline-suppr",
+                "--suppress=missingIncludeSystem",
                 "--suppress=unmatchedSuppression", "--template={file}:{line}:{column}: {severity}: {message} [{id}]",
                 *["-" + f for f in flags if f.startswith("-std=")], *files]
     if tool == "clang-format":
@@ -233,7 +235,7 @@ def run_analyzers(analyzers, flags, budget_s):
             continue
         found = normalize_findings(r["stdout"] + "\n" + r["stderr"])
         problems = [t for sev, t in found if sev != "note"]
-        findings.extend(t for _, t in found)
+        findings.extend(t for _, t in found[:MAX_FINDINGS])  # a flood of findings would only bury the first ones; the count is in the result
         if problems:
             lines.append(protocol_line(name, "clean", "fail", f"{len(problems)} finding(s). First: " + problems[0]))
         elif r["exitCode"] not in (0, None):
@@ -283,7 +285,7 @@ def grade(files, tests, flags, libs, lim, result, env):
         if left <= 0:
             lines.append(protocol_line(name, tier, "error", "ran out of time before this check"))
             continue
-        built = run_capped(["clang++", *flags, "-I/opt/zth/include", "-I" + vdir, *[f"{vdir}/{n}" for n in user_sources], *link_flags(libs),
+        built = run_capped(["clang++", *flags, "-isystem/opt/zth/include", "-I" + vdir, *[f"{vdir}/{n}" for n in user_sources], *link_flags(libs),
                             "-o", f"{vdir}/a.out"], "", left, 262144)
         if built["timedOut"] or built["exitCode"] != 0:
             lines.append(protocol_line(name, tier, "error", "your tests do not compile against this variant: " + built["stderr"][:300]))
@@ -293,6 +295,18 @@ def grade(files, tests, flags, libs, lim, result, env):
         hint = v.get("hint") or "Add a test that would fail in that case."
         lines.append(protocol_line(name, tier, "pass" if caught else "fail",
                                    None if caught else f"Your tests still pass when {name[0].lower() + name[1:]}. {hint}"))
+    if manifest.get("check"):
+        # A hidden test program (zth_test.hpp) that exercises the learner's OWN code under test: used when the learner also edits the library.
+        # Every source the manifest does not name as the learner's test file belongs to the library.
+        lib_sources = [n for n in user_sources if n not in manifest.get("testSources", [])]
+        ok2, out2, _ = build(flags, lib_sources, [manifest["check"]], compile_s)
+        if not ok2:
+            lines.append(protocol_line("Your library builds", "works", "fail", "It does not compile: " + out2[:400]))
+        else:
+            r2 = run_capped(["/work/a.out"], "", wall_s, max_out, env=env)
+            lines.extend(l for l in r2["stdout"].splitlines() if l.startswith("@@ZTH "))
+            if r2["timedOut"] or r2["signal"]:
+                lines.append(protocol_line("Your library does not crash or hang", "works", "fail", "The checks ended with " + (r2["signal"] or "a timeout") + "."))
     if manifest.get("clean"):
         warned = any("warning:" in l for l in output.splitlines())
         lines.append(protocol_line("Your tests compile without warnings", "clean", "fail" if warned else "pass", "See the Problems tab." if warned else None))

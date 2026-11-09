@@ -1,0 +1,15 @@
+id: core.testing.why-test
+title: "Why test, and what a test is"
+module: core.testing
+type: lesson
+estimatedMinutes: 45
+concepts: [unit-test, arrange-act-assert, test-registry, static-initialization, function-local-static, macro, do-while-zero, stringizing, evaluate-once, test-isolation, exit-status]
+prerequisites: [core.inherit.capstone-plugin-pipeline]
+files:
+  editable: [minitest.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [macro-evaluates-its-arguments-twice, macro-not-wrapped-in-do-while, failure-leaks-into-the-next-test, registry-built-too-late, return-the-wrong-count, assert-style-macro-hides-later-failures, values-missing-from-the-message, tests-run-in-the-wrong-order]

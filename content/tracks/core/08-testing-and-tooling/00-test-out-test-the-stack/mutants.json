@@ -1,0 +1,123 @@
+[
+  {
+    "name": "forgot-pop-order",
+    "why": "pop-returns-oldest: nothing checks WHICH item pop() returns.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, PopReturnsTheNewestItem) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    EXPECT_EQ(s.pop(), 2);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-top",
+    "why": "top-returns-oldest: top() is never tested after two pushes.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, TopShowsTheNewestItemWithoutRemovingIt) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    EXPECT_EQ(s.top(), 2);\n    EXPECT_EQ(s.size(), 2u);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-pop-shrinks",
+    "why": "pop-keeps-size: nothing looks at the size after a pop.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, PopShrinksTheStack) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    s.pop();\n    EXPECT_EQ(s.size(), 1u);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-empty",
+    "why": "empty-inverted: empty() is never checked.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, EmptyReflectsTheContents) {\n    BoundedStack s(3);\n    EXPECT_TRUE(s.empty());\n    s.push(7);\n    EXPECT_FALSE(s.empty());\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-full-stack",
+    "why": "push-full-drops-silently: the full stack is never pushed onto.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, PushOntoAFullStackThrows) {\n    BoundedStack s(2);\n    s.push(1);\n    s.push(2);\n    EXPECT_TRUE(s.full());\n    EXPECT_THROW(s.push(3), std::length_error);\n    EXPECT_EQ(s.size(), 2u);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-pop-empty",
+    "why": "pop-empty-returns-zero: nobody pops an empty stack.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, PopOnAnEmptyStackThrows) {\n    BoundedStack s(2);\n    EXPECT_THROW(s.pop(), std::out_of_range);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-top-empty",
+    "why": "top-empty-returns-zero: nobody calls top() on an empty stack.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, TopOnAnEmptyStackThrows) {\n    const BoundedStack s(2);\n    EXPECT_THROW(s.top(), std::out_of_range);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-clear",
+    "why": "clear-does-nothing: clear() is never called.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, ClearEmptiesTheStack) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    s.clear();\n    EXPECT_EQ(s.size(), 0u);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-zero-capacity",
+    "why": "zero-capacity-allowed: the constructor check is never tested.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, ACapacityOfZeroIsRejected) {\n    EXPECT_THROW(BoundedStack s(0), std::invalid_argument);\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "asserts-nothing-useful",
+    "why": "tests that run the code but check only that it does not crash: every bug survives (only the stack-is-fine test can pass).",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "TEST(BoundedStack, PopReturnsTheNewestItem) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    EXPECT_EQ(s.pop(), 2);\n}\n\nTEST(BoundedStack, TopShowsTheNewestItemWithoutRemovingIt) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    EXPECT_EQ(s.top(), 2);\n    EXPECT_EQ(s.size(), 2u);\n}\n\nTEST(BoundedStack, PopShrinksTheStack) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    s.pop();\n    EXPECT_EQ(s.size(), 1u);\n}\n\nTEST(BoundedStack, EmptyReflectsTheContents) {\n    BoundedStack s(3);\n    EXPECT_TRUE(s.empty());\n    s.push(7);\n    EXPECT_FALSE(s.empty());\n}\n\n// ---- the edges -----------------------------------------------------------------------------------------------------\n\nTEST(BoundedStack, PushOntoAFullStackThrows) {\n    BoundedStack s(2);\n    s.push(1);\n    s.push(2);\n    EXPECT_TRUE(s.full());\n    EXPECT_THROW(s.push(3), std::length_error);\n    EXPECT_EQ(s.size(), 2u);\n}\n\nTEST(BoundedStack, PopOnAnEmptyStackThrows) {\n    BoundedStack s(2);\n    EXPECT_THROW(s.pop(), std::out_of_range);\n}\n\nTEST(BoundedStack, TopOnAnEmptyStackThrows) {\n    const BoundedStack s(2);\n    EXPECT_THROW(s.top(), std::out_of_range);\n}\n\nTEST(BoundedStack, ClearEmptiesTheStack) {\n    BoundedStack s(3);\n    s.push(1);\n    s.push(2);\n    s.clear();\n    EXPECT_EQ(s.size(), 0u);\n}\n\nTEST(BoundedStack, ACapacityOfZeroIsRejected) {\n    EXPECT_THROW(BoundedStack s(0), std::invalid_argument);\n}\n",
+        "new": "TEST(BoundedStack, JustRuns) {\n    BoundedStack s(3);\n    s.push(1);\n    s.pop();\n}\n"
+      }
+    ]
+  },
+  {
+    "name": "a-test-that-fails-on-good-code",
+    "why": "a wrong expectation: the tests must pass on the real stack first.",
+    "edits": [
+      {
+        "file": "stack_test.cpp",
+        "old": "    EXPECT_EQ(s.pop(), 2);\n}",
+        "new": "    EXPECT_EQ(s.pop(), 1);\n}"
+      }
+    ]
+  }
+]

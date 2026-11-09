@@ -1,0 +1,17 @@
+id: core.testing.format-and-build
+title: "Formatting, CMake and ctest"
+module: core.testing
+type: lesson
+estimatedMinutes: 55
+concepts: [clang-format, format-config, code-style, cmake, cmake-targets, target-link-libraries, private-public-interface, ctest, gtest-discover-tests, find-package, fetchcontent, compile-commands, out-of-source-build, continuous-integration, pre-commit]
+prerequisites: [core.testing.fuzzing]
+files:
+  editable: [format.yaml, CMakeLists.txt]
+  readonly: [style_sample.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+analyzers:
+  - { tool: clang-format, files: [style_sample.cpp], config: format.yaml }
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: [testing-tools]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [format-config-copied-from-another-project, disabling-the-formatter, column-limit-zero, legacy-global-cmake-commands, link-without-visibility-keyword, glob-for-sources, standard-set-with-a-compiler-flag, warnings-added-globally, cmake-keywords-only-in-comments]

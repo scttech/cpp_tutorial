@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Do the TODOs in order. First the registry: ONE struct holding the vector of tests and the vector of failure strings, returned by reference from a function with a `static` local. add/count/clear/record_failure are one-liners on it. Run after each step: main.cpp prints the report, so you see right away what works."
+  - level: 2
+    text: "run_all: loop over the tests; before each, clear the failures; call the function; if no failure was recorded print `PASS name` and count it, else print `FAIL name`, then each failure indented by two spaces. After the loop print `<passed> passed, <failed> failed` and return failed. record_failure builds `file:line: message` (std::to_string for the line). Registrar's constructor is just `add(name, fn);`."
+  - level: 3
+    text: "MT_TEST(name) expands to three things: a declaration `static void name();`, a static Registrar `static const ::mt::Registrar mt_registrar_##name(#name, &name);`, and the start of the definition `static void name()` (the braces come from the user). MT_CHECK: `do { if (!(cond)) ::mt::record_failure(__FILE__, __LINE__, \"MT_CHECK(\" #cond \") failed\"); } while (0)`. Adjacent string literals are joined by the compiler."
+  - level: 4
+    text: |
+      #define MT_CHECK_EQ(a, b)                                                       \
+          do {                                                                        \
+              const auto& mt_left = (a);                                              \
+              const auto& mt_right = (b);                                             \
+              if (!(mt_left == mt_right)) {                                           \
+                  std::ostringstream mt_text;                                         \
+                  mt_text << "MT_CHECK_EQ(" #a ", " #b ") failed: " << mt_left << " != " << mt_right; \
+                  ::mt::record_failure(__FILE__, __LINE__, mt_text.str());            \
+              }                                                                       \
+          } while (0)

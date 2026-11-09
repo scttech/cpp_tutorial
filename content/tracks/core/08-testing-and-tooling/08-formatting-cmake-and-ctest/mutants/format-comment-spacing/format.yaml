@@ -1,0 +1,11 @@
+// MUTANT: the sample has two spaces before a trailing comment.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
+SpacesBeforeTrailingComments: 1
+NamespaceIndentation: None

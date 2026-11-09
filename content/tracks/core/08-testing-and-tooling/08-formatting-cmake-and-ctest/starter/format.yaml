@@ -1,0 +1,8 @@
+# The clang-format configuration of this lesson. In a real project this file is called .clang-format and sits in the root of the project;
+# clang-format finds it by itself, and editors and CI use the very same file.
+#
+# TASK: style_sample.cpp (read-only) is formatted in the team's house style. Make clang-format agree with it: when your options describe
+# that style, clang-format finds nothing to change in the sample. Look at the sample: indentation, where the braces go, where the `*` of a
+# pointer sits, how short functions and `if`s are written, the space before a trailing comment, how long lines are wrapped.
+# Run Tests lists the lines clang-format would change.
+BasedOnStyle: LLVM

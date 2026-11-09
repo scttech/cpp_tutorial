@@ -1,0 +1,16 @@
+id: core.testing.fuzzing
+title: "Sanitizers, fuzzing and coverage"
+module: core.testing
+type: lesson
+estimatedMinutes: 60
+concepts: [addresssanitizer, undefinedbehaviorsanitizer, threadsanitizer, memorysanitizer, fuzzing, random-testing, mutation-based-fuzzing, generation-based-fuzzing, libfuzzer, afl, corpus, property-based-testing, round-trip-property, exact-size-buffer, code-coverage, line-coverage, branch-coverage, gcov, llvm-cov, mutation-testing]
+prerequisites: [core.testing.static-analysis]
+files:
+  editable: [fuzz_test.cpp]
+  readonly: [packet.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-fsanitize=address,undefined"]
+grader: variants
+limits: { wallMs: 8000, memoryMb: 512 }
+requires: [testing-tools, sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [buffer-not-exactly-sized, random-bytes-never-reach-the-parser, only-crash-checks-no-property, random-seed-from-the-clock, fuzzing-without-sanitizers, truncation-never-tried, empty-payload-never-tried, long-payload-never-tried]

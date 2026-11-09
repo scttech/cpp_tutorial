@@ -1,0 +1,64 @@
+{
+  "baseline": "Your tests pass on the real Thermostat",
+  "clean": true,
+  "variants": [
+    {
+      "name": "cold-room-switches-off",
+      "label": "a cold room switches the heater off instead of on",
+      "tier": "works",
+      "hint": "Make the sensor report a cold room and expect the heater to be turned ON."
+    },
+    {
+      "name": "warm-room-never-switches-off",
+      "label": "a warm room never turns a heating heater off",
+      "tier": "works",
+      "hint": "Heat first (a cold reading), then report a warm room, and expect turn_off()."
+    },
+    {
+      "name": "turns-on-every-time",
+      "label": "a cold room turns the heater on again at every update",
+      "tier": "works",
+      "hint": "Check the room several times in a row: how many times may turn_on() be called?"
+    },
+    {
+      "name": "reads-the-sensor-twice",
+      "label": "update() reads the sensor twice",
+      "tier": "works",
+      "hint": "An EXPECT_CALL with Times(1) (or a WillOnce) limits the number of reads."
+    },
+    {
+      "name": "edge-of-the-band-switches",
+      "label": "a reading exactly at target - hysteresis already turns the heater on",
+      "tier": "robust",
+      "hint": "The dead band is closed: exactly 19.0 (target 20, hysteresis 1) is still inside it. Test the boundary."
+    },
+    {
+      "name": "failure-keeps-the-heater-on",
+      "label": "a failing sensor leaves a heating heater on",
+      "tier": "robust",
+      "hint": "When the sensor throws, the heater must be turned off for safety. Use Throw(...) as the action."
+    },
+    {
+      "name": "failure-is-reported-as-success",
+      "label": "update() returns true after a sensor failure",
+      "tier": "robust",
+      "hint": "What does update() return when the sensor throws?"
+    },
+    {
+      "name": "not-a-number-is-trusted",
+      "label": "a NaN reading is treated as a normal reading",
+      "tier": "robust",
+      "hint": "A sensor can return NaN. The documentation says what must happen then."
+    },
+    {
+      "name": "switches-off-when-already-off",
+      "label": "a warm room calls turn_off() even when the heater is already off",
+      "tier": "robust",
+      "hint": "With a StrictMock, any call you did not expect is a failure: check a warm room with the heater OFF."
+    }
+  ],
+  "check": "check.cpp",
+  "testSources": [
+    "thermostat_test.cpp"
+  ]
+}

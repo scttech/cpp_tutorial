@@ -1,0 +1,46 @@
+{
+  "baseline": "Your fuzz test finishes on the real parser, with no sanitizer report",
+  "clean": true,
+  "variants": [
+    {
+      "name": "reads-the-length-past-the-end",
+      "label": "parse() reads the length byte even when the message ends right after the magic byte",
+      "tier": "works",
+      "hint": "A message that is CUT OFF can end in the middle of a packet header. Try every prefix of valid messages, and give parse() an exactly sized buffer."
+    },
+    {
+      "name": "reads-the-payload-past-the-end",
+      "label": "parse() trusts the length byte and reads a payload that is longer than the message",
+      "tier": "works",
+      "hint": "Inputs whose length byte promises more bytes than there are. Random bytes find this one; so does cutting valid messages short."
+    },
+    {
+      "name": "reads-the-checksum-past-the-end",
+      "label": "parse() reads the checksum one byte past the end when only the checksum is missing",
+      "tier": "works",
+      "hint": "A valid message with its LAST byte removed. Try every prefix of valid messages."
+    },
+    {
+      "name": "rejects-long-payloads",
+      "label": "parse() rejects every payload of 128 bytes or more",
+      "tier": "robust",
+      "hint": "Valid messages with long payloads (the length byte at the top of its range) must round-trip. Random bytes will not find this one."
+    },
+    {
+      "name": "hangs-on-an-empty-packet",
+      "label": "parse() never finishes when it meets a packet with an empty payload (A5 00 00)",
+      "tier": "robust",
+      "hint": "Random bytes almost never contain A5 00 00. Build valid messages with make_packet, including EMPTY payloads."
+    },
+    {
+      "name": "drops-a-last-empty-packet",
+      "label": "parse() silently loses an empty packet at the end of the message",
+      "tier": "robust",
+      "hint": "This bug never crashes: only a PROPERTY finds it. Encode payloads, parse them back and compare. Include an empty payload."
+    }
+  ],
+  "check": "check.cpp",
+  "testSources": [
+    "fuzz_test.cpp"
+  ]
+}

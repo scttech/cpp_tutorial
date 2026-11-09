@@ -1,0 +1,11 @@
+# The clang-tidy configuration of this lesson (read-only). In a real project it is a file called .clang-tidy in the root of the project,
+# and clang-tidy finds it by itself. "Checks" is a list of patterns: a leading "-" removes checks, "*" matches any text.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  modernize-use-nullptr,
+  readability-container-size-empty,
+  cppcoreguidelines-pro-type-member-init
+WarningsAsErrors: ''

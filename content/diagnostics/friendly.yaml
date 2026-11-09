@@ -6,7 +6,8 @@
 #   fileMatch (optional) regex the diagnostic's file name must also match
 #   friendly  plain-language explanation
 #   lesson    (optional) lesson id with the full explanation
-#   trigger   a program (string = main.cpp) or {files:{...}, testFiles:{...}} that makes real Clang emit it.
+#   trigger   a program (string = main.cpp) or {files:{...}, testFiles:{...}, flags:[...]} that makes real Clang emit it
+#             (flags default to -std=c++20 -Wall -Wextra; a warning that needs -Wconversion or -Wshadow says so).
 #             tools/validate-content/friendly-check.mjs compiles every trigger and checks the rule fires.
 #
 # In YAML single-quoted strings an apostrophe is written twice ('').
@@ -432,6 +433,92 @@
   trigger: |
     #include <vector>
     int main() { std::vector<int> v; for (int i = 0; i < v.size(); ++i) {} }
+
+- id: shadow-field-in-constructor
+  match: 'modifying constructor parameter ''(\w+)'' that shadows a field of ''(\w+)'''
+  friendly: "In the constructor of `$2`, the parameter `$1` has the same name as a data member, so inside the constructor `$1` means the PARAMETER and the member is never touched. Give the parameter another name and set the member in the initializer list: `explicit $2(int initial) : $1(initial) {}`."
+  lesson: core.testing.warnings
+  trigger:
+    flags: ["-std=c++20", "-Wall", "-Wextra", "-Wshadow"]
+    files:
+      main.cpp: |
+        struct C { int n = 0; explicit C(int n) { n = 5; } };
+        int main() { C c(1); return c.n; }
+
+- id: self-assign
+  match: 'explicitly assigning value of variable of type ''[^'']+'' to itself'
+  friendly: "A variable is assigned to itself, which does nothing. This is typically a constructor whose parameter has the same name as a member (`count = count`): the member is never set. Rename the parameter and use the member initializer list."
+  lesson: core.testing.warnings
+  trigger: |
+    struct C { int n = 0; explicit C(int n) { n = n; } };
+    int main() { C c(1); return c.n; }
+
+- id: shadowed-declaration
+  match: 'declaration shadows a'
+  friendly: "This variable has the same name as one in an enclosing scope and HIDES it: changes made to it never reach the outer one (a classic reason for a sum that stays 0). Rename it, or drop the declaration to use the outer variable."
+  lesson: core.testing.warnings
+  trigger:
+    flags: ["-std=c++20", "-Wall", "-Wextra", "-Wshadow"]
+    files:
+      main.cpp: |
+        int main() { int total = 0; for (int i = 0; i < 3; ++i) { int total = i; (void)total; } return total; }
+
+- id: float-to-int-conversion
+  match: 'implicit conversion turns floating-point number into integer: ''(\w+)'' to ''([\w:]+)'''
+  friendly: "A `$1` is silently converted to `$2`, which throws away the fractional part (it cuts towards zero: 73.9 becomes 73). If you want rounding, use `std::lround` or `std::round`; if truncation is really what you mean, write `static_cast<$2>(...)` so that the reader sees it."
+  lesson: core.testing.warnings
+  trigger:
+    flags: ["-std=c++20", "-Wall", "-Wextra", "-Wconversion"]
+    files:
+      main.cpp: |
+        int f(double x) { int whole = x * 100; return whole; }
+        int main() { return f(0.5); }
+
+- id: narrowing-conversion
+  match: 'implicit conversion loses integer precision: ''([^'']+)'' to ''([^'']+)'''
+  friendly: "A `$1` is silently converted to the smaller type `$2`: values that do not fit wrap around (300 becomes 44 in a byte). Decide what should happen to values that do not fit (clamp? reject?) and handle it BEFORE converting, then write the `static_cast` yourself."
+  lesson: core.testing.warnings
+  trigger:
+    flags: ["-std=c++20", "-Wall", "-Wextra", "-Wconversion"]
+    files:
+      main.cpp: |
+        unsigned char f(int v) { return v; }
+        int main() { return f(300); }
+
+- id: sometimes-uninitialized
+  match: 'variable ''(\w+)'' is used uninitialized whenever'
+  friendly: "`$1` is not given a value on every path through the code (for example an `if` without an `else`), but it is read afterwards: on the other paths it holds garbage. Give it a starting value where it is declared."
+  lesson: core.testing.warnings
+  trigger: |
+    int f(int s) { int p; if (s > 1) p = 1; return p; }
+    int main() { return f(1); }
+
+- id: switch-not-handled
+  match: 'enumeration values? .* not handled in switch'
+  friendly: "This `switch` over an enumeration forgets an enumerator. Add a `case` for it. Do not add a `default:` just to silence the warning: then the compiler can no longer tell you when someone adds a new enumerator later."
+  lesson: core.testing.warnings
+  trigger: |
+    enum class E { A, B };
+    int f(E e) { switch (e) { case E::A: return 1; } return 0; }
+    int main() { return f(E::B); }
+
+- id: assignment-as-condition
+  match: 'using the result of an assignment as a condition without parentheses'
+  friendly: "`=` assigns, `==` compares. Inside an `if` you almost certainly meant `==`. (If you really want to assign and test the result, say so with an extra pair of parentheses and a comment, or better, split it into two statements.)"
+  lesson: core.testing.warnings
+  trigger: |
+    int main() { int n = 1; if (n = 0) return 1; return 0; }
+
+- id: variable-length-array
+  match: 'variable length arrays? (in C\+\+ )?(are|is) (a|an) '
+  friendly: "C++ has no variable-length arrays (a C99 feature that some compilers allow as an extension). The size of a plain array must be a constant; for a size known only at run time use `std::vector`, which also keeps a big array off the small stack."
+  lesson: core.testing.warnings
+  trigger:
+    flags: ["-std=c++20", "-Wall", "-Wextra", "-Wpedantic"]
+    files:
+      main.cpp: |
+        int f(int n) { int a[n]; a[0] = 1; return a[0]; }
+        int main() { return f(3); }
 
 - id: expression-result-unused
   match: 'expression result unused'

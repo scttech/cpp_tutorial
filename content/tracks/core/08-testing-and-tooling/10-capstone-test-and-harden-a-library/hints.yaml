@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Start with the contract at the top of csv.hpp and write one test per rule, in csv_test.cpp, before you touch the library. Run Tests: the 'your csv.hpp' results show which rules the current library breaks, the broken-copy results show which rules your tests do not check. Fix the library test by test. The Clean tier comes last: the Problems tab lists every warning and every analyzer finding with its line."
+  - level: 2
+    text: "The bugs in csv.hpp, in the order of the file: parse_line (the line ending handling; the quotes inside a quoted field; what happens after the closing quote; a quote that never closes; what a trailing delimiter means), format_line (when a field needs quotes; what happens to the quotes inside it; how the result is built, the performance problem), parse_document (how it decides where a record ends). Warnings and findings: an unused parameter or variable, a size() compared with 0, a vector taken by value, string concatenation with `+`."
+  - level: 3
+    text: "parse_line: `without_line_end` must strip BOTH '\\n' and '\\r'; inside quotes a doubled quote is `if (i + 1 < line.size() && line[i + 1] == '\"')` -> append one quote and skip two characters; after the loop `if (!closed) throw ParseError(...)`; after the closing quote anything but the delimiter is an error; after a delimiter the loop runs again, so a trailing delimiter gives an empty last field if you do not stop early. format_line: needs_quotes looks for the delimiter, '\"', '\\r' and '\\n'; double every quote; use `out += field`, never `out = out + field`. parse_document: toggle `in_quotes` on every quote and split only at a '\\n' outside quotes."
+  - level: 4
+    text: |
+      // csv_test.cpp: one test per rule of the contract, for example
+      TEST(ParseLine, TwoQuotesInsideQuotesAreOneQuote) {
+          EXPECT_EQ(csv::parse_line("\"say \"\"hi\"\"\",x"), (csv::Row{"say \"hi\"", "x"}));
+      }
+      TEST(ParseLine, AQuoteThatIsNeverClosedIsAnError) { EXPECT_THROW(csv::parse_line("\"abc"), csv::ParseError); }
+      TEST(FormatLine, WhatIsFormattedCanBeParsedBack) { /* a few rows: parse_line(format_line(row)) == row */ }

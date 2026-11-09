@@ -1,0 +1,10 @@
+# The clang-tidy configuration of this capstone (read-only). In a real project it is the .clang-tidy file in the root of the project.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  modernize-use-nullptr,
+  readability-container-size-empty,
+  cppcoreguidelines-pro-type-member-init
+WarningsAsErrors: ''

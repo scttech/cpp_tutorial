@@ -375,6 +375,70 @@
         "solution fails \"a tree of 2000 nodes is handled (cloned, simplified, evaluated) quickly\" [error]: crashed: stack overflow (recursion too deep?)"
       ],
       "hash": "b3df2d42183d92d6"
+    },
+    "core.testing.capstone-csv": {
+      "wasm": false,
+      "reason": "needs testing-tools, sanitizers",
+      "declared": true,
+      "hash": "185c76746cce27c5"
+    },
+    "core.testing.catch2": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "55ca7f27d46ff60b"
+    },
+    "core.testing.format-and-build": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "e1200f967cace1a2"
+    },
+    "core.testing.fuzzing": {
+      "wasm": false,
+      "reason": "needs testing-tools, sanitizers",
+      "declared": true,
+      "hash": "e8bf3f4ae2ac1650"
+    },
+    "core.testing.googletest": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "0c69afa052a951fd"
+    },
+    "core.testing.mocks": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "39e5079856b32a30"
+    },
+    "core.testing.reading-output": {
+      "wasm": false,
+      "reason": "needs testing-tools, sanitizers",
+      "declared": true,
+      "hash": "85ff4dc9fd3b1f43"
+    },
+    "core.testing.static-analysis": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "bc33ff5dda2812e4"
+    },
+    "core.testing.test-out": {
+      "wasm": false,
+      "reason": "needs testing-tools",
+      "declared": true,
+      "hash": "b84b09a28e2d2184"
+    },
+    "core.testing.warnings": {
+      "wasm": true,
+      "mutants": 11,
+      "hash": "8febf4599ce3e13a"
+    },
+    "core.testing.why-test": {
+      "wasm": true,
+      "mutants": 16,
+      "hash": "d217af6a4ed3a87f"
     }
   }
 }

@@ -47,7 +47,7 @@ for (const r of raw) {
       mode: t.testFiles ? "test" : "run",
       userFiles: t.files,
       testFiles: t.testFiles ?? {},
-      flags: ["-std=c++20", "-Wall", "-Wextra"],
+      flags: t.flags ?? ["-std=c++20", "-Wall", "-Wextra"],
     });
   } catch (e) {
     errors.push(`${r.id}: ${e.message}`);

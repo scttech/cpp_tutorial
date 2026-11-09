@@ -1,0 +1,64 @@
+{
+  "baseline": "Your tests pass on the real helpers",
+  "clean": true,
+  "variants": [
+    {
+      "name": "trim-only-left",
+      "label": "trim() removes the blanks at the start but not at the end",
+      "tier": "works",
+      "hint": "Put blanks on BOTH sides of the text."
+    },
+    {
+      "name": "split-drops-empty-pieces",
+      "label": "split() drops empty pieces in the middle (\"a,,b\" gives only a and b)",
+      "tier": "works",
+      "hint": "The documentation says empty pieces are kept. Split a string that has two separators in a row."
+    },
+    {
+      "name": "join-adds-a-trailing-separator",
+      "label": "join() puts the separator after the last piece too",
+      "tier": "works",
+      "hint": "Check the exact text that join() returns for a few pieces, and for one piece."
+    },
+    {
+      "name": "parse-int-ignores-the-sign",
+      "label": "parse_int() drops the minus sign",
+      "tier": "works",
+      "hint": "Does parse_int work for negative numbers?"
+    },
+    {
+      "name": "trim-ignores-tabs-and-newlines",
+      "label": "trim() only removes spaces, not tabs or newlines",
+      "tier": "robust",
+      "hint": "Blanks are space, tab, newline and carriage return."
+    },
+    {
+      "name": "trim-keeps-a-blank-string",
+      "label": "trim() leaves a string of only blanks unchanged",
+      "tier": "robust",
+      "hint": "What should trim(\"   \") return?"
+    },
+    {
+      "name": "split-empty-string-gives-one-piece",
+      "label": "split(\"\") returns one empty piece instead of none",
+      "tier": "robust",
+      "hint": "How many pieces does the empty string have, according to the documentation?"
+    },
+    {
+      "name": "parse-int-accepts-trailing-text",
+      "label": "parse_int(\"12abc\") returns 12 instead of rejecting the text",
+      "tier": "robust",
+      "hint": "Try text that is not a number at all, text with a digit prefix, and the \"-\" alone."
+    },
+    {
+      "name": "parse-int-wraps-around",
+      "label": "parse_int() accepts numbers that are too large for an int",
+      "tier": "robust",
+      "hint": "The documentation promises std::out_of_range when the number does not fit. Test numbers just above the limit."
+    }
+  ],
+  "check": "check.cpp",
+  "testSources": [
+    "text_utils_test.cpp"
+  ]
+}

@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "Your main() should fuzz parse() in several different ways, each in its own function. A broken parser that survives is named in the results, with a hint about the kind of input that would have exposed it: random bytes alone find only some of them. Always call parse() through a helper that copies the input into a fresh std::vector, so that the sanitizer sees the end of the buffer."
+  - level: 2
+    text: "Ideas, in the order of the list of broken parsers: (1) random byte buffers of length 0..12, thousands of them. (2) valid messages built with make_packet from random payloads (lengths 0 to 8, sometimes 255), with the round-trip property: parse(encode(payloads)) must be ok and return the same payloads (compare the vectors; std::abort() if not). (3) EVERY prefix of a valid message (cut off at each position). (4) payload lengths 127, 128 and 255. (5) a valid message with one byte replaced."
+  - level: 3
+    text: "A helper that copies the input: `ParseResult parse_exact(const Bytes& input) { const Bytes copy = input; return parse(copy.data(), copy.size()); }`. Encoding: for each payload `const Bytes packet = make_packet(p); message.insert(message.end(), packet.begin(), packet.end());`. Every prefix: `for (std::size_t cut = 0; cut < message.size(); ++cut) parse_exact(Bytes(message.begin(), message.begin() + cut));` (cast cut to std::ptrdiff_t). The seed is a number in the constructor: `std::mt19937 rng(12345);`."
+  - level: 4
+    text: |
+      void fuzz_round_trip() {
+          for (int i = 0; i < 2000; ++i) {
+              std::vector<Bytes> payloads = random_payloads(4, 8);       // some of them empty
+              const ParseResult result = parse_exact(encode(payloads));
+              if (!result.ok || result.packets != payloads) std::abort();
+          }
+      }
+      void fuzz_every_prefix() { /* for each valid message, parse_exact(its first `cut` bytes) for every cut */ }
+      int main() { fuzz_random_bytes(); fuzz_round_trip(); fuzz_long_payloads(); fuzz_every_prefix(); return 0; }

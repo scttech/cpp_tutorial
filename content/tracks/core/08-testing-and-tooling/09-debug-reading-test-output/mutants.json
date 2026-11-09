@@ -1,0 +1,156 @@
+[
+  {
+    "name": "withdraw-boundary-not-fixed",
+    "why": "bug 1: exactly the balance is refused.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "if (cents > balance_) throw",
+        "new": "if (cents >= balance_) throw"
+      }
+    ]
+  },
+  {
+    "name": "withdraw-allows-overdraft",
+    "why": "the boundary \"fix\" removed the check: overdrafts go through.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        if (cents > balance_) throw std::runtime_error(\"insufficient funds\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "deposit-throws-logic-error",
+    "why": "bug 2: std::logic_error is the base of std::invalid_argument, not the same type.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        if (cents <= 0) throw std::invalid_argument(\"amount must be positive\");\n        if (frozen_)",
+        "new": "        if (cents <= 0) throw std::logic_error(\"amount must be positive\");\n        if (frozen_)"
+      }
+    ]
+  },
+  {
+    "name": "deposit-zero-allowed",
+    "why": "zero is not a valid amount.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        if (cents <= 0) throw std::invalid_argument(\"amount must be positive\");\n        if (frozen_)",
+        "new": "        if (cents < 0) throw std::invalid_argument(\"amount must be positive\");\n        if (frozen_)"
+      }
+    ]
+  },
+  {
+    "name": "deposit-overflows",
+    "why": "bug 3: signed overflow (undefined behavior).",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        if (balance_ > std::numeric_limits<int>::max() - cents) throw std::overflow_error(\"balance limit reached\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "overflow-checked-after-the-addition",
+    "why": "the check itself overflows: the addition is already undefined behavior.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        if (balance_ > std::numeric_limits<int>::max() - cents) throw std::overflow_error(\"balance limit reached\");\n        balance_ += cents;",
+        "new": "        balance_ += cents;\n        if (balance_ < 0) { balance_ -= cents; throw std::overflow_error(\"balance limit reached\"); }"
+      }
+    ]
+  },
+  {
+    "name": "overflow-throws-the-wrong-type",
+    "why": "the overflow is reported, but as the wrong exception type.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "throw std::overflow_error(\"balance limit reached\")",
+        "new": "throw std::runtime_error(\"balance limit reached\")"
+      }
+    ]
+  },
+  {
+    "name": "last-transaction-returns-a-reference",
+    "why": "bug 4: a reference into the vector dangles when the vector grows.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "    Transaction last_transaction() const {",
+        "new": "    const Transaction& last_transaction() const {"
+      }
+    ]
+  },
+  {
+    "name": "last-transaction-returns-a-shared-static",
+    "why": "no dangling, but every account shares the same storage.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "    Transaction last_transaction() const {\n        if (history_.empty()) throw std::out_of_range(\"no transactions yet\");\n        return history_.back();",
+        "new": "    const Transaction& last_transaction() const {\n        if (history_.empty()) throw std::out_of_range(\"no transactions yet\");\n        static Transaction shared;\n        shared = history_.back();\n        return shared;"
+      }
+    ]
+  },
+  {
+    "name": "transfer-without-rollback",
+    "why": "bug 5: the money has left the sender when the receiver refuses it.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "        withdraw(cents);\n        try {\n            other.deposit(cents);\n        } catch (...) {\n            balance_ += cents;  // put the money back, and forget the withdrawal\n            history_.pop_back();\n            throw;\n        }",
+        "new": "        withdraw(cents);\n        other.deposit(cents);"
+      }
+    ]
+  },
+  {
+    "name": "transfer-rollback-keeps-the-history",
+    "why": "the balance is restored, but the sender still has a withdrawal in its history.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "            history_.pop_back();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "transfer-swallows-the-error",
+    "why": "the exception never reaches the caller.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "            history_.pop_back();\n            throw;",
+        "new": "            history_.pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "ids-are-not-unique",
+    "why": "bug 6: every account gets the same id.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "id_(next_id_++)",
+        "new": "id_(next_id_)"
+      }
+    ]
+  },
+  {
+    "name": "ids-count-by-two",
+    "why": "unique, but they should count up by one.",
+    "edits": [
+      {
+        "file": "bank.hpp",
+        "old": "id_(next_id_++)",
+        "new": "id_(next_id_ += 2)"
+      }
+    ]
+  }
+]

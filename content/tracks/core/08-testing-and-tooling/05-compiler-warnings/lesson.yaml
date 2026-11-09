@@ -1,0 +1,16 @@
+id: core.testing.warnings
+title: "Compiler warnings: your first static analyzer"
+module: core.testing
+type: lesson
+estimatedMinutes: 50
+concepts: [compiler-warnings, wall-wextra, wpedantic, wconversion, wshadow, werror, self-assign, shadowing, implicit-narrowing, unused-parameter, uninitialized-variable, switch-enumeration, assignment-in-condition, variable-length-array, suppress-narrowly, warnings-as-errors]
+prerequisites: [core.testing.mocks]
+files:
+  editable: [metrics.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion", "-Wshadow", "-Werror"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+starterBroken: true     # the starter does not compile (-Werror): every warning is an error to fix
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [silencing-with-a-cast, silencing-with-a-pragma, maybe-unused-on-a-real-bug, default-label-hides-the-missing-case, double-parentheses-hide-the-assignment, shadowing-fixed-by-renaming-only, warning-fixed-but-behavior-still-wrong]

@@ -1,0 +1,18 @@
+id: core.testing.static-analysis
+title: "Static analysis: clang-tidy and cppcheck"
+module: core.testing
+type: lesson
+estimatedMinutes: 55
+concepts: [static-analysis, clang-tidy, cppcheck, tidy-checks, bugprone, performance, modernize, readability, clang-tidy-config, nolint, false-positive, compile-commands, use-after-move, integer-division, branch-clone, unnecessary-copy, member-init, out-of-bounds]
+prerequisites: [core.testing.warnings]
+files:
+  editable: [inventory.hpp]
+  readonly: [main.cpp, tidy.yaml]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-fsanitize=address,undefined"]
+analyzers:
+  - { tool: clang-tidy, files: [main.cpp, inventory.hpp], config: tidy.yaml }
+  - { tool: cppcheck, files: [inventory.hpp], checks: "warning,performance,portability" }
+limits: { wallMs: 8000, memoryMb: 512 }
+requires: [testing-tools]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [use-after-move, integer-division-in-a-floating-point-context, identical-branches, copy-of-a-big-argument, copy-in-a-range-for, null-instead-of-nullptr, size-equals-zero, off-by-one-array-write, uninitialized-member, silencing-with-nolint, fixing-the-warning-not-the-bug]

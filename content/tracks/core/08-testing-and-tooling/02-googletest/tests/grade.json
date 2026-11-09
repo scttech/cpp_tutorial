@@ -1,0 +1,64 @@
+{
+  "baseline": "Your tests pass on the real RingBuffer",
+  "clean": true,
+  "variants": [
+    {
+      "name": "front-returns-newest",
+      "label": "front() returns the newest item instead of the oldest",
+      "tier": "works",
+      "hint": "Push two different values and check front()."
+    },
+    {
+      "name": "back-returns-oldest",
+      "label": "back() returns the oldest item instead of the newest",
+      "tier": "works",
+      "hint": "Check back() too, after two different pushes."
+    },
+    {
+      "name": "pop-does-not-remove",
+      "label": "pop() returns the oldest item but leaves it in the buffer",
+      "tier": "works",
+      "hint": "What is size() after a pop?"
+    },
+    {
+      "name": "full-buffer-drops-the-newest",
+      "label": "push() onto a full buffer drops the new item instead of overwriting the oldest",
+      "tier": "works",
+      "hint": "Push more items than the capacity and look at what is left."
+    },
+    {
+      "name": "at-ignores-the-start",
+      "label": "at(i) ignores where the oldest item is, so it is wrong after the buffer wrapped around",
+      "tier": "robust",
+      "hint": "at() must count from the oldest item, also after the buffer has wrapped around."
+    },
+    {
+      "name": "pop-empty-returns-garbage",
+      "label": "pop() on an empty buffer does not throw",
+      "tier": "robust",
+      "hint": "What does the documentation promise for pop() on an empty buffer?"
+    },
+    {
+      "name": "at-allows-size",
+      "label": "at(size()) does not throw (an off-by-one)",
+      "tier": "robust",
+      "hint": "Test the index just beyond the last item, and the last valid one."
+    },
+    {
+      "name": "full-one-too-early",
+      "label": "full() reports true one item too early",
+      "tier": "robust",
+      "hint": "full() is true when the buffer holds exactly `capacity` items: test just below and exactly at the capacity, for several capacities."
+    },
+    {
+      "name": "zero-capacity-allowed",
+      "label": "a buffer of capacity 0 is accepted",
+      "tier": "robust",
+      "hint": "The constructor must reject a capacity of 0."
+    }
+  ],
+  "check": "check.cpp",
+  "testSources": [
+    "ring_buffer_test.cpp"
+  ]
+}

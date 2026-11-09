@@ -1,0 +1,60 @@
+{
+  "baseline": "Your tests pass on the real BoundedStack",
+  "clean": true,
+  "variants": [
+    {
+      "name": "pop-returns-oldest",
+      "label": "pop() returns the oldest item instead of the newest",
+      "tier": "works",
+      "hint": "Push two different values and check which one pop() gives back."
+    },
+    {
+      "name": "top-returns-oldest",
+      "label": "top() returns the oldest item instead of the newest",
+      "tier": "works",
+      "hint": "Check top() after two pushes, and that it leaves the item in place."
+    },
+    {
+      "name": "pop-keeps-size",
+      "label": "pop() does not shrink the stack",
+      "tier": "works",
+      "hint": "What are size() and top() after a pop?"
+    },
+    {
+      "name": "empty-inverted",
+      "label": "empty() gives the wrong answer",
+      "tier": "works",
+      "hint": "Check empty() on a new stack, after a push, and after a pop."
+    },
+    {
+      "name": "push-full-drops-silently",
+      "label": "push() onto a full stack silently drops the item instead of throwing",
+      "tier": "robust",
+      "hint": "The documentation promises an exception when the stack is full. Test that."
+    },
+    {
+      "name": "pop-empty-returns-zero",
+      "label": "pop() on an empty stack returns 0 instead of throwing",
+      "tier": "robust",
+      "hint": "What should happen when you pop an empty stack?"
+    },
+    {
+      "name": "top-empty-returns-zero",
+      "label": "top() on an empty stack returns 0 instead of throwing",
+      "tier": "robust",
+      "hint": "top() has the same promise as pop() for an empty stack."
+    },
+    {
+      "name": "clear-does-nothing",
+      "label": "clear() leaves the items in place",
+      "tier": "robust",
+      "hint": "After clear(), is the stack really empty?"
+    },
+    {
+      "name": "zero-capacity-allowed",
+      "label": "a stack of capacity 0 is accepted",
+      "tier": "robust",
+      "hint": "A capacity of 0 must be rejected with std::invalid_argument."
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+[
+  {
+    "name": "a-shared-big-buffer-hides-over-reads",
+    "why": "parse() gets a pointer into a large reused buffer: a read past the end of the input stays inside the buffer, and no sanitizer notices.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    const Bytes copy = input;\n    return parse(copy.data(), copy.size());",
+        "new": "    static Bytes big(4096, 0);\n    std::copy(input.begin(), input.end(), big.begin());\n    return parse(big.data(), input.size());"
+      },
+      {
+        "file": "fuzz_test.cpp",
+        "old": "#include <cstdint>\n",
+        "new": "#include <algorithm>\n#include <cstdint>\n"
+      }
+    ]
+  },
+  {
+    "name": "no-round-trip",
+    "why": "only crashes are looked for: no property is checked, no empty packet is tried.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    fuzz_round_trip();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-prefixes",
+    "why": "the messages are never cut short.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    fuzz_every_prefix();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-long-payloads",
+    "why": "the payloads stay short.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    fuzz_long_payloads();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "property-never-stops-the-program",
+    "why": "a violated property is only printed: the program still ends normally.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    std::fprintf(stderr, \"property violated: %s\\n\", what);\n    std::abort();",
+        "new": "    std::fprintf(stderr, \"property violated: %s\\n\", what);\n    std::exit(0);"
+      }
+    ]
+  },
+  {
+    "name": "seed-from-the-clock",
+    "why": "a failure could not be reproduced (Clean tier).",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "std::mt19937 rng(12345);  // a FIXED seed: any failure can be reproduced exactly",
+        "new": "std::mt19937 rng(std::random_device{}());"
+      }
+    ]
+  },
+  {
+    "name": "a-fuzz-test-that-crashes-on-good-code",
+    "why": "the fuzz test itself must survive the real parser.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    for (int i = 0; i < 20000; ++i) parse_exact(random_bytes(12));",
+        "new": "    for (int i = 0; i < 20000; ++i) parse_exact(random_bytes(12));\n    std::abort();"
+      }
+    ]
+  },
+  {
+    "name": "no-make-packet",
+    "why": "the inputs are never built with make_packet (Clean tier): it is the only structure-aware generator.",
+    "edits": [
+      {
+        "file": "fuzz_test.cpp",
+        "old": "        const Bytes packet = make_packet(p);",
+        "new": "        Bytes packet{kMagic, static_cast<std::uint8_t>(p.size())};\n        std::uint8_t sum = 0;\n        for (std::uint8_t b : p) { packet.push_back(b); sum = static_cast<std::uint8_t>(sum + b); }\n        packet.push_back(sum);"
+      },
+      {
+        "file": "fuzz_test.cpp",
+        "old": "    const ParseResult empty = parse_exact(make_packet({}));  // the smallest packet: A5 00 00",
+        "new": "    const ParseResult empty = parse_exact(Bytes{kMagic, 0, 0});  // the smallest packet: A5 00 00"
+      }
+    ]
+  }
+]

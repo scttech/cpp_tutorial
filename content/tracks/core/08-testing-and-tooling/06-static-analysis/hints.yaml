@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Press Run Tests and open the Problems tab: each finding has a line number and, in square brackets, the name of the check. Take them one at a time; a few findings point at the same line from two tools (clang-tidy and cppcheck). The comment above each function says what it must do, and the failing tests tell you what really happens. Search the check name on clang.llvm.org/extra/clang-tidy/checks for its explanation and the recommended fix."
+  - level: 2
+    text: "announce: build the returned text BEFORE moving the message into the log. total_length / longest: const reference (`const std::vector<std::string>& names`, `const std::string& name`), and `.empty()`. average: convert ONE operand to double before dividing. unit_price: the second branch is the one that is wrong (what should small orders pay?). bucket_counts: how many elements does `buckets` have, and what are the loop bounds? find: nullptr. Stats: give the members initial values where they are declared."
+  - level: 3
+    text: "`static_cast<double>(total) / count` converts first, then divides; `static_cast<double>(total / count)` divides as integers and converts the (already truncated) result: that is not a fix, and the analyzer may stay quiet while the test does not. `Stats() = default;` with members that have no initializers still leaves them uninitialized: the initial value belongs on the member (`int count = 0;`), and then the constructor can go away."
+  - level: 4
+    text: |
+      inline std::string announce(std::vector<std::string>& log, std::string message) {
+          std::string line = "logged: " + message;
+          log.push_back(std::move(message));
+          return line;
+      }
+      inline double average(int total, int count) { if (count == 0) return 0.0; return static_cast<double>(total) / count; }
+      inline double unit_price(double base, int quantity) { if (quantity >= 10) { return base * 0.9; } return base; }
+      struct Stats { int count = 0; double sum = 0.0; /* add() and mean() unchanged */ };

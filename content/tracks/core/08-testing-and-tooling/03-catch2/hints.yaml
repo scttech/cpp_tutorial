@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "Read the comment in text_utils.hpp once per function and write a TEST_CASE per promise, with a tag. Run Tests tells you which broken copy still passes: its name is the next test to write. For the Clean tier you also need two SECTIONs, a GENERATE and a REQUIRE_THAT: split() and join() are good places for the first and the matcher, parse_int() for GENERATE."
+  - level: 2
+    text: "Put blanks on both sides for trim, and tabs/newlines on only one side in a separate test (so that each test pins down one thing). split: a string with two separators in a row, one ending in a separator, and the empty string. join: three pieces, one piece, none. parse_int: positive and negative values from a GENERATE, bad text (\"\", \"-\", \"abc\", \"12abc\", \" 12\"), and the limits (2147483648 and -2147483649 must throw std::out_of_range)."
+  - level: 3
+    text: "A matcher on a vector: `#include <catch2/matchers/catch_matchers_vector.hpp>`, then `REQUIRE_THAT(split(\"a,b\", ','), Catch::Matchers::Equals(std::vector<std::string>{\"a\", \"b\"}));`. A generator of strings needs the type: `GENERATE(as<std::string>{}, \"\", \"abc\")`. Exceptions: `REQUIRE_THROWS_AS(parse_int(text), std::invalid_argument);`. -2147483648 as a literal is awkward: write `-2147483647 - 1`."
+  - level: 4
+    text: |
+      TEST_CASE("split cuts at every separator and keeps the empty pieces", "[split]") {
+          REQUIRE_THAT(split("a,b,c", ','), Equals(Strings{"a", "b", "c"}));
+          SECTION("an empty piece in the middle") { REQUIRE_THAT(split("a,,b", ','), Equals(Strings{"a", "", "b"})); }
+          SECTION("an empty piece at the end") { REQUIRE_THAT(split("a,", ','), Equals(Strings{"a", ""})); }
+      }
+      TEST_CASE("parse_int reads negative numbers", "[parse_int]") {
+          const int n = GENERATE(-1, -42, -2147483647 - 1);
+          REQUIRE(parse_int(std::to_string(n)) == n);
+      }

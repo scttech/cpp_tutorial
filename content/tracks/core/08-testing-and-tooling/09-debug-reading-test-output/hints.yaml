@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Press Run and read the report from the top. Count the FAILED lines, then take the FIRST failing test and read its block: the line number in bank_test.cpp, the expression, the actual value. If the program stops with a sanitizer report instead, that one is first: fix it, and run again. Six bugs, six different looks: a wrong value, a wrong exception type, undefined behavior (UBSan), a use after free (ASan), money that vanished, and two accounts with the same id."
+  - level: 2
+    text: "(1) WithdrawingEverythingLeavesZero: which comparison decides whether the money is enough, and what happens when they are equal? (2) the deposit of a negative amount throws, but which type? (3) the UBSan line shows which addition overflows: the check has to happen BEFORE the addition. (4) ASan says the Transaction was freed when the vector grew: what does last_transaction hand out? (5) in a transfer, what happens to the money if the receiver throws? (6) look at how an account gets its id."
+  - level: 3
+    text: "(1) `cents > balance_`. (2) std::invalid_argument. (3) `if (balance_ > std::numeric_limits<int>::max() - cents) throw std::overflow_error(...)` before `balance_ += cents`. (4) return the Transaction by value. (5) in transfer_to: withdraw, then `try { other.deposit(cents); } catch (...) { balance_ += cents; history_.pop_back(); throw; }`. (6) `id_(next_id_++)`."
+  - level: 4
+    text: |
+      void deposit(int cents) {
+          if (cents <= 0) throw std::invalid_argument("amount must be positive");
+          if (frozen_) throw std::runtime_error("account is frozen");
+          if (balance_ > std::numeric_limits<int>::max() - cents) throw std::overflow_error("balance limit reached");
+          balance_ += cents;
+          history_.push_back({"deposit", cents});
+      }
+      Transaction last_transaction() const { ... return history_.back(); }   // by value

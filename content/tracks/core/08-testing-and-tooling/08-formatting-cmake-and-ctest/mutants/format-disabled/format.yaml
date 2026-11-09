@@ -1,0 +1,12 @@
+// MUTANT: DisableFormat makes clang-format change nothing: it "agrees" with any file.
+BasedOnStyle: LLVM
+DisableFormat: true
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
+SpacesBeforeTrailingComments: 2
+NamespaceIndentation: None

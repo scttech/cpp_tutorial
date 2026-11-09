@@ -1,0 +1,17 @@
+id: core.testing.mocks
+title: "Test doubles and GoogleMock"
+module: core.testing
+type: lesson
+estimatedMinutes: 55
+concepts: [test-double, dummy, stub, fake, spy, mock, dependency-injection, googlemock, mock-method, expect-call, times, will-once, matchers, actions, in-sequence, strict-mock, nice-mock, interaction-testing]
+prerequisites: [core.testing.catch2]
+files:
+  editable: [thermostat_test.cpp]
+  readonly: [thermostat.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+libs: [gmock]
+grader: variants
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: [testing-tools]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [mock-without-expect-call, over-specified-mock, forgot-virtual-destructor-in-the-interface, mock-method-missing-override, expectations-set-after-the-call, unexpected-call-on-a-strict-mock, will-once-too-few-actions, mock-outlives-nothing, testing-the-mock]

@@ -1,0 +1,117 @@
+[
+  {
+    "name": "forgot-warm-room-after-heating",
+    "why": "warm-room-never-switches-off: nobody expects turn_off().",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, AWarmRoomTurnsAHeatingHeaterOff) {\n    EXPECT_CALL(sensor, read_celsius()).WillOnce(Return(15.0)).WillOnce(Return(25.0));\n    {\n        InSequence order;\n        EXPECT_CALL(heater, turn_on());\n        EXPECT_CALL(heater, turn_off());\n    }\n    thermostat.update();\n    thermostat.update();\n    EXPECT_FALSE(thermostat.heating());\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-only-once",
+    "why": "turns-on-every-time: the repeated cold checks are never tried.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, AColdRoomTurnsTheHeaterOnOnlyOnceNoMatterHowOftenItIsChecked) {\n    reading_is(15.0);\n    EXPECT_CALL(heater, turn_on()).Times(1);\n    thermostat.update();\n    thermostat.update();\n    thermostat.update();\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-heater-already-off",
+    "why": "switches-off-when-already-off: a warm room with the heater off is never tried.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, AWarmRoomWithTheHeaterOffDoesNothing) {\n    reading_is(25.0);  // no EXPECT_CALL on the heater: the StrictMock fails the test if the thermostat touches it\n    thermostat.update();\n    thermostat.update();\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-the-edge",
+    "why": "edge-of-the-band-switches: the boundary of the dead band is never tried.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, ExactlyOnTheEdgeOfTheDeadBandNothingHappens) {\n    EXPECT_CALL(sensor, read_celsius()).WillOnce(Return(19.0)).WillOnce(Return(15.0)).WillOnce(Return(21.0));\n    thermostat.update();                       // 19.0 is not below 19.0: nothing (the StrictMock heater has no expectation yet)\n    EXPECT_CALL(heater, turn_on()).Times(1);   // only for the 15.0 that follows\n    thermostat.update();                       // 15.0: on\n    thermostat.update();                       // 21.0 is not above 21.0: stays on, no turn_off\n    EXPECT_TRUE(thermostat.heating());\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-nan",
+    "why": "not-a-number-is-trusted: NaN is never returned by the mock sensor.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, ANotANumberReadingTurnsAHeatingHeaterOffAndIsReported) {\n    EXPECT_CALL(sensor, read_celsius()).WillOnce(Return(15.0)).WillOnce(Return(std::numeric_limits<double>::quiet_NaN()));\n    EXPECT_CALL(heater, turn_on());\n    EXPECT_CALL(heater, turn_off());\n    EXPECT_TRUE(thermostat.update());\n    EXPECT_FALSE(thermostat.update());\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "forgot-the-throwing-sensor",
+    "why": "failure-keeps-the-heater-on / failure-is-reported-as-success: the sensor never throws.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "TEST_F(ThermostatTest, ASensorThatThrowsTurnsAHeatingHeaterOffAndIsReportedNotThrown) {\n    EXPECT_CALL(sensor, read_celsius()).WillOnce(Return(15.0)).WillOnce(Throw(std::runtime_error(\"sensor unplugged\")));\n    EXPECT_CALL(heater, turn_on());\n    EXPECT_CALL(heater, turn_off());\n    EXPECT_TRUE(thermostat.update());\n    bool ok = true;\n    EXPECT_NO_THROW(ok = thermostat.update());\n    EXPECT_FALSE(ok);\n    EXPECT_FALSE(thermostat.heating());\n}\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-strict-mock",
+    "why": "plain mocks instead of StrictMock (Clean tier asks for StrictMock or NiceMock, and the unexpected turn_off goes unnoticed).",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "    StrictMock<MockSensor> sensor;\n    StrictMock<MockHeater> heater;",
+        "new": "    MockSensor sensor;\n    MockHeater heater;"
+      },
+      {
+        "file": "thermostat_test.cpp",
+        "old": "using ::testing::StrictMock;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "a-test-that-fails-on-good-code",
+    "why": "a wrong expectation: the tests must pass on the real thermostat first.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "    reading_is(15.0);\n    EXPECT_CALL(heater, turn_on());\n    EXPECT_TRUE(thermostat.update());\n    EXPECT_TRUE(thermostat.heating());",
+        "new": "    reading_is(15.0);\n    EXPECT_CALL(heater, turn_on());\n    EXPECT_TRUE(thermostat.update());\n    EXPECT_FALSE(thermostat.heating());"
+      }
+    ]
+  },
+  {
+    "name": "an-expected-call-that-never-happens",
+    "why": "EXPECT_CALL without a matching call is a failure when the mock is destroyed: the tests must pass on the real thermostat.",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "    reading_is(25.0);  // no EXPECT_CALL on the heater: the StrictMock fails the test if the thermostat touches it",
+        "new": "    reading_is(25.0);\n    EXPECT_CALL(heater, turn_off());"
+      }
+    ]
+  },
+  {
+    "name": "a-warning-in-the-tests",
+    "why": "an unused variable is a compiler warning (Clean tier).",
+    "edits": [
+      {
+        "file": "thermostat_test.cpp",
+        "old": "    thermostat.update();\n    thermostat.update();\n}\n\n// ---- the edges",
+        "new": "    int leftover = 0;\n    thermostat.update();\n    thermostat.update();\n}\n\n// ---- the edges"
+      }
+    ]
+  }
+]

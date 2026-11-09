@@ -1,0 +1,22 @@
+ladder:
+  - level: 1
+    text: "Start with the fixture class (it builds a RingBuffer of capacity 3 and has a fill() helper) and one TEST_F per behavior listed in the comment of ring_buffer.hpp. When Run Tests names a broken copy that your tests missed, that name is the next test to write."
+  - level: 2
+    text: "Use two different values to tell oldest from newest (front and back are only distinguishable when the buffer holds two items). For the wrap-around, push MORE items than the capacity (1,2,3,4 into a buffer of 3) and check what is left with at(0), at(1), at(2) or front/back. For full(), a parameterized test over several capacities: fill to capacity-1 (not full), push one more (full)."
+  - level: 3
+    text: "A parameterized test needs three things: a class derived from ::testing::TestWithParam<std::size_t>, a TEST_P(ThatClass, Name) that reads GetParam(), and INSTANTIATE_TEST_SUITE_P(Prefix, ThatClass, ::testing::Values(1u, 2u, 3u, 8u)). ASSERT_EQ(buffer.size(), 3u) before the at() calls is a good use of ASSERT. For exceptions: EXPECT_THROW(buffer.pop(), std::out_of_range); a constructor call needs a name: EXPECT_THROW(RingBuffer b(0), std::invalid_argument)."
+  - level: 4
+    text: |
+      class RingBufferTest : public ::testing::Test {
+      protected:
+          RingBuffer buffer{3};
+          void fill(std::initializer_list<int> values) { for (int v : values) buffer.push(v); }
+      };
+      TEST_F(RingBufferTest, PushingOntoAFullBufferOverwritesTheOldestItem) {
+          fill({1, 2, 3, 4});
+          ASSERT_EQ(buffer.size(), 3u);
+          EXPECT_EQ(buffer.at(0), 2);
+      }
+      class RingBufferCapacity : public ::testing::TestWithParam<std::size_t> {};
+      TEST_P(RingBufferCapacity, IsFullExactlyWhenItHoldsItsCapacity) { /* GetParam() */ }
+      INSTANTIATE_TEST_SUITE_P(Capacities, RingBufferCapacity, ::testing::Values(1u, 2u, 3u, 8u));

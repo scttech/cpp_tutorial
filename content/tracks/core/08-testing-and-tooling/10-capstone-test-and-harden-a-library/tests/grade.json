@@ -1,0 +1,58 @@
+{
+  "baseline": "Your tests pass on your csv.hpp",
+  "clean": true,
+  "variants": [
+    {
+      "name": "trailing-delimiter-lost",
+      "label": "a trailing delimiter loses the last, empty field (\"a,\" gives only \"a\")",
+      "tier": "works",
+      "hint": "Think about where a line ends: after the delimiter, there is one more (empty) field."
+    },
+    {
+      "name": "doubled-quote-dropped",
+      "label": "two quotes inside a quoted field disappear instead of becoming one quote",
+      "tier": "works",
+      "hint": "A quoted field can contain quotes, written twice. Parse one."
+    },
+    {
+      "name": "format-does-not-quote-the-delimiter",
+      "label": "format_line() does not quote a field that contains the delimiter",
+      "tier": "works",
+      "hint": "What happens if you format a field with a comma in it and parse it back?"
+    },
+    {
+      "name": "format-does-not-double-quotes",
+      "label": "format_line() leaves the quotes inside a field alone",
+      "tier": "works",
+      "hint": "A field that contains a quote must be quoted, and its quote doubled. Check by formatting and parsing back."
+    },
+    {
+      "name": "unterminated-quote-accepted",
+      "label": "an unclosed quote is accepted instead of raising csv::ParseError",
+      "tier": "robust",
+      "hint": "What does the documentation say about a quote that is never closed?"
+    },
+    {
+      "name": "text-after-closing-quote-accepted",
+      "label": "text after a closing quote is accepted instead of raising csv::ParseError",
+      "tier": "robust",
+      "hint": "After the closing quote only the delimiter or the end of the line may follow."
+    },
+    {
+      "name": "crlf-leaves-a-carriage-return",
+      "label": "a Windows line ending (\\r\\n) leaves a \"\\r\" at the end of the last field",
+      "tier": "robust",
+      "hint": "Parse lines that end in \"\\r\\n\", for a line and for a document."
+    },
+    {
+      "name": "document-splits-quoted-line-breaks",
+      "label": "parse_document() ends a record at a line break inside quotes",
+      "tier": "robust",
+      "hint": "A quoted field may contain a line break. Parse a document that has one."
+    }
+  ],
+  "check": "check.cpp",
+  "testSources": [
+    "csv_test.cpp"
+  ]
+}

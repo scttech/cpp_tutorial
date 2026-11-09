@@ -6,7 +6,7 @@ import type { HintLevel, Lesson, LessonMeta, Module } from "./types";
 // Light assets are bundled up front; tests and solutions are lazy chunks.
 const eager = import.meta.glob(
   [
-    "../../../content/tracks/**/*.{yaml,md,cpp,hpp,h}",
+    "../../../content/tracks/**/*.{yaml,md,cpp,hpp,h,txt}",
     "!../../../content/tracks/**/tests/**",
     "!../../../content/tracks/**/solution/**",
     "!../../../content/tracks/**/mutants/**",

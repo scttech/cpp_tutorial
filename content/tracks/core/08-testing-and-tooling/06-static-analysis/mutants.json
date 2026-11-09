@@ -1,0 +1,178 @@
+[
+  {
+    "name": "announce-hidden-with-nolint",
+    "why": "NOLINT silences clang-tidy but the message is still used after the move (and cppcheck still sees it).",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    std::string line = \"logged: \" + message;\n    log.push_back(std::move(message));\n    return line;",
+        "new": "    log.push_back(std::move(message));\n    return \"logged: \" + message;  // NOLINT(bugprone-use-after-move)"
+      }
+    ]
+  },
+  {
+    "name": "average-cast-after-the-division",
+    "why": "static_cast<double>(total / count) still divides as integers: the cast hides the finding, not the bug.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    return static_cast<double>(total) / count;",
+        "new": "    return static_cast<double>(total / count);"
+      }
+    ]
+  },
+  {
+    "name": "unit-price-branches-made-different-but-wrong",
+    "why": "the branches no longer look alike, but small orders get the wrong price.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return base * 0.9;\n    }\n    return base;",
+        "new": "        return base * 0.9;\n    }\n    return base * 0.95;"
+      }
+    ]
+  },
+  {
+    "name": "total-length-copy-hidden-with-nolint",
+    "why": "the vector is still copied; NOLINT only hides the clang-tidy finding.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "inline std::size_t total_length(const std::vector<std::string>& names) {",
+        "new": "inline std::size_t total_length(std::vector<std::string> names) {  // NOLINT(performance-unnecessary-value-param)"
+      }
+    ]
+  },
+  {
+    "name": "longest-copy-hidden-with-nolint",
+    "why": "every name is still copied in the loop.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    for (const std::string& name : names) {\n        if (name.size() > best.size()) best = name;",
+        "new": "    for (std::string name : names) {  // NOLINT(performance-for-range-copy)\n        if (name.size() > best.size()) best = name;"
+      }
+    ]
+  },
+  {
+    "name": "stats-constructor-defaulted-but-members-uninitialized",
+    "why": "= default hides the clang-tidy finding but the members are still uninitialized.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    int count = 0;\n    double sum = 0.0;\n",
+        "new": "    int count;\n    double sum;\n\n    Stats() = default;\n"
+      }
+    ]
+  },
+  {
+    "name": "bucket-counts-off-by-one-suppressed",
+    "why": "the out-of-bounds write stays; a suppression comment only hides cppcheck.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    for (int i = 0; i < 4; ++i) buckets[i] = 0;",
+        "new": "    // cppcheck-suppress arrayIndexOutOfBounds\n    for (int i = 0; i <= 4; ++i) buckets[i] = 0;"
+      }
+    ]
+  },
+  {
+    "name": "find-keeps-null-with-nolint",
+    "why": "NULL still works, but the finding is hidden instead of fixed (the Clean tier rejects NOLINT).",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return nullptr;",
+        "new": "        return NULL;  // NOLINT(modernize-use-nullptr)"
+      }
+    ]
+  },
+  {
+    "name": "find-with-null",
+    "why": "NULL instead of nullptr: clang-tidy modernize-use-nullptr reports it.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return nullptr;",
+        "new": "        return NULL;"
+      }
+    ]
+  },
+  {
+    "name": "empty-check-with-size",
+    "why": "size() == 0 instead of empty(): readability-container-size-empty reports it.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    if (names.empty()) return 0;",
+        "new": "    if (names.size() == 0) return 0;"
+      }
+    ]
+  },
+  {
+    "name": "announce-moves-first",
+    "why": "the original bug: the message is moved into the log, then read.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    std::string line = \"logged: \" + message;\n    log.push_back(std::move(message));\n    return line;",
+        "new": "    log.push_back(std::move(message));\n    return \"logged: \" + message;"
+      }
+    ]
+  },
+  {
+    "name": "integer-division",
+    "why": "the original bug: 7 / 2 is 3.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    return static_cast<double>(total) / count;",
+        "new": "    return total / count;"
+      }
+    ]
+  },
+  {
+    "name": "branches-identical",
+    "why": "the original bug: both branches give the discounted price.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return base * 0.9;\n    }\n    return base;",
+        "new": "        return base * 0.9;\n    } else {\n        return base * 0.9;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "bucket-array-off-by-one",
+    "why": "the original bug: the loop writes one element past the end.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    for (int i = 0; i < 4; ++i) buckets[i] = 0;",
+        "new": "    for (int i = 0; i <= 4; ++i) buckets[i] = 0;"
+      }
+    ]
+  },
+  {
+    "name": "copy-in-range-for",
+    "why": "the original performance bug.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "    for (const std::string& name : names) {\n        if (name.size() > best.size()) best = name;",
+        "new": "    for (std::string name : names) {\n        if (name.size() > best.size()) best = name;"
+      }
+    ]
+  },
+  {
+    "name": "vector-passed-by-value",
+    "why": "the original performance bug.",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "inline std::size_t total_length(const std::vector<std::string>& names) {",
+        "new": "inline std::size_t total_length(std::vector<std::string> names) {"
+      }
+    ]
+  }
+]

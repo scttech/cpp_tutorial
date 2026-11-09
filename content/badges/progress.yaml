@@ -58,20 +58,27 @@
   category: progress
   icon: "🌳"
   description: "Complete Module 7: Inheritance and Polymorphism."
-  rule: { type: module-complete, module: core.polymorphism }
+  rule: { type: module-complete, module: core.inherit }
 
 - id: module-master-8
   name: "Module Master VIII"
   category: progress
-  icon: "🧵"
-  description: "Complete Module 8: Concurrency."
-  rule: { type: module-complete, module: core.concurrency }
+  icon: "🧪"
+  description: "Complete Module 8: Testing and Tooling."
+  rule: { type: module-complete, module: core.testing }
 
 - id: module-master-9
   name: "Module Master IX"
   category: progress
+  icon: "🧵"
+  description: "Complete Module 9: Concurrency."
+  rule: { type: module-complete, module: core.concurrency }
+
+- id: module-master-10
+  name: "Module Master X"
+  category: progress
   icon: "⚡"
-  description: "Complete Module 9: Performance and Tooling."
+  description: "Complete Module 10: Performance and Tooling."
   rule: { type: module-complete, module: core.performance }
 
 - id: test-out-artist
@@ -95,7 +102,8 @@
       - { type: module-complete, module: core.ownership }
       - { type: module-complete, module: core.generics }
       - { type: module-complete, module: core.stdlib }
-      - { type: module-complete, module: core.polymorphism }
+      - { type: module-complete, module: core.inherit }
+      - { type: module-complete, module: core.testing }
       - { type: module-complete, module: core.concurrency }
       - { type: module-complete, module: core.performance }
       - { type: lesson-count, where: { module: core.heroes, status: complete }, atLeast: 3 }

@@ -1,0 +1,25 @@
+ladder:
+  - level: 1
+    text: "Start with MockHeater (MOCK_METHOD for turn_on and turn_off, both `(override)`), then a fixture that holds a StrictMock<MockSensor>, a StrictMock<MockHeater> and a Thermostat built from them (target 20, hysteresis 1: it heats below 19 and switches off above 21). One TEST_F per decision listed in the comment of thermostat.hpp. A broken copy that your tests miss is the next test to write."
+  - level: 2
+    text: "Make the sensor answer with `EXPECT_CALL(sensor, read_celsius()).WillRepeatedly(Return(15.0))` for a test with several updates, or `.WillOnce(Return(15.0)).WillOnce(Return(25.0))` for a sequence of readings. With a StrictMock heater, every call you did not expect fails: so for 'does nothing' just do not write an EXPECT_CALL for the heater. 'Only once' is `EXPECT_CALL(heater, turn_on()).Times(1)` followed by several updates."
+  - level: 3
+    text: "The edges: readings of exactly 19.0 and 21.0 (the dead band is closed: nothing happens there); NaN is `std::numeric_limits<double>::quiet_NaN()` (include <limits>); a failing sensor is `WillOnce(Throw(std::runtime_error(\"unplugged\")))` (using ::testing::Throw). Heat first (a 15.0 reading), THEN fail the sensor, and expect turn_off(): the thermostat only switches off a heater that is on."
+  - level: 4
+    text: |
+      class MockHeater : public Heater {
+      public:
+          MOCK_METHOD(void, turn_on, (), (override));
+          MOCK_METHOD(void, turn_off, (), (override));
+      };
+      class ThermostatTest : public ::testing::Test {
+      protected:
+          StrictMock<MockSensor> sensor;
+          StrictMock<MockHeater> heater;
+          Thermostat thermostat{sensor, heater, 20.0, 1.0};
+      };
+      TEST_F(ThermostatTest, AColdRoomTurnsTheHeaterOn) {
+          EXPECT_CALL(sensor, read_celsius()).WillRepeatedly(Return(15.0));
+          EXPECT_CALL(heater, turn_on());
+          thermostat.update();
+      }

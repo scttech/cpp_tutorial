@@ -1,0 +1,22 @@
+ladder:
+  - level: 1
+    text: "Start with what the comment in stack.hpp promises, one behavior per test. When Run Tests lists a broken copy that your tests missed, read its name: it tells you which behavior to check, and the hint under it tells you how."
+  - level: 2
+    text: "Two pushes of DIFFERENT values tell the newest from the oldest (one push cannot). After an operation, check what the OTHER functions say too: size() and top() after a pop, empty() before and after. For the edges: fill the stack to its capacity, then push once more; pop and top on a new stack; clear() after a few pushes; a stack of capacity 0."
+  - level: 3
+    text: "An exception is tested with EXPECT_THROW(s.pop(), std::out_of_range); the type matters (push on a full stack is std::length_error, a zero capacity is std::invalid_argument). A constructor call needs a variable name: EXPECT_THROW(BoundedStack s(0), std::invalid_argument). For a const object use `const BoundedStack s(2);`."
+  - level: 4
+    text: |
+      TEST(BoundedStack, PopReturnsTheNewestItem) {
+          BoundedStack s(3);
+          s.push(1);
+          s.push(2);
+          EXPECT_EQ(s.pop(), 2);
+      }
+      TEST(BoundedStack, PushOntoAFullStackThrows) {
+          BoundedStack s(2);
+          s.push(1);
+          s.push(2);
+          EXPECT_THROW(s.push(3), std::length_error);
+      }
+      // ... one test for each behavior in the comment at the top of stack.hpp: top, size after pop, empty, pop/top on an empty stack, clear, capacity 0.

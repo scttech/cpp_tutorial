@@ -1,0 +1,9 @@
+# Fast path: what's different in C++
+
+- **Memory and undefined behavior bugs are the C++ bug class** (the language does not stop you), so the standard toolbox is: **ASan + UBSan** in every test build (`-fsanitize=address,undefined -g -fno-omit-frame-pointer`), **TSan** for threaded code (separate build; incompatible with ASan), **MSan** where you can instrument everything, plus Valgrind when you cannot rebuild. They only report bugs that execute.
+- **Fuzzing** supplies the inputs. **libFuzzer** (`-fsanitize=fuzzer`, entry point `extern "C" int LLVMFuzzerTestOneInput(const uint8_t*, size_t)`), **AFL++**, honggfuzz; run them with sanitizers, keep a **corpus** of interesting inputs in the repository, add a **dictionary** of tokens for text formats, run continuously (OSS-Fuzz, ClusterFuzzLite in CI). Fuzz anything that parses untrusted bytes.
+- **Give the sanitizer an exactly sized buffer** (a fresh `std::vector` copy, or `new T[n]`): a read past the end of a larger buffer is invisible.
+- **Oracles**: a crash or sanitizer report; a **property** (round trip `decode(encode(x)) == x`, idempotence, equality with a simple reference implementation); differential testing between two implementations. Fixed seeds, saved failing inputs.
+- **Structure-aware fuzzing** (build valid inputs, then mutate them; libprotobuf-mutator for structured formats) beats raw bytes when the format has checksums or magic numbers: random bytes never get past the first check.
+- **Coverage**: `-fprofile-instr-generate -fcoverage-mapping` + `llvm-profdata` + `llvm-cov show/report` (Clang), or `--coverage` + `gcov`/`lcov`/`gcovr` (GCC). Line, branch and function coverage; use it to find untested code, not as a target. **Mutation testing** (Mull, dextool) measures whether the tests can fail.
+- **Cost model**: sanitizers 2-5x slower and 2-3x more memory; fuzzers need CPU time more than cleverness; the cheapest win is ASan+UBSan on the tests you already have.

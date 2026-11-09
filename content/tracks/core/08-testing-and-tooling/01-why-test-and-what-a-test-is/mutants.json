@@ -1,0 +1,178 @@
+[
+  {
+    "name": "returns-the-passed-count",
+    "why": "run_all returns how many passed instead of how many failed.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    return failed;\n}",
+        "new": "    return passed;\n}"
+      }
+    ]
+  },
+  {
+    "name": "returns-the-number-of-failure-lines",
+    "why": "counts failure lines, not failed tests.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "            ++failed;\n",
+        "new": "            failed += static_cast<int>(r.failures.size());\n"
+      }
+    ]
+  },
+  {
+    "name": "failures-are-never-cleared",
+    "why": "the failures of one test leak into the following tests.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "        r.failures.clear();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "registry-is-never-cleared",
+    "why": "clear() does nothing.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "inline void clear() { detail::registry().tests.clear(); }",
+        "new": "inline void clear() {}"
+      }
+    ]
+  },
+  {
+    "name": "tests-run-in-reverse",
+    "why": "the tests run from last to first.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    for (const detail::Test& test : r.tests) {\n",
+        "new": "    for (auto it = r.tests.rbegin(); it != r.tests.rend(); ++it) {\n        const detail::Test& test = *it;\n"
+      }
+    ]
+  },
+  {
+    "name": "summary-is-swapped",
+    "why": "failed is printed before passed.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    out << passed << \" passed, \" << failed << \" failed\\n\";",
+        "new": "    out << failed << \" failed, \" << passed << \" passed\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "failure-lines-are-not-indented",
+    "why": "the failure lines have no two-space indent.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "out << \"  \" << f << \"\\n\"",
+        "new": "out << f << \"\\n\""
+      }
+    ]
+  },
+  {
+    "name": "no-line-number",
+    "why": "the failure does not say which line.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "std::string(file) + \":\" + std::to_string(line) + \": \" + message",
+        "new": "std::string(file) + \": \" + message"
+      }
+    ]
+  },
+  {
+    "name": "check-eq-evaluates-twice",
+    "why": "MT_CHECK_EQ pastes its arguments again for the message.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "        const auto& mt_left = (a);                                                                                             \\\n        const auto& mt_right = (b);                                                                                            \\\n        if (!(mt_left == mt_right)) {                                                                                          \\\n            std::ostringstream mt_text;                                                                                        \\\n            mt_text << \"MT_CHECK_EQ(\" #a \", \" #b \") failed: \" << mt_left << \" != \" << mt_right;                                \\",
+        "new": "        if (!((a) == (b))) {                                                                                                   \\\n            std::ostringstream mt_text;                                                                                        \\\n            mt_text << \"MT_CHECK_EQ(\" #a \", \" #b \") failed: \" << (a) << \" != \" << (b);                                         \\"
+      }
+    ]
+  },
+  {
+    "name": "check-eq-without-values",
+    "why": "the message leaves out the two values.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "\") failed: \" << mt_left << \" != \" << mt_right;",
+        "new": "\") failed\";"
+      }
+    ]
+  },
+  {
+    "name": "check-stops-the-test",
+    "why": "MT_CHECK_EQ returns from the test at the first failure (an ASSERT in disguise): a lambda or void function required, so the test records one failure only.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "            ::mt::record_failure(__FILE__, __LINE__, mt_text.str());                                                           \\",
+        "new": "            ::mt::record_failure(__FILE__, __LINE__, mt_text.str());                                                           \\\n            return;                                                                                                            \\"
+      }
+    ]
+  },
+  {
+    "name": "check-text-is-missing",
+    "why": "MT_CHECK does not say what was checked.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "\"MT_CHECK(\" #cond \") failed\"",
+        "new": "\"check failed\""
+      }
+    ]
+  },
+  {
+    "name": "test-name-is-missing",
+    "why": "the report does not name the test.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "out << \"PASS \" << test.name << \"\\n\";",
+        "new": "out << \"PASS\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "macro-not-wrapped-in-do-while",
+    "why": "MT_CHECK is a bare if: it works, but breaks inside if/else (found by the Clean tier).",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    do {                                                                                    \\\n        if (!(cond)) ::mt::record_failure(__FILE__, __LINE__, \"MT_CHECK(\" #cond \") failed\"); \\\n    } while (0)",
+        "new": "    if (!(cond)) ::mt::record_failure(__FILE__, __LINE__, \"MT_CHECK(\" #cond \") failed\")"
+      }
+    ]
+  },
+  {
+    "name": "macro-test-is-not-registered",
+    "why": "MT_TEST declares the function but forgets to register it.",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    static const ::mt::Registrar mt_registrar_##name(#name, &name); \\\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "raw-new-in-the-registry",
+    "why": "a leaked registry built with new (found by the Clean tier).",
+    "edits": [
+      {
+        "file": "minitest.hpp",
+        "old": "    static Registry r;\n    return r;",
+        "new": "    static Registry* r = new Registry;\n    return *r;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "name": "percent-truncates-with-a-cast",
+    "why": "static_cast<int> hides the -Wconversion warning, but 73.9 becomes 73 instead of 74.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    return static_cast<int>(std::lround(fraction * 100));",
+        "new": "    return static_cast<int>(fraction * 100);"
+      }
+    ]
+  },
+  {
+    "name": "clamp-wraps-with-a-cast",
+    "why": "the cast silences the warning but 300 wraps around to 44.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    if (value < 0) return 0;\n    if (value > 255) return 255;\n    return static_cast<std::uint8_t>(value);",
+        "new": "    return static_cast<std::uint8_t>(value);"
+      }
+    ]
+  },
+  {
+    "name": "clamp-forgets-the-negative-end",
+    "why": "only the top end is clamped: -5 wraps around to 251.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    if (value < 0) return 0;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pad-ignores-fill-but-is-marked-unused",
+    "why": "[[maybe_unused]] hides the unused-parameter warning; the bug (fill is ignored) stays.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "inline std::string pad_left(const std::string& text, std::size_t width, char fill) {",
+        "new": "inline std::string pad_left(const std::string& text, std::size_t width, [[maybe_unused]] char fill) {"
+      },
+      {
+        "file": "metrics.hpp",
+        "old": "std::string(width - text.size(), fill) + text",
+        "new": "std::string(width - text.size(), ' ') + text"
+      }
+    ]
+  },
+  {
+    "name": "pad-casts-fill-to-void",
+    "why": "(void)fill hides the warning; the bug (fill is ignored) stays.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    if (text.size() >= width) return text;\n    return std::string(width - text.size(), fill) + text;",
+        "new": "    (void)fill;\n    if (text.size() >= width) return text;\n    return std::string(width - text.size(), ' ') + text;"
+      }
+    ]
+  },
+  {
+    "name": "grade-defaults-to-the-top",
+    "why": "points starts at 4: everything below 70 gets the top grade.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    int points = 0;",
+        "new": "    int points = 4;"
+      }
+    ]
+  },
+  {
+    "name": "label-default-hides-the-missing-case",
+    "why": "a default label silences -Wswitch, but Critical is still not named.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "        case Level::Critical: return \"critical\";\n",
+        "new": "        default: return \"?\";\n"
+      }
+    ]
+  },
+  {
+    "name": "is-zero-double-parentheses",
+    "why": "the second pair of parentheses silences -Wparentheses; the assignment (and the bug) stays.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    return n == 0;",
+        "new": "    if ((n = 0)) return true;\n    return false;"
+      }
+    ]
+  },
+  {
+    "name": "sum-of-squares-forgets-to-accumulate",
+    "why": "the shadowing variable is renamed, but the sum is never added up.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "        total += x * x;",
+        "new": "        const int square = x * x;\n        if (square < 0) total = 0;"
+      }
+    ]
+  },
+  {
+    "name": "counter-assigns-the-parameter-to-itself-via-this",
+    "why": "a constructor that never stores the value (renamed parameter, body empty): value() stays 0.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    explicit Counter(int initial) : count_(initial) {}",
+        "new": "    explicit Counter(int initial) { (void)initial; }"
+      }
+    ]
+  },
+  {
+    "name": "sum-to-uses-a-small-vla-with-a-pragma",
+    "why": "a #pragma hides the VLA warning, and the array still overflows the stack for millions of terms.",
+    "edits": [
+      {
+        "file": "metrics.hpp",
+        "old": "    long long total = 0;\n    for (int i = 1; i <= n; ++i) total += i;\n    return total;",
+        "new": "#pragma clang diagnostic ignored \"-Wvla-extension\"\n#pragma clang diagnostic ignored \"-Wvla\"\n    int numbers[n];\n    for (int i = 0; i < n; ++i) numbers[i] = i + 1;\n    long long total = 0;\n    for (int i = 0; i < n; ++i) total += numbers[i];\n    return total;"
+      }
+    ]
+  }
+]

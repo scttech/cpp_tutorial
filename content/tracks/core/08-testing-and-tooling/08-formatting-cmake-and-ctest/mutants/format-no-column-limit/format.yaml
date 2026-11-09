@@ -1,0 +1,11 @@
+// MUTANT: ColumnLimit: 0 leaves the wrapping of long lines alone (Clean tier).
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 0
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
+SpacesBeforeTrailingComments: 2
+NamespaceIndentation: None

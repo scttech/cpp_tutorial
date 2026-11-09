@@ -1,0 +1,20 @@
+id: core.testing.capstone-csv
+title: "Capstone: Test and Harden a Library"
+module: core.testing
+type: capstone
+estimatedMinutes: 120
+concepts: [unit-testing, googletest, mutation-testing, test-driven-fixing, edge-cases, round-trip-property, exception-types, strict-warnings, clang-tidy, cppcheck, sanitizers, allocation-budget, csv-parsing, quoting-rules]
+prerequisites: [core.testing.reading-output]
+files:
+  editable: [csv.hpp, csv_test.cpp]
+  readonly: [lint_unit.cpp, tidy.yaml]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-Wpedantic", "-Wconversion", "-Wshadow", "-fsanitize=address,undefined"]
+libs: [gtest]
+grader: variants
+analyzers:
+  - { tool: clang-tidy, files: [lint_unit.cpp, csv.hpp], config: tidy.yaml }
+  - { tool: cppcheck, files: [csv.hpp], checks: "warning,performance,portability" }
+limits: { wallMs: 8000, memoryMb: 512 }
+requires: [testing-tools, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [quote-not-doubled, trailing-delimiter-lost, unterminated-quote-accepted, text-after-closing-quote-accepted, crlf-leaves-a-carriage-return, field-with-delimiter-not-quoted, newline-inside-quotes-splits-the-record, quadratic-string-building, value-parameter-copy, unused-variable, tests-that-only-run-the-code, fixing-the-library-without-tests, tests-without-fixing-the-library]

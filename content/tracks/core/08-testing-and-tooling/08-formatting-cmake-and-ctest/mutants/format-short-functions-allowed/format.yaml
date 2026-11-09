@@ -1,0 +1,11 @@
+// MUTANT: the sample never keeps a function on one line.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
+SpacesBeforeTrailingComments: 2
+NamespaceIndentation: None

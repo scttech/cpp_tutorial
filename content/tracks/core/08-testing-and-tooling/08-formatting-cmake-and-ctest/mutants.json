@@ -1,0 +1,210 @@
+[
+  {
+    "name": "format-disabled",
+    "why": "DisableFormat makes clang-format change nothing: it \"agrees\" with any file.",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "BasedOnStyle: LLVM\n",
+        "new": "BasedOnStyle: LLVM\nDisableFormat: true\n"
+      }
+    ]
+  },
+  {
+    "name": "format-no-column-limit",
+    "why": "ColumnLimit: 0 leaves the wrapping of long lines alone (Clean tier).",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "ColumnLimit: 100\n",
+        "new": "ColumnLimit: 0\n"
+      }
+    ]
+  },
+  {
+    "name": "format-wrong-indent",
+    "why": "the sample uses 4 spaces.",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "IndentWidth: 4\n",
+        "new": "IndentWidth: 2\n"
+      }
+    ]
+  },
+  {
+    "name": "format-braces-attached",
+    "why": "the sample puts the braces on their own lines (Allman).",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "BreakBeforeBraces: Allman\n",
+        "new": "BreakBeforeBraces: Attach\n"
+      }
+    ]
+  },
+  {
+    "name": "format-short-functions-allowed",
+    "why": "the sample never keeps a function on one line.",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "AllowShortFunctionsOnASingleLine: None\n",
+        "new": "AllowShortFunctionsOnASingleLine: All\n"
+      }
+    ]
+  },
+  {
+    "name": "format-pointer-right",
+    "why": "the sample writes `int* p`.",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "PointerAlignment: Left\n",
+        "new": "PointerAlignment: Right\n"
+      }
+    ]
+  },
+  {
+    "name": "format-comment-spacing",
+    "why": "the sample has two spaces before a trailing comment.",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "SpacesBeforeTrailingComments: 2\n",
+        "new": "SpacesBeforeTrailingComments: 1\n"
+      }
+    ]
+  },
+  {
+    "name": "format-no-base-style",
+    "why": "every option listed, but no BasedOnStyle (Clean tier).",
+    "edits": [
+      {
+        "file": "format.yaml",
+        "old": "BasedOnStyle: LLVM\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cmake-words-only-in-comments",
+    "why": "all the right words, but in comments: the file still is the old recipe.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "cmake_minimum_required(VERSION 3.16)\nproject(greeter VERSION 1.0 LANGUAGES CXX)\n\nset(CMAKE_CXX_STANDARD 20)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\nset(CMAKE_CXX_EXTENSIONS OFF)\nset(CMAKE_EXPORT_COMPILE_COMMANDS ON)\n\n# the library\nadd_library(greeter src/greeter.cpp)\ntarget_include_directories(greeter PUBLIC include)\ntarget_compile_options(greeter PRIVATE -Wall -Wextra -Wpedantic)\n\n# the program\nadd_executable(app app/main.cpp)\ntarget_link_libraries(app PRIVATE greeter)\ntarget_compile_options(app PRIVATE -Wall -Wextra -Wpedantic)\n\n# the tests\nenable_testing()\nfind_package(GTest REQUIRED)\nadd_executable(greeter_tests tests/greeter_test.cpp)\ntarget_link_libraries(greeter_tests PRIVATE greeter GTest::gtest_main)\ntarget_compile_options(greeter_tests PRIVATE -Wall -Wextra -Wpedantic)\ninclude(GoogleTest)\ngtest_discover_tests(greeter_tests)\n",
+        "new": "# TASK: the build of a small project with this layout (the files exist in your imagination; CMake is only the recipe):\n#\n#   include/greeter/greeter.hpp     the public header of the library\n#   src/greeter.cpp                 the library \"greeter\"\n#   app/main.cpp                    the program \"app\", which uses the library\n#   tests/greeter_test.cpp          GoogleTest tests of the library\n#\n# Below is a CMakeLists.txt written in the old style of ten years ago. Rewrite it in the modern, TARGET-BASED style described in the\n# lesson: every property belongs to a target. Run Tests checks the structure of your file (comments do not count).\n# cmake_minimum_required(VERSION 3.16) project(greeter LANGUAGES CXX) add_library(greeter src/greeter.cpp)\ncmake_minimum_required(VERSION 2.8)\nproject(greeter)\ninclude_directories(include)\nadd_executable(app app/main.cpp)\n"
+      }
+    ]
+  },
+  {
+    "name": "cmake-global-include-directories",
+    "why": "include_directories is a global command; the include path belongs to the library.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "target_include_directories(greeter PUBLIC include)",
+        "new": "include_directories(include)"
+      }
+    ]
+  },
+  {
+    "name": "cmake-link-without-keyword",
+    "why": "target_link_libraries without PRIVATE/PUBLIC/INTERFACE.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "target_link_libraries(app PRIVATE greeter)",
+        "new": "target_link_libraries(app greeter)"
+      }
+    ]
+  },
+  {
+    "name": "cmake-glob-sources",
+    "why": "file(GLOB) hides new files from the build system until it is re-run.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "add_library(greeter src/greeter.cpp)",
+        "new": "file(GLOB GREETER_SOURCES src/*.cpp)\nadd_library(greeter src/greeter.cpp ${GREETER_SOURCES})"
+      }
+    ]
+  },
+  {
+    "name": "cmake-standard-as-a-flag",
+    "why": "-std=c++20 as a compile option instead of CMAKE_CXX_STANDARD.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "set(CMAKE_CXX_STANDARD 20)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\nset(CMAKE_CXX_EXTENSIONS OFF)\n",
+        "new": "add_compile_options(-std=c++20)\n"
+      }
+    ]
+  },
+  {
+    "name": "cmake-warnings-with-add-definitions",
+    "why": "add_definitions(-Wall) is global and for preprocessor definitions.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "target_compile_options(greeter PRIVATE -Wall -Wextra -Wpedantic)\n",
+        "new": "add_definitions(-Wall -Wextra)\n"
+      },
+      {
+        "file": "CMakeLists.txt",
+        "old": "target_compile_options(app PRIVATE -Wall -Wextra -Wpedantic)\n",
+        "new": ""
+      },
+      {
+        "file": "CMakeLists.txt",
+        "old": "target_compile_options(greeter_tests PRIVATE -Wall -Wextra -Wpedantic)\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cmake-no-tests",
+    "why": "no enable_testing / test target.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "# the tests\nenable_testing()\nfind_package(GTest REQUIRED)\nadd_executable(greeter_tests tests/greeter_test.cpp)\ntarget_link_libraries(greeter_tests PRIVATE greeter GTest::gtest_main)\ntarget_compile_options(greeter_tests PRIVATE -Wall -Wextra -Wpedantic)\ninclude(GoogleTest)\ngtest_discover_tests(greeter_tests)\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cmake-tests-not-registered-with-ctest",
+    "why": "the test executable is built, but ctest does not know it.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "include(GoogleTest)\ngtest_discover_tests(greeter_tests)\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cmake-no-compile-commands",
+    "why": "clang-tidy would not find compile_commands.json.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cmake-fetchcontent-main-branch",
+    "why": "googletest fetched from a moving branch.",
+    "edits": [
+      {
+        "file": "CMakeLists.txt",
+        "old": "find_package(GTest REQUIRED)\n",
+        "new": "include(FetchContent)\nFetchContent_Declare(googletest GIT_REPOSITORY https://github.com/google/googletest.git GIT_TAG main)\nFetchContent_MakeAvailable(googletest)\n"
+      }
+    ]
+  }
+]

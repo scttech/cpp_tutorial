@@ -27,7 +27,7 @@ function rewriteCompilerArgs(args, name, obj) {
   set("-dumpdir", name.replace(/\.[^./]+$/, "") + "-");
   set("-o", obj);
   a[a.length - 1] = name; // the input file is the last argument
-  a.splice(1, 0, "-I", HEADER_DIR, "-I", "/"); // like the container's -I/opt/zth/include -I/work
+  a.splice(1, 0, "-isystem", HEADER_DIR, "-I", "/"); // like the container: -isystem /opt/zth/include (the harness is not the learner's code: no warnings from it) and -I/work
   return a;
 }
 

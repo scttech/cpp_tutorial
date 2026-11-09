@@ -1,0 +1,21 @@
+ladder:
+  - level: 1
+    text: "Press Run Tests: the Problems tab lists the warnings (which are errors here). Take them one at a time, from the top, and for each ask: what does this code do wrong? The comment above it says what it should do. Some are in the order of the file, but the compiler may report the same function twice; fix, run again."
+  - level: 2
+    text: "(1) the constructor parameter is named like the field, so `count = count` assigns the parameter to itself: rename the parameter and use an initializer list. (2) the inner `int total` hides the outer one: accumulate into the outer. (3) round, do not truncate: <cmath> std::lround. (4) clamp BEFORE converting. (5) use `fill`. (6) give `points` a starting value. (7) add the missing case (no default). (8) `==`. (9) no run-time sized array: a plain loop."
+  - level: 3
+    text: "A cast silences -Wconversion but keeps the bug: `static_cast<int>(fraction * 100)` truncates 73.9 to 73. `static_cast<int>(std::lround(fraction * 100))` rounds first, and the cast is then honest because lround already returns an integer. For the byte: `if (value < 0) return 0; if (value > 255) return 255; return static_cast<std::uint8_t>(value);`. For the switch: keep the `return \"?\"` after it, add `case Level::Critical: return \"critical\";`, and do not add a default."
+  - level: 4
+    text: |
+      class Counter {
+      public:
+          explicit Counter(int initial) : count_(initial) {}
+          int value() const { return count_; }
+          void add(int n) { count_ += n; }
+      private:
+          int count_ = 0;
+      };
+      inline int sum_of_squares(const std::vector<int>& values) { int total = 0; for (int x : values) total += x * x; return total; }
+      inline int percent(double fraction) { return static_cast<int>(std::lround(fraction * 100)); }
+      inline std::string pad_left(const std::string& text, std::size_t width, char fill) { /* ... std::string(width - text.size(), fill) + text */ }
+      inline bool is_zero(int n) { return n == 0; }
