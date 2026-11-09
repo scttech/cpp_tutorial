@@ -1,0 +1,14 @@
+[
+  {"name": "case-sensitive", "why": "the text is not lower-cased.", "edits": [{"old": "    for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));\n", "new": "    (void)lower;\n"}]},
+  {"name": "ties-in-no-particular-order", "why": "no alphabetical tie-break: count only.", "edits": [{"old": "return a.second != b.second ? a.second > b.second : a.first < b.first;", "new": "return a.second > b.second;"}]},
+  {"name": "ties-in-reverse-alphabetical-order", "why": "greater instead of less for the words.", "edits": [{"old": "return a.second != b.second ? a.second > b.second : a.first < b.first;", "new": "return a.second != b.second ? a.second > b.second : a.first > b.first;"}]},
+  {"name": "least-frequent-first", "why": "counts ascending.", "edits": [{"old": "return a.second != b.second ? a.second > b.second : a.first < b.first;", "new": "return a.second != b.second ? a.second < b.second : a.first < b.first;"}]},
+  {"name": "one-word-too-many", "why": "k + 1 results.", "edits": [{"old": "    k = std::min(k, items.size());\n", "new": "    k = std::min(k + 1, items.size());\n"}]},
+  {"name": "k-is-ignored", "why": "all words are returned.", "edits": [{"old": "    k = std::min(k, items.size());\n", "new": "    k = items.size();\n"}]},
+  {"name": "digits-are-letters", "why": "isalnum instead of isalpha.", "edits": [{"old": "return std::isalpha(static_cast<unsigned char>(c)) != 0;", "new": "return std::isalnum(static_cast<unsigned char>(c)) != 0;"}]},
+  {"name": "apostrophes-are-letters", "why": "an apostrophe belongs to a word.", "edits": [{"old": "return std::isalpha(static_cast<unsigned char>(c)) != 0;", "new": "return std::isalpha(static_cast<unsigned char>(c)) != 0 || c == '\\'';"}]},
+  {"name": "words-are-split-only-at-spaces", "why": "punctuation stays in the word.", "edits": [{"old": "return std::isalpha(static_cast<unsigned char>(c)) != 0;", "new": "return c != ' ' && c != '\\n' && c != '\\t';"}]},
+  {"name": "the-last-word-is-lost", "why": "the loop stops one character early.", "edits": [{"old": "    while (i < all.size()) {", "new": "    while (i + 1 < all.size()) {"}]},
+  {"name": "every-occurrence-counts-once", "why": "counts[...] is set to 1.", "edits": [{"old": "        ++counts[all.substr(i, j - i)];", "new": "        counts[all.substr(i, j - i)] = 1;"}]},
+  {"name": "string-per-word", "why": "every word is copied into a std::string key (a heap allocation for long words).", "edits": [{"old": "std::unordered_map<std::string_view, std::size_t> counts;", "new": "std::unordered_map<std::string, std::size_t> counts;"}, {"old": "++counts[all.substr(i, j - i)];", "new": "++counts[std::string(all.substr(i, j - i))];"}, {"old": "std::vector<std::pair<std::string_view, std::size_t>> items", "new": "std::vector<std::pair<std::string, std::size_t>> items"}]}
+]

@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Work in the order of the file: level_name, parse_timestamp, format_time, parse_line, analyze, format_report. Each builds on the one before it, and the test names tell you what is checked. For parse_timestamp the chrono calendar does the hard part: year_month_day::ok() knows which dates exist."
+  - level: 2
+    text: "parse_timestamp: check size() == 19 and the separators at positions 4, 7, 10, 13, 16; read the six digit groups (std::from_chars on a substr, or by hand); reject hour > 23, minute > 59, second > 59; build year_month_day, return nothing unless ok(); the result is sys_days{ymd}.time_since_epoch() in seconds + h*3600 + m*60 + s. parse_line: trim, then find(' ') four times, each time taking a substr (a view) and moving on; the message is the rest after the fourth space."
+  - level: 3
+    text: "analyze: loop over the lines with text.find('\\n', pos); trim each; skip blank ones; ++lines; parse_line or ++malformed. Keep std::unordered_map<std::string_view, size_t> for components, std::unordered_map<int, Group> (count + first message view) for ERROR codes, std::unordered_map<int64_t, size_t> for ERROR hours (key: a floor division of the time by 3600). Then pick: busiest by (count, name), top 3 with std::partial_sort, peak hour by (count, earlier hour). Copy into std::string only what the Report keeps."
+  - level: 4
+    text: |
+      format_time: const sys_seconds t{seconds{n}}; const sys_days day = floor<days>(t); const year_month_day date{day}; const hh_mm_ss<seconds> time{t - day}; return std::format("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", int(date.year()), unsigned(date.month()), unsigned(date.day()), time.hours().count(), time.minutes().count(), time.seconds().count());
+      floor_div(a, b): q = a / b; if (a % b != 0 && ((a < 0) != (b < 0))) --q;
+      more_frequent = [](const auto& a, const auto& b) { return a.second.count != b.second.count ? a.second.count > b.second.count : a.first < b.first; };
+      Report lines: std::format("Lines: {} ({} parsed, {} malformed)\n", ...); "Top errors: none\n" or "Top errors:\n" then "  {}. {} x{} {}\n".

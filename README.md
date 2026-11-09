@@ -1,5 +1,7 @@
 # CPP: From Zero to Hero
 
+[![Pages](https://github.com/scttech/cpp_tutorial/actions/workflows/pages.yml/badge.svg)](https://github.com/scttech/cpp_tutorial/actions/workflows/pages.yml)
+
 An interactive C++ course: write code in the browser, run it against real unit tests, get immediate feedback.
 Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets/CPP_From_Zero_to_Hero_SPEC.md).
 
@@ -19,9 +21,10 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Module 3 Classes and Objects | **Complete**: test-out (a normalized `Fraction` with operators), six lessons (constructors/`explicit`, encapsulation and invariants, const correctness with `mutable` caches, operator overloading, `enum class` state machines with `static` members, namespaces/ADL/header hygiene) and the Library Management capstone: 8 items, 244 mutant solutions in total that must fail. Uses the Works, Robust and Clean tiers (Clean scans the header for `using namespace`, code outside the namespace, and raw `new`/`delete`) |
 | Module 4 Ownership and RAII | **Complete**: test-out (a `Buffer` that follows the rule of five), five lessons (destructors and RAII, copying and the rule of three, moving and the rule of five, `unique_ptr` and the rule of zero, `shared_ptr` and `weak_ptr`), a debug challenge (six lifetime bugs, each a sanitizer report) and the `IntVector` capstone: 8 items, 219 mutant solutions in total that must fail. Every lesson runs under AddressSanitizer and UBSan with allocation tracking; the Fast tier counts allocations (a move, a swap and a sort must allocate nothing) |
 | Module 5 Generic Programming | **Complete**: test-out (a generic `max_by`), six lessons (function templates, class templates, specialization and `if constexpr`, concepts, variadic templates and fold expressions, `auto`/`decltype`/type traits), a debug challenge ("Reading template errors": six different template errors, each with a friendly explanation) and two capstones (`RingBuffer<T, N>` and `StaticVector<T, N>` with manual object lifetimes): 10 items, about 200 mutant solutions in total that must fail. Fast tiers count copies, moves, constructions and heap allocations |
+| Module 6 The Standard Library | **Complete**: test-out (Top-K words), seven lessons (containers and their costs, iterators and ranges, algorithms, lambdas and `std::function`, `optional`/`variant`/`span`, `from_chars`/`std::format`/`string_view`, `<chrono>`/`<random>`/numerics) and the Log Analyzer capstone: 9 items, about 250 mutant solutions in total that must fail. The Fast tier uses time limits, allocation counts, comparison counts and copy counts. Four lessons need the full Docker build (they use `<format>`/`from_chars` for floating point, deep recursion or large inputs that the 32-bit browser build cannot match) and are greyed out in the static demo |
 | Sanitizers (Docker runner) | Working: a lesson turns them on with `flags: [..., "-fsanitize=address,undefined"]` and `requires: [sanitizers]`. Reports are symbolized, parsed (kind, file:line, where the memory was freed and allocated) and explained by [content/diagnostics/runtime.yaml](content/diagnostics/runtime.yaml): 18 rules, each verified against real sanitizer output. Module 4 uses them in every lesson |
 | Test harness instrumentation | Allocation tracking (leaks, double free, `new[]`/`delete` mismatch, poisoned freed memory) and a copy/move-counting `Tracked` type |
-| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 26 of 44 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. The GitHub Pages workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) builds and deploys it |
+| Static build (in-browser compiler) | Working: [wasm-runner/](wasm-runner/) runs Clang/LLD as WebAssembly in Workers. 31 of 53 lessons run in it ([content/wasm-compat.json](content/wasm-compat.json)); the rest are greyed out. The GitHub Pages workflow ([.github/workflows/pages.yml](.github/workflows/pages.yml)) builds and deploys it |
 | AI tutor, Modules 5-10, domain tracks | Planned (see the spec) |
 
 ## Two ways to run it
@@ -91,7 +94,7 @@ Set `VITE_RUNNER_URL` to point the app at a runner on a different host.
 ```bash
 cd app && npm test                                   # 119 unit tests: badge engine, streaks, run recording, import validation, friendly-rule matching
 cd tools/validate-content && npm install && npm run validate   # the harness itself (allocation tracking, sanitizers), every lesson (starter fails, solution passes, mutants fail), every friendly rule vs real Clang, every sanitizer rule vs real sanitizer output
-cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (8 scripts built on tools/e2e/lib.mjs; wasm.mjs separately, see above)
+cd tools/e2e && npm install && npx playwright install chromium && npm test   # drives the real UI in a browser (9 scripts built on tools/e2e/lib.mjs; wasm.mjs separately, see above)
 cd wasm-runner && npm install && npm test            # the in-browser (WASM) runner on small programs; no Docker needed
 cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```

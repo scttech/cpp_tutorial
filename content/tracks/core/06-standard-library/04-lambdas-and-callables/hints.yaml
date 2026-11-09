@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Do the six parts in order. The EventBus is a vector of entries {id, topic, handler}; the other five are one-liners with lambdas. Read the TODO above each function, they name the capture or the parameter type that matters."
+  - level: 2
+    text: "EventBus: subscribe pushes `Entry{id, topic, std::move(handler)}` and returns `next_id_++`; unsubscribe finds the id (std::find_if) and erases it; publish loops `for (const Entry& e : entries_)` (const& so nothing is copied) calling `e.handler(payload)` when the topic matches. make_counter: `[next = start]() mutable { return next++; }`. make_multipliers: `[factor](int x) { return x * factor; }` in a loop over the values."
+  - level: 3
+    text: "compose: `return [f = std::move(f), g = std::move(g)](auto&&... args) { return g(f(std::forward<decltype(args)>(args)...)); };`. apply_n: `for (int i = 0; i < n; ++i) x = f(x);` with the parameter `F&& f`. make_once: `[f = std::move(f), called = false]() mutable { if (called) return; called = true; f(); }`."
+  - level: 4
+    text: |
+      int subscribe(const std::string& topic, Handler handler) { const int id = next_id_++; entries_.push_back(Entry{id, topic, std::move(handler)}); return id; }
+      bool unsubscribe(int id) { auto it = std::find_if(entries_.begin(), entries_.end(), [id](const Entry& e) { return e.id == id; }); if (it == entries_.end()) return false; entries_.erase(it); return true; }
+      std::size_t publish(const std::string& topic, const std::string& payload) const { std::size_t n = 0; for (const Entry& e : entries_) if (e.topic == topic) { e.handler(payload); ++n; } return n; }
+      return [next = start]() mutable { return next++; };

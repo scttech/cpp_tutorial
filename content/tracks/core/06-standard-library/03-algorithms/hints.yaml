@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Each function names its algorithm in the comment above it. Start with remove_invalid: the erase-remove idiom is the first thing to know. The Fast tier punishes an erase per bad record and a linear scan in count_between."
+  - level: 2
+    text: "remove_invalid: `v.erase(std::remove_if(v.begin(), v.end(), invalid), v.end())`. normalize_names: std::transform with tolower over the name, then toupper on the first letter. sort_records: std::sort with a lambda comparing score (>), then name (<), then age (<). partition_adults: std::stable_partition and the distance to its result. average_score: std::accumulate with 0.0."
+  - level: 3
+    text: "unique_names_sorted: copy the names into a vector (std::transform with std::back_inserter), std::sort, then `erase(std::unique(...), end())`. find_by_name: std::find_if with a lambda; compare with end(). count_between: `lower_bound` for lo and for hi; the count is their distance (0 if hi comes before lo)."
+  - level: 4
+    text: |
+      records.erase(std::remove_if(records.begin(), records.end(), [](const Record& r) { return r.name.empty() || r.age < 0 || r.age > 150; }), records.end());
+      std::sort(records.begin(), records.end(), [](const Record& a, const Record& b) { if (a.score != b.score) return a.score > b.score; if (a.name != b.name) return a.name < b.name; return a.age < b.age; });
+      auto mid = std::stable_partition(records.begin(), records.end(), [](const Record& r) { return r.age >= 18; }); return mid - records.begin();
+      auto first = std::lower_bound(sorted.begin(), sorted.end(), lo); auto last = std::lower_bound(sorted.begin(), sorted.end(), hi);

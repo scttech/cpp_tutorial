@@ -1,0 +1,15 @@
+id: core.stdlib.containers
+title: "A tour of the containers"
+module: core.stdlib
+type: lesson
+estimatedMinutes: 60
+concepts: [vector, deque, list, map, unordered-set, priority-queue, big-o, operator-index-inserts, splice, iterator-stability, container-choice, complexity]
+prerequisites: [core.generics.capstone-static-vector]
+files:
+  editable: [containers.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 8000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [map-operator-index-inserts, unordered-iteration-order, vector-erase-front-is-linear, linear-search-for-membership, copying-in-a-list-instead-of-splicing, sorting-everything-for-top-k, priority-queue-is-a-max-heap, invalidated-iterators]

@@ -1,0 +1,15 @@
+id: core.stdlib.time-random
+title: "Time, randomness and numerics"
+module: core.stdlib
+type: lesson
+estimatedMinutes: 60
+concepts: [chrono-duration, duration-cast, steady-clock, injected-clock, mt19937, seeding, distribution-portability, modulo-bias, rejection-sampling, fisher-yates, numeric-algorithms, partial-sum, inner-product, gcd, floating-point-equality, relative-tolerance, kahan-summation, overflow-in-accumulate]
+prerequisites: [core.stdlib.text]
+files:
+  editable: [sim_tools.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 8000, memoryMb: 512 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [duration-cast-truncates, mixed-unit-arithmetic, system-clock-goes-backwards, rand-is-bad, distributions-not-portable, modulo-bias, seed-with-time, accumulate-int-overflow, float-equality, nan-comparisons, summation-error, shuffle-not-portable]

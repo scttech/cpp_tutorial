@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Start with parse_int: from_chars tells you two things (an error code and where it stopped) and BOTH must be right. The other functions are small: to_chars, a std::format string, find_first_not_of for trim, a find loop for split_fields. parse_log_line is the others put together."
+  - level: 2
+    text: "parse_int: `const auto [stop, ec] = std::from_chars(text.data(), text.data() + text.size(), value); if (ec != std::errc{} || stop != end) return std::nullopt;`. parse_double is the same plus `std::isfinite(value)`. to_hex: `char buf[16]; auto r = std::to_chars(buf, buf + sizeof buf, value, 16); return std::string(buf, r.ptr);`. format_row: `std::format(\"{:<10}|{:>5}|{:>8.2f}\", name, count, ratio)`."
+  - level: 3
+    text: "trim: first = find_first_not_of(\" \\t\\r\\n\\v\\f\"); if npos return an empty view; last = find_last_not_of(...); substr(first, last - first + 1). split_fields: loop `at = line.find(sep, start)`; push `line.substr(start, at - start)`; when npos push the rest and stop. parse_log_line: trim the line, find the first space (the level, check it is one of the four), find the next space (the code, parse_int), the message is what follows."
+  - level: 4
+    text: |
+      line = trim(line); auto sp = line.find(' '); if (sp == npos) return nullopt; auto level = line.substr(0, sp); if (level != "DEBUG" && level != "INFO" && level != "WARN" && level != "ERROR") return nullopt;
+      auto rest = line.substr(sp + 1); auto sp2 = rest.find(' '); auto code = parse_int(rest.substr(0, sp2)); if (!code) return nullopt;
+      LogEntry e; e.level = std::string(level); e.code = *code; if (sp2 != npos) e.message = std::string(rest.substr(sp2 + 1)); return e;

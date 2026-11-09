@@ -1,0 +1,15 @@
+id: core.stdlib.lambdas
+title: "Lambdas and callables"
+module: core.stdlib
+type: lesson
+estimatedMinutes: 55
+concepts: [lambda, closure, capture-by-value, capture-by-reference, init-capture, mutable-lambda, generic-lambda, std-function, forwarding-callable, callback-registry, type-erasure-intro, dangling-capture]
+prerequisites: [core.stdlib.algorithms]
+files:
+  editable: [callbacks.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [dangling-capture-by-reference, mutable-needed-to-change-a-capture, copying-a-closure-copies-its-state, std-function-copies-the-callable, std-function-overhead, std-function-needs-copyable-callable, capture-this-lifetime, default-capture-hides-what-is-captured, handlers-called-out-of-order]

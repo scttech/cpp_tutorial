@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node run.mjs && node modules.mjs && node progress.mjs && node module2.mjs && node module3.mjs && node module4.mjs && node module5.mjs && node sanitizers.mjs",
+    "test": "node run.mjs && node modules.mjs && node progress.mjs && node module2.mjs && node module3.mjs && node module4.mjs && node module5.mjs && node module6.mjs && node sanitizers.mjs",
     "test:wasm": "node wasm.mjs"
   },
   "devDependencies": {

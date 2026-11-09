@@ -1,0 +1,6 @@
+id: core.stdlib
+title: "The Standard Library"
+track: core
+order: 6
+summary: "Containers, iterators and ranges, algorithms, lambdas, vocabulary types, text and numerics: using the standard library the way it was meant to be used."
+testOut: core.stdlib.test-out   # "Top-K words": passing it completes the module

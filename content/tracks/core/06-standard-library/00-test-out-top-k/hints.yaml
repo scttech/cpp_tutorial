@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Three steps: (1) split the text into lower-case words (runs of letters), (2) count them in a std::unordered_map, (3) pick the k best with a comparator and return them. Do the Works tier first with std::string keys; the Fast tier then asks you to avoid a string per word."
+  - level: 2
+    text: "Lower-case one copy of the text (std::tolower on static_cast<unsigned char>(c)), then walk it with an index: skip non-letters, find the end of the run of letters, and `++counts[word]`. Copy the map into a vector of pairs, and order it with: count descending, then word ascending."
+  - level: 3
+    text: "For the Fast tier make the map key a std::string_view into the lower-cased copy (it stays alive until the function returns), and use std::partial_sort(items.begin(), items.begin() + k, items.end(), better) with k = std::min(k, items.size()). Build the result strings only for the k winners."
+  - level: 4
+    text: |
+      std::string lower(text); for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      std::unordered_map<std::string_view, std::size_t> counts; const std::string_view all(lower);
+      for (std::size_t i = 0; i < all.size();) { if (!isalpha(all[i])) { ++i; continue; } std::size_t j = i; while (j < all.size() && isalpha(all[j])) ++j; ++counts[all.substr(i, j - i)]; i = j; }
+      std::vector<std::pair<std::string_view, std::size_t>> items(counts.begin(), counts.end());
+      auto better = [](const auto& a, const auto& b) { return a.second != b.second ? a.second > b.second : a.first < b.first; };
+      k = std::min(k, items.size()); std::partial_sort(items.begin(), items.begin() + k, items.end(), better);

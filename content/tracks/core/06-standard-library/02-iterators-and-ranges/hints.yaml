@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Work through the file in order. The categories and advance_by are `if constexpr` chains over the C++20 iterator concepts (most capable first). The ranges functions are one pipeline each. Read what the tests print for a wrong category: it names the iterator and the answer it expected."
+  - level: 2
+    text: "category_name: contiguous, then random access, then bidirectional, forward, input, and `std::output_iterator<It, int>`. advance_by: random access `it += n`; bidirectional two loops (positive and negative); otherwise one loop of ++. squares_of_evens: `values | std::views::filter(even) | std::views::transform(square)` then `std::ranges::copy(pipeline, std::back_inserter(result))`."
+  - level: 3
+    text: "middle_section: `drop_while(x < 0)` then `take_while(x < 100)`. split_pieces: `for (const auto& piece : text | std::views::split(separator)) pieces.emplace_back(piece.begin(), piece.end());`. first_n_matching: `std::views::iota(0) | std::views::filter(pred) | std::views::take(n)` and a range-for into a vector. duplicate_each: build a new vector (reserve 2n, push each element twice) and move it into `values`."
+  - level: 4
+    text: |
+      if constexpr (std::contiguous_iterator<It>) return "contiguous"; else if constexpr (std::random_access_iterator<It>) return "random access"; else if constexpr (std::bidirectional_iterator<It>) return "bidirectional"; else if constexpr (std::forward_iterator<It>) return "forward"; else if constexpr (std::input_iterator<It>) return "input"; else if constexpr (std::output_iterator<It, int>) return "output"; else return "none";
+      if constexpr (std::random_access_iterator<It>) it += n; else if constexpr (std::bidirectional_iterator<It>) { for (; n > 0; --n) ++it; for (; n < 0; ++n) --it; } else for (; n > 0; --n) ++it;
+      auto pipeline = values | std::views::filter([](int x) { return x % 2 == 0; }) | std::views::transform([](int x) { return x * x; });

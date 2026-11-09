@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Twelve small pieces in four groups: chrono, random, numeric, floating point. Do them in order. The random group is the subtle one: read the comment above uniform_below twice, and look at what the failing test prints for the scripted engine."
+  - level: 2
+    text: "chrono: `m + s + ms`; `std::chrono::duration<double>(d).count()`; pretty_duration: duration_cast to hours, then to minutes on (magnitude - hours), then seconds on (magnitude - hours - minutes), and std::format(\"{}h {:02}m {:02}s\"). Stopwatch: start() stores Clock::now(); elapsed() casts Clock::now() - started_ to milliseconds; lap() does the same and then resets started_."
+  - level: 3
+    text: "uniform_below: `range = 1ull << 32; limit = range - range % n; r = rng(); while (r >= limit) r = rng(); return r % n;`. simulate_rolls: a std::mt19937 and uniform_below(rng, sides) + 1. shuffle_deterministic: `for (i = size; i > 1; --i) swap(v[i - 1], v[uniform_below(rng, i)])`. prefix_sums: `std::inclusive_scan(first, last, out, std::plus<>(), 0LL)` into a vector sized in advance. dot_product: multiply after casting to long long. gcd_of_all: accumulate with std::gcd from 0."
+  - level: 4
+    text: |
+      nearly_equal: if (a == b) return true; if (isnan(a) || isnan(b)) return false; return fabs(a - b) <= max(abs_tol, rel_tol * max(fabs(a), fabs(b)));
+      sum_accurate: double sum = 0, c = 0; for (double x : values) { double y = x - c; double t = sum + y; c = (t - sum) - y; sum = t; } return sum;
+      return std::inner_product(a.begin(), a.end(), b.begin(), 0LL, std::plus<>(), [](int x, int y) { return static_cast<long long>(x) * y; });

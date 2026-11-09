@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Each function names its container in the comment above it. Do them in order; every one is short. The Fast tier punishes the 'obvious but wrong container': a vector search for dedupe, vector::erase(begin()) for the queue, copying elements for move_to_front, sorting everything for k_smallest."
+  - level: 2
+    text: "word_counts: `++counts[w]`. count_of: `find`, compare with end(). dedupe: an unordered_set `seen`; `if (seen.insert(v).second) result.push_back(v);`. process_queue: a std::deque<int> with front()/pop_front()/push_back(). move_to_front: `items.splice(items.begin(), items, it)`. k_smallest: a std::priority_queue<T> (max-heap) holding at most k elements."
+  - level: 3
+    text: "k_smallest: for each value, if the heap has fewer than k elements push it; otherwise if `value < heap.top()` pop the top and push the value (guard k == 0). At the end pop everything into a vector (largest first) and std::reverse it."
+  - level: 4
+    text: |
+      for (const std::string& w : words) ++counts[w];
+      auto it = counts.find(word); return it == counts.end() ? 0 : it->second;
+      std::unordered_set<int> seen; for (int v : values) if (seen.insert(v).second) result.push_back(v);
+      std::deque<int> queue(jobs.begin(), jobs.end()); while (!queue.empty()) { int job = queue.front(); queue.pop_front(); order.push_back(job); if (job > 1) queue.push_back(job / 2); }
+      items.splice(items.begin(), items, it);

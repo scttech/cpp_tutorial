@@ -258,6 +258,65 @@
       "reason": "needs sanitizers",
       "declared": true,
       "hash": "492da7ca2c01582b"
+    },
+    "core.stdlib.algorithms": {
+      "wasm": true,
+      "mutants": 27,
+      "hash": "a1479edf80d74244"
+    },
+    "core.stdlib.capstone-log-analyzer": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution fails \"analyze handles 200000 lines quickly\" [timeout]: test did not finish in 2s (infinite loop?)"
+      ],
+      "hash": "1eb39e18b451f626"
+    },
+    "core.stdlib.containers": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"k-smallest-of-zero-reads-an-empty-heap\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "a28d42de4c061ed6"
+    },
+    "core.stdlib.iterators": {
+      "wasm": true,
+      "mutants": 20,
+      "hash": "2d921cb558cc3b63"
+    },
+    "core.stdlib.lambdas": {
+      "wasm": true,
+      "mutants": 25,
+      "hash": "b208c6c45dda5843"
+    },
+    "core.stdlib.test-out": {
+      "wasm": true,
+      "mutants": 12,
+      "hash": "ead66b7d5921f99d"
+    },
+    "core.stdlib.text": {
+      "wasm": false,
+      "reason": "uses a C++ library feature the browser build lacks",
+      "details": [
+        "solution does not build: In file included from main.cpp:4: | ./text_tools.hpp:34:29: error: call to deleted function 'from_chars' |    34 |     const auto [stop, ec] = std::from_chars(text.data(), end, value); |       |                             ^~~~~~~~~~~~~~~"
+      ],
+      "hash": "49b1b35fbf6622f9"
+    },
+    "core.stdlib.time-random": {
+      "wasm": true,
+      "mutants": 37,
+      "hash": "9e8c7a31cc913a48"
+    },
+    "core.stdlib.vocabulary": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution fails \"evaluate allocates nothing for a tree of numbers (no copy of the tree, no temporary strings)\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"node_count allocates nothing\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"a tree of 2000 nodes is handled (cloned, simplified, evaluated) quickly\" [error]: crashed: stack overflow (recursion too deep?)"
+      ],
+      "hash": "b3df2d42183d92d6"
     }
   }
 }

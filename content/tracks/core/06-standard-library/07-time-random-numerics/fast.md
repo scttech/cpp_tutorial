@@ -1,0 +1,10 @@
+# Fast path: what's different in C++
+
+- **`std::chrono::duration<Rep, Period>`** carries its unit: `seconds`, `milliseconds`, `minutes`, `hours`, literals `1s`, `250ms`, `5min` (`using namespace std::chrono_literals`). Arithmetic between units converts to the finer one exactly; the reverse needs **`duration_cast`**, which **truncates toward zero** (`std::chrono::round`/`floor`/`ceil` are the alternatives). `duration<double>` is floating-point seconds and converts implicitly.
+- **Clocks**: `steady_clock` (monotonic, for measuring), `system_clock` (wall time, can jump), `high_resolution_clock` (an alias of one of them). A `time_point` minus a `time_point` is a `duration`. Make the clock a template parameter to test time-dependent code with a fake clock.
+- **`std::mt19937`**: the Mersenne Twister, standardized: a given seed gives the same 32-bit sequence everywhere (the 10000th output of the default seed 5489 is 4123659995). Seed it explicitly (`std::mt19937 rng(seed)`), never from `std::time` when you need to replay a run.
+- **Distributions and `std::shuffle` are implementation-defined**: the same engine gives different numbers in libstdc++, libc++ and MSVC. For cross-platform reproducibility write the range mapping (and the shuffle) yourself.
+- **Modulo bias**: `rng() % n` is not uniform unless `n` divides the engine's range. **Rejection sampling**: draw again while `r >= range - range % n`.
+- **`std::accumulate`/`inner_product`/`partial_sum` compute in the type of the initial value**: `0` is an `int` (overflow!), `0LL` or `0.0` is not. `std::reduce`/`std::inclusive_scan`/`std::transform_reduce` are the parallel-ready versions.
+- **Integer overflow** of signed types is undefined behavior; convert to the wide type BEFORE the operation (`static_cast<long long>(x) * y`).
+- **Floating point**: never `==`. Combine a relative and an absolute tolerance; two infinities of the same sign are equal; NaN is unequal to everything. **Kahan summation** (compensated) fixes the accumulated rounding error of long sums; `-ffast-math` can break it.

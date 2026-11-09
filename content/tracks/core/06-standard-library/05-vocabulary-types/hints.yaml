@@ -1,0 +1,10 @@
+ladder:
+  - level: 1
+    text: "Every AST function has the same shape: `std::visit(Overloaded{ one lambda per kind of node }, e.node)`, with recursion for BinOp and Neg. Do evaluate first and let the compiler tell you which kind of node you forgot. Then to_string and node_count (the same shape), then variables, clone, simplify; min_max and head_tail are short."
+  - level: 2
+    text: "evaluate: every lambda returns std::optional<double> (write `-> std::optional<double>`): Num gives n.value; Var looks up the name in `vars` (find, end() is nullopt); BinOp evaluates both sides with evaluate(*b.lhs, vars) and returns nullopt if either is empty, then switches on b.op (a division by 0 is nullopt); Neg negates. to_string: Num with an ostringstream, BinOp \"(\" + l + \" \" + op + \" \" + r + \")\"."
+  - level: 3
+    text: "variables: a helper that visits and inserts the Var names into a std::set<std::string>, then copy the set to a vector. clone: rebuild with the builders: num(n.value), var(v.name), bin(b.op, clone(*b.lhs), clone(*b.rhs)), neg(clone(*n.operand)). simplify: for a BinOp simplify both children first; `std::get_if<Num>(&l->node)` tells you if the result is a number. min_max: std::minmax_element returns a pair of iterators. head_tail: `std::make_pair(values.front(), values.subspan(1))`."
+  - level: 4
+    text: |
+      return std::visit(Overloaded{ [](const Num& n) -> std::optional<double> { return n.value; }, [&](const Var& v) -> std::optional<double> { auto it = vars.find(v.name); if (it == vars.end()) return std::nullopt; return it->second; }, [&](const BinOp& b) -> std::optional<double> { auto l = evaluate(*b.lhs, vars); auto r = evaluate(*b.rhs, vars); if (!l || !r) return std::nullopt; switch (b.op) { case '+': return *l + *r; case '-': return *l - *r; case '*': return *l * *r; case '/': if (*r == 0.0) return std::nullopt; return *l / *r; default: return std::nullopt; } }, [&](const Neg& n) -> std::optional<double> { auto v = evaluate(*n.operand, vars); if (!v) return std::nullopt; return -*v; } }, e.node);
