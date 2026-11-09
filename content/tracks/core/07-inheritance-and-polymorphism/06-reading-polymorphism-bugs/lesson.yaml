@@ -1,0 +1,16 @@
+id: core.inherit.reading-bugs
+title: "Debug challenge: Reading Polymorphism Bugs"
+module: core.inherit
+type: debug
+estimatedMinutes: 50
+concepts: [override-signature-mismatch, abstract-class-error, unimplemented-pure-virtual, private-inheritance-error, non-virtual-destructor-warning, hidden-virtual-function, object-slicing, compiler-warnings-as-bugs, library-internal-error, read-the-first-error-first]
+prerequisites: [core.inherit.alternatives]
+files:
+  editable: [band.hpp, main.cpp]
+  readonly: []
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+starterBroken: true     # the starter does not compile: reading the errors is the exercise
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [override-without-const, abstract-class-missing-an-override, class-defaults-to-private-inheritance, non-virtual-destructor, hidden-virtual-overload, slicing-by-value-parameter, warning-is-a-bug, error-inside-the-library, read-the-first-error-first]

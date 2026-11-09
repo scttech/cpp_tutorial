@@ -211,6 +211,64 @@
       "mutants": 27,
       "hash": "4b62ad281a85aa78"
     },
+    "core.inherit.alternatives": {
+      "wasm": true,
+      "mutants": 41,
+      "hash": "9cf4cd13c18a1865"
+    },
+    "core.inherit.basics": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:6: | ./animals.hpp:95:28: error: cannot use 'throw' with exceptions disabled |    95 |         if (Base::empty()) throw std::out_of_range(\"top of an empty IntStack\"); |       |                            ^"
+      ],
+      "hash": "5a239d978632c1dc"
+    },
+    "core.inherit.capstone-plugin-pipeline": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:5: | ./pipeline.hpp:117:28: error: cannot use 'throw' with exceptions disabled |   117 |         if (from_.empty()) throw std::invalid_argument(\"replace: the text to find must not be empty\"); |       |                            ^"
+      ],
+      "hash": "265787f49da9a0ba"
+    },
+    "core.inherit.composition": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:6: | ./composition.hpp:98:22: error: cannot use 'throw' with exceptions disabled |    98 |         if (hp <= 0) throw std::invalid_argument(\"hp must be positive\"); |       |                      ^"
+      ],
+      "hash": "6486d0b78d5c4239"
+    },
+    "core.inherit.interfaces": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:5: | ./logging.hpp:118:20: error: cannot use 'throw' with exceptions disabled |   118 |         if (!sink) throw std::invalid_argument(\"a null sink\"); |       |                    ^"
+      ],
+      "hash": "f6eba48b97637b90"
+    },
+    "core.inherit.reading-bugs": {
+      "wasm": true,
+      "mutants": 30,
+      "hash": "d1c635eae8b3529b"
+    },
+    "core.inherit.test-out": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:7: | ./shapes.hpp:27:29: error: cannot use 'throw' with exceptions disabled |    27 |         if (!(radius >= 0)) throw std::invalid_argument(\"a radius must not be negative\"); |       |                             ^"
+      ],
+      "hash": "e671319b0c7354d5"
+    },
+    "core.inherit.virtual": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "solution does not build: In file included from main.cpp:7: | ./payroll.hpp:34:29: error: cannot use 'throw' with exceptions disabled |    34 |         if (!(annual >= 0)) throw std::invalid_argument(\"a salary must not be negative\"); |       |                             ^"
+      ],
+      "hash": "46a052e0a82a7598"
+    },
     "core.ownership.capstone-vector": {
       "wasm": false,
       "reason": "needs sanitizers",

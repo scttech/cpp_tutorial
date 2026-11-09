@@ -1,0 +1,6 @@
+id: core.inherit
+title: "Inheritance and Polymorphism"
+track: core
+order: 7
+summary: "Base and derived classes, virtual functions and dynamic dispatch, interfaces, composition over inheritance, and the alternatives to virtual: variant, CRTP and type erasure."
+testOut: core.inherit.test-out   # "Shape area": passing it completes the module

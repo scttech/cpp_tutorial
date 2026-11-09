@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "The program does not compile, so the Problems tab lists the errors. Read the FIRST one only: the friendly explanation under it says what kind of mistake it is, and the notes under the error say why. Fix it, run again. Then deal with the WARNINGS (they are bugs here) and finally run the tests: two of the six mistakes produce no message at all."
+  - level: 2
+    text: "Six mistakes: (1) Guitar::sound is missing something that the base declares; (2) Piano does not implement a pure virtual function (what does the note 'unimplemented pure virtual method' name?); (3) Whistle inherits from Instrument without saying how; (4) the destructor of the base class (and the warning about delete); (5) Drum::play has a different parameter type than the base's play: the warning says so; (6) hear copies its argument."
+  - level: 3
+    text: "(1) `std::string sound() const override`. (2) add `std::string sound() const override { return \"plink\"; }` to Piano. (3) `class Whistle : public Instrument`. (4) `virtual ~Instrument()`. (5) `std::string play(int times) const override` in Drum. (6) `inline std::string hear(const Drum& drum)`."
+  - level: 4
+    text: |
+      class Instrument { public: virtual ~Instrument() { --instruments_alive; } ... };
+      class Guitar : public Instrument { std::string sound() const override { return "strum"; } };
+      class Drum : public Instrument { ... std::string play(int times) const override { ... } };
+      class Piano : public Instrument { ... std::string sound() const override { return "plink"; } };
+      class Whistle : public Instrument { ... };
+      inline std::string hear(const Drum& drum) { return drum.sound(); }

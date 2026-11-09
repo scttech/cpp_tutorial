@@ -1,0 +1,27 @@
+ladder:
+  - level: 1
+    text: "Start with the Employee class: `virtual` on the destructor, monthly_pay and title. Then write the derived classes with `override` on every function and destructor: where `override` does not compile, the signature is wrong. Run the tests: the Robust ones print the destructor trace, so you can see which destructor did not run."
+  - level: 2
+    text: "badge(): `return name_ + \", \" + title();` computed when asked (drop the badge_ member). Hourly: `std::min(hours_, 160.0)` regular hours and `std::max(0.0, hours_ - 160.0)` overtime at 1.5 times the rate. Manager's pay: `Salaried::monthly_pay() + 250.0 * reports_`. Constructors validate with `if (!(x >= 0)) throw std::invalid_argument(...)` (this also rejects NaN)."
+  - level: 3
+    text: "total_payroll / badges: `for (const auto& e : staff) if (e) ...` and call through the pointer (`e->monthly_pay()`); that call is virtual. RTTI: `as_manager` is `dynamic_cast<const Manager*>(&e)`; `must_be_manager` is `dynamic_cast<Manager&>(e)` (the reference form throws std::bad_cast on its own); count_managers loops and counts the non-null entries for which as_manager is not null; same_kind is `typeid(a) == typeid(b)`."
+  - level: 4
+    text: |
+      class Employee {
+      public:
+          explicit Employee(std::string name) : name_(std::move(name)) {}
+          virtual ~Employee() { trace("~Employee(" + name_ + ")"); }
+          virtual double monthly_pay() const { return 0.0; }
+          virtual std::string title() const { return "employee"; }
+          std::string badge() const { return name_ + ", " + title(); }
+          ...
+      };
+      class Hourly final : public Employee {
+          ~Hourly() override { trace("~Hourly(" + name() + ")"); }
+          double monthly_pay() const override { return rate_ * std::min(hours_, 160.0) + 1.5 * rate_ * std::max(0.0, hours_ - 160.0); }
+          std::string title() const override { return "hourly"; }
+          ...
+      };
+      class Manager final : public Salaried { double monthly_pay() const override { return Salaried::monthly_pay() + 250.0 * reports_; } ... };
+      inline const Manager* as_manager(const Employee& e) { return dynamic_cast<const Manager*>(&e); }
+      inline Manager& must_be_manager(Employee& e) { return dynamic_cast<Manager&>(e); }

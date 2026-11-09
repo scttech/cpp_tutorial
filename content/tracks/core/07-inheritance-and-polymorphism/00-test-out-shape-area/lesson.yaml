@@ -1,0 +1,15 @@
+id: core.inherit.test-out
+title: "Test-out: Shape area"
+module: core.inherit
+type: test-out
+estimatedMinutes: 35
+concepts: [inheritance, virtual-function, pure-virtual, override, final, virtual-destructor, clone-idiom, factory-function, unique-ptr-polymorphism, dynamic-dispatch]
+prerequisites: [core.stdlib.capstone-log-analyzer]
+files:
+  editable: [shapes.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [non-virtual-destructor, derived-destructor-not-run, clone-slices-a-subclass, forgot-the-clone-override, null-entries-in-the-vector, ties-go-to-the-first, degenerate-triangle, validation-in-the-constructor, reserve-before-push-back]

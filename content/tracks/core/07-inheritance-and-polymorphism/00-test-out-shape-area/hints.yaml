@@ -1,0 +1,26 @@
+ladder:
+  - level: 1
+    text: "Start with the destructor of Shape: it is not virtual, so deleting a Circle through a Shape pointer skips ~Circle (run the Robust tests and read the live-object counts). Then fill in the classes one by one: each overrides all four functions, with `override` on each. Square derives from Rectangle and needs only `name` and `clone`."
+  - level: 2
+    text: "`virtual ~Shape() = default;`. Constructors validate: `if (!(radius >= 0)) throw std::invalid_argument(\"...\");` (the `!(x >= 0)` form also rejects NaN). clone: `return std::make_unique<Circle>(*this);` in every class, INCLUDING Square (otherwise it copies as a Rectangle). Triangle: all sides > 0 and a + b > c, a + c > b, b + c > a (strict)."
+  - level: 3
+    text: "make_shape: check `args.size()` against the kind's count (throw invalid_argument), then `return std::make_unique<Circle>(args[0]);` and so on; the final fall-through throws for an unknown kind. total_area / largest: `for (const auto& s : shapes) if (s) ...` (the pointer is const, the shape is reached through it). largest keeps `const Shape* best`, replaced only when `s->area() > best->area()` so ties keep the first. clone_all: `copy.reserve(shapes.size())`, then `push_back(s ? s->clone() : nullptr)`."
+  - level: 4
+    text: |
+      class Shape { public: virtual ~Shape() = default; /* four pure virtuals */ };
+      class Circle final : public Shape {
+      public:
+          explicit Circle(double radius) : radius_(radius) { if (!(radius >= 0)) throw std::invalid_argument("negative radius"); }
+          double area() const override { return std::numbers::pi * radius_ * radius_; }
+          double perimeter() const override { return 2 * std::numbers::pi * radius_; }
+          std::string name() const override { return "circle"; }
+          std::unique_ptr<Shape> clone() const override { return std::make_unique<Circle>(*this); }
+      private: double radius_;
+      };
+      class Square final : public Rectangle {
+      public:
+          explicit Square(double side) : Rectangle(side, side) {}
+          std::string name() const override { return "square"; }
+          std::unique_ptr<Shape> clone() const override { return std::make_unique<Square>(*this); }
+      };
+      // total_area: sum += s->area() for non-null s;  largest: strict '>' keeps the first;  clone_all: reserve + push_back(s ? s->clone() : nullptr)

@@ -1,0 +1,11 @@
+# Fast path: what's different in C++
+
+- **Own polymorphic objects with `std::unique_ptr<Base>`** in a `std::vector`: `std::vector<std::unique_ptr<Stage>>`. Pointers are cheap to move, the vector reallocates without touching the stages, and destruction is automatic (the base destructor is virtual). `std::make_unique<Derived>(args...)` converts to `unique_ptr<Base>` implicitly.
+- **Copying polymorphic objects = a virtual `clone()`** returning `std::unique_ptr<Base>`; every concrete class implements it as `make_unique<Self>(*this)`. A class that owns such pointers needs a hand-written copy constructor and copy assignment (clone every element; copy-and-swap for assignment), while the move operations can be `= default`.
+- **A `const` method that needs mutable work state** (`run() const` with counters) clones the stages and works on the clones: the object stays logically `const` and runs stay independent. The alternative, `mutable` members, shares state between runs.
+- **`std::function<R(Args...)>`** stores any callable (a lambda, a function pointer, a functor) with that signature; a lambda returning `unique_ptr<Derived>` converts to one returning `unique_ptr<Base>`. An empty `std::function` converts to `false`: check it when you accept one.
+- **Registries (name → factory)** make a program extensible without recompiling the core: plugins register themselves. A `std::map<std::string, Factory, std::less<>>` allows lookup by `std::string_view` without building a `std::string` (heterogeneous lookup).
+- **Parsing numbers**: `std::from_chars(first, last, value)` returns `{ptr, ec}`; check `ec == std::errc{}` **and** that `ptr == last`, or `"5x"` is accepted as 5. Unsigned types reject a leading `-`; overflow gives `std::errc::result_out_of_range`.
+- **Exception boundaries**: catch `const std::exception&` where one bad item must not abort the whole job; record what went wrong (`what()`) and carry on. Do not swallow errors silently.
+- **`std::optional<std::string>` as "keep or drop"**: the return type carries the decision without a sentinel string or a bool out-parameter.
+- **`final` leaf classes + `override` everywhere** let the compiler check the interface and devirtualize calls on the leaf type.

@@ -1,0 +1,24 @@
+ladder:
+  - level: 1
+    text: "Part 1 is given. Work through the TODOs in order: the six area/perimeter overloads, the three visit functions, make_variants and its total; then the CRTP base and its two shapes; then AnyShape (its constructor, its copy operations and Model<T>), then make_erased. The tests of each part are named after it: the Works tests fail one part at a time."
+  - level: 2
+    text: "variant: `std::visit([](const auto& shape) { return area(shape); }, s)` for area_of and perimeter_of, `std::visit(Overloaded{[](const Circle&) { return std::string(\"circle\"); }, ...}, s)` for name_of. make_variants: `out.reserve(n)` then `push_back(Circle{...})` etc. by `i % 3`. CRTP: `const Derived& self() const { return static_cast<const Derived&>(*this); }`; `area()` is `self().area_impl()`; the base constructor is private, with `friend Derived;`."
+  - level: 3
+    text: "AnyShape: `: impl_(std::make_unique<Model<std::remove_cvref_t<T>>>(std::forward<T>(value)))`; copy constructor `: impl_(other.impl_ ? other.impl_->clone() : nullptr)`; copy assignment: `AnyShape copy(other); impl_ = std::move(copy.impl_); return *this;` (safe for self-assignment). Model: `double area() const override { return detail::area_via_adl(value); }` and `std::unique_ptr<Concept> clone() const override { return std::make_unique<Model>(*this); }`. make_erased: `out.emplace_back(Circle{...})` after `reserve(n)`."
+  - level: 4
+    text: |
+      template <class Derived>
+      class StaticShape {
+      public:
+          double area() const { return self().area_impl(); }
+          std::string name() const { return self().name_impl(); }
+          double scaled_area(double f) const { return area() * f * f; }
+          bool bigger_than(const Derived& other) const { return area() > other.area(); }
+      private:
+          StaticShape() = default;
+          friend Derived;
+          const Derived& self() const { return static_cast<const Derived&>(*this); }
+      };
+      class SCircle final : public StaticShape<SCircle> { public: explicit SCircle(double r) : r_(r) {} double area_impl() const { return kPi * r_ * r_; } std::string name_impl() const { return "circle"; } private: double r_; };
+      template <class T> requires(!std::same_as<std::remove_cvref_t<T>, AnyShape>)
+      AnyShape(T&& value) : impl_(std::make_unique<Model<std::remove_cvref_t<T>>>(std::forward<T>(value))) {}

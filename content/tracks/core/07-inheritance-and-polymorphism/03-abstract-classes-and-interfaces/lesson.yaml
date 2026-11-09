@@ -1,0 +1,15 @@
+id: core.inherit.interfaces
+title: "Abstract classes and interfaces"
+module: core.inherit
+type: lesson
+estimatedMinutes: 55
+concepts: [abstract-class, pure-virtual, pure-virtual-with-body, interface, interface-segregation, multiple-inheritance, decorator, plugin-architecture, non-copyable-interface, sideways-dynamic-cast, constrained-factory]
+prerequisites: [core.inherit.virtual]
+files:
+  editable: [logging.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 128 }
+requires: []
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [pure-virtual-with-a-body, abstract-class-cannot-be-instantiated, interface-needs-a-virtual-destructor, fat-interface, interface-copy-slices, decorator-target-must-outlive-it, stored-string-view-dangles, sideways-cast-between-unrelated-interfaces, repeating-virtual-in-derived-classes, emplace-returns-the-real-type]

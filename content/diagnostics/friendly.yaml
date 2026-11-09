@@ -199,7 +199,7 @@
 # An error reported INSIDE the standard library (its file is under /usr): the cause is nearly always in your own code. Kept ABOVE the
 # general rules (invalid-operands, no-matching-function, deleted-function...) so those do not describe library internals.
 - id: library-internal-error
-  match: '^(?!in instantiation of|candidate |because |and |expanded from|.*declared here|.*marked deleted)'
+  match: '^(?!in instantiation of|candidate |because |and |expanded from|allocating an object of abstract|delete called on|.*declared here|.*marked deleted)'
   fileMatch: '^/usr/'
   friendly: "This error is reported INSIDE the standard library, but the library is almost never the problem: it was asked to do something your type does not support (for example `std::sort` needs `operator<`, a `std::vector` copy needs copyable elements). Scroll down to the notes and find the `in instantiation of ... requested here` line that points at YOUR file: that is the call to fix, and the first error above says what is missing."
   lesson: core.generics.reading-errors
@@ -467,11 +467,114 @@
     int main() { A a; a.x = 1; }
 
 - id: abstract-class
-  match: 'variable type ''(.+?)'' is an abstract class'
-  friendly: "`$1` has pure virtual functions, so you can't create an object of it directly. Create a derived class that implements them."
+  match: '(?:variable type|allocating an object of abstract class type) ''(.+?)''(?: is an abstract class)?$'
+  friendly: "`$1` is abstract: it still has a pure virtual function without an implementation, so no object of it can be created (not as a variable, not with `new` or `make_unique`). The notes under the error list the missing functions (`unimplemented pure virtual method`). Implement each one in the class, with `override`; or create an object of a concrete derived class instead."
+  lesson: core.inherit.reading-bugs
   trigger: |
     struct A { virtual void f() = 0; };
     int main() { A a; }
+
+- id: unimplemented-pure-virtual
+  match: 'unimplemented pure virtual method ''(\w+)'' in ''(\w+)'''
+  friendly: "`$2` does not implement `$1` yet: it is still pure virtual there, which is what keeps `$2` abstract. Add `... $1(...) const override { ... }` to `$2` with exactly the signature the base class declares (parameters and `const` included)."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct A { virtual void f() = 0; };
+    struct B : A {};
+    int main() { B b; }
+
+- id: override-hides-virtual
+  match: 'non-virtual member function marked ''override'' hides virtual member function'
+  friendly: "`override` is a promise that this function replaces a virtual function of a base class, and the compiler found a base function with the same name but a DIFFERENT signature: this one does not replace it, it hides it. The note under the error says what differs, most often `const` (the base function is `const` and this one is not) or the type of a parameter. Make the signature identical."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { virtual int f() const { return 0; } };
+    struct D : B { int f() override { return 1; } };
+    int main() {}
+
+- id: override-not-virtual
+  match: 'only virtual member functions can be marked ''override'''
+  friendly: "`override` only makes sense on a function that overrides a `virtual` function of a base class, and there is none: either the base class function is not declared `virtual`, or the name is misspelled and there is no such function at all. Add `virtual` in the base class, fix the name, or remove `override` if this function is not meant to override anything."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { int f() const { return 0; } };
+    struct D : B { int f() const override { return 1; } };
+    int main() {}
+
+- id: hidden-virtual-declared
+  match: 'hidden overloaded virtual function ''(.+?)'' declared here: (.+)'
+  friendly: "This is the base class function that `override` (or the same name) was meant to replace: `$1`. Why it does not match: $2. Make the derived function's signature identical to this one."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { virtual int f() const { return 0; } };
+    struct D : B { int f() override { return 1; } };
+    int main() {}
+
+- id: hides-virtual-overload
+  match: '''(.+?)'' hides overloaded virtual function'
+  friendly: "`$1` has the same name as a virtual function of a base class but a different parameter list, so it does not override it: it HIDES it. A call through a base pointer or reference still reaches the base version, which is a silent bug. The note under the warning shows the difference. Give it the same parameters and mark it `override`: the compiler then checks the match for you."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { virtual int f(int x) const { return x; } };
+    struct D : B { int f(double x) const { return static_cast<int>(x) + 1; } };
+    int main() {}
+
+- id: private-base-class
+  match: 'cannot cast ''(.+?)'' to its (private|protected) base class ''(.+?)'''
+  friendly: "`$1` inherits from `$3` with $2 inheritance, so code outside the class may not treat a `$1` as a `$3`: the conversion is forbidden. If a `$1` IS-A `$3`, write `: public $3`. (`class D : B` means `: private B`; only `struct` defaults to public.)"
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { int x = 0; };
+    class D : B {};
+    void use(const B&) {}
+    int main() { D d; use(d); }
+
+- id: implicitly-private-base
+  match: 'implicitly declared private here'
+  friendly: "No access specifier was written on the base class, and for a `class` that means `private` inheritance. Write `public` in front of the base class name: `class Derived : public Base`."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { int x = 0; };
+    class D : B {};
+    void use(const B&) {}
+    int main() { D d; use(d); }
+
+- id: delete-non-virtual-destructor
+  match: 'delete called on (?:non-final )?''(.+?)'' that (?:has virtual functions|is abstract) but (?:has )?non-virtual destructor'
+  friendly: "`$1` has virtual functions but its destructor is not virtual. Deleting a derived object through a pointer to it (a `delete`, or a `unique_ptr<$1>` going out of scope) is undefined behavior: in practice the destructor of the derived class never runs, and whatever that class owns leaks. Declare the destructor in the base class: `virtual ~$1() = default;`."
+  lesson: core.inherit.reading-bugs
+  trigger: |
+    struct B { virtual void f() {} ~B() {} };
+    struct D : B { };
+    int main() { B* p = new D; delete p; }
+
+- id: derive-from-final
+  match: 'base ''(\w+)'' is marked ''final'''
+  friendly: "`$1` is declared `final`: nobody may derive from it. Remove `final` from `$1` if it was a mistake, or compose instead (give the new class a `$1` member)."
+  lesson: core.inherit.virtual
+  trigger: |
+    struct F final { };
+    struct G : F { };
+    int main() {}
+
+- id: override-final
+  match: 'declaration of ''(\w+)'' overrides a ''final'' function'
+  friendly: "A base class declared `$1` as `final`, which forbids any further override. Remove `final` there if it was a mistake, or do not override `$1` in this class."
+  lesson: core.inherit.virtual
+  trigger: |
+    struct B { virtual void f() {} };
+    struct H : B { void f() final {} };
+    struct I : H { void f() override {} };
+    int main() {}
+
+- id: dynamic-cast-not-polymorphic
+  match: '''(.+?)'' is not polymorphic'
+  friendly: "`dynamic_cast` checks the real type of an object at run time, which needs the type information that only a class with at least one `virtual` function has, and `$1` has none. Give the base class a virtual function (a virtual destructor is the usual one), or use `static_cast` if you know the real type."
+  lesson: core.inherit.virtual
+  trigger: |
+    struct Plain { int x; };
+    struct Q : Plain { };
+    int main() { Plain* p = new Q; Q* q = dynamic_cast<Q*>(p); (void)q; delete p; }
 
 # ---- build model (declared/defined, headers) -----------------------------------------------------
 - id: redefinition

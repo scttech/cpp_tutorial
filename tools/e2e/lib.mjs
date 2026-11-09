@@ -51,11 +51,13 @@ export function createSuite({ app = "http://localhost:5173", track, timeoutMs = 
     await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
   }
 
-  /** Replace the contents of the visible editor (insertText bypasses auto-closing brackets and auto-indent). */
+  /** Replace the contents of the visible editor (insertText bypasses auto-closing brackets). */
   async function setCode(page, text) {
     await page.locator(".monaco-editor .view-lines").first().click();
     await page.keyboard.press("Control+A");
-    await page.keyboard.insertText(text);
+    // insertText is typing to Monaco, which auto-indents every new line ON TOP of the indentation in the text; that compounds on long files and
+    // can exceed the runner's size limit. The e2e does not care about indentation, so the leading blanks are dropped and Monaco re-indents.
+    await page.keyboard.insertText(text.replace(/^[ 	]+/gm, ""));
   }
 
   /** Switch to the file's tab and replace its contents. */

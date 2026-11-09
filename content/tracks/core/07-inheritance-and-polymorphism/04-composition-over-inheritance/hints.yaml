@@ -1,0 +1,23 @@
+ladder:
+  - level: 1
+    text: "Three independent parts, in file order. A: remove `: public IntBag` and the overrides; give CountingBag a private `IntBag bag_` and forward each call (`bag_.add(value)`), counting in `added_` yourself. B: fill in the four small classes, then the Character. C: add `virtual` to both bases of Device and name Device in the Copier's initializer list. The numbered TODOs in the file say which test to look at."
+  - level: 2
+    text: "CountingBag: `void add(int v) { bag_.add(v); ++added_; }`, `void add_all(const std::vector<int>& vs) { bag_.add_all(vs); added_ += vs.size(); }`, `size()` and `sum()` just return `bag_.size()` / `bag_.sum()`. Character: store `std::string name_; int hp_; std::unique_ptr<Movement> movement_; std::unique_ptr<Attack> attack_;` and validate in the constructor body (`hp <= 0`, null parts -> std::invalid_argument)."
+  - level: 3
+    text: "take_hit: `if (damage > 0) hp_ = std::max(0, hp_ - damage);`. distance: `ticks > 0 ? movement_->speed() * ticks : 0`. strike: `alive() ? attack_->damage(level) : 0`. set_movement: check for null FIRST (so the old movement is kept when it throws), then `movement_ = std::move(movement);`. describe: `name_ + \" (\" + std::to_string(hp_) + \" hp, \" + movement_->name() + \" / \" + attack_->name() + \")\"`. Diamond: `struct Scanner : virtual Device`, `struct Printer : virtual Device`, `Copier(int i) : Device(i), Scanner(i), Printer(i) {}`."
+  - level: 4
+    text: |
+      class CountingBag {
+      public:
+          void add(int value) { bag_.add(value); ++added_; }
+          void add_all(const std::vector<int>& values) { bag_.add_all(values); added_ += values.size(); }
+          std::size_t size() const { return bag_.size(); }
+          long long sum() const { return bag_.sum(); }
+          std::size_t added() const { return added_; }
+      private:
+          IntBag bag_;
+          std::size_t added_ = 0;
+      };
+      class Sword final : public Attack { int damage(int level) const override { return 5 + 2 * level; } std::string name() const override { return "sword"; } };
+      inline Character make_knight(std::string name) { return Character(std::move(name), 30, std::make_unique<Walk>(), std::make_unique<Sword>()); }
+      struct Scanner : virtual Device { explicit Scanner(int i) : Device(i) {} ... };

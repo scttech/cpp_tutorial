@@ -1,0 +1,31 @@
+ladder:
+  - level: 1
+    text: "Work through the numbered TODOs in order. The Works tests check what each class does; the Robust tests check ORDER (read the trace they compare: the base is built first and destroyed last), that `energy_` is really protected, and that `feed` does not copy its argument."
+  - level: 2
+    text: "Animal: add `trace(\"Animal(\" + name_ + \")\")` to the constructor body and an `~Animal()` that traces `\"~Animal(\" + name_ + \")\"`; move `int energy_ = 10;` under `protected:`. Dog: the constructor is `: Animal(std::move(name), 4)`, so the base is started with 4 legs; in its body `trace(\"Dog(\" + this->name() + \")\")` (the parameter `name` was moved from, so ask the object); `describe()` returns `Animal::describe() + \" (dog)\"`."
+  - level: 3
+    text: "fetch: `if (energy_ < 3) return false; energy_ -= 3; return true;` (derived classes may touch a protected member). feed: `inline void feed(Animal& animal, int food)`. feed_all: `for (Animal* a : animals) if (a) feed(*a, food);`. sliced_copy: `return dog;` (the return type is Animal, so only the Animal part is copied). IntStack: `class IntStack : private std::vector<int>`, with `using Base::empty; using Base::size;` in the public part, and push/pop/top calling `Base::push_back`, `Base::pop_back`, `Base::back`."
+  - level: 4
+    text: |
+      class Animal {
+      public:
+          Animal(std::string name, int legs) : name_(std::move(name)), legs_(legs) { trace("Animal(" + name_ + ")"); }
+          ~Animal() { trace("~Animal(" + name_ + ")"); }
+          void eat(int food) { if (food > 0) energy_ += food; }
+          ...
+      protected:
+          int energy_ = 10;
+      private:
+          std::string name_; int legs_;
+      };
+      class Dog : public Animal {
+      public:
+          explicit Dog(std::string name) : Animal(std::move(name), 4) { trace("Dog(" + this->name() + ")"); }
+          ~Dog() { trace("~Dog(" + name() + ")"); }
+          std::string speak() const { return "Woof"; }
+          bool fetch() { if (energy_ < 3) return false; energy_ -= 3; return true; }
+          void learn(std::string t) { tricks_.push_back(std::move(t)); }
+          std::string describe() const { return Animal::describe() + " (dog)"; }
+          ...
+      };
+      Cat is the same with 2 energy for climb(). feed(Animal& a, int f) { a.eat(f); }  IntStack : private std::vector<int>.

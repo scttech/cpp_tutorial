@@ -1,0 +1,9 @@
+# Fast path: what's different in C++
+
+- **Always write `override`.** It turns a silent mismatch (a missing `const`, a different parameter type, a typo in the name) into a compile error: *marked 'override' but does not override*. Without it you get a new, unrelated function that *hides* the base one.
+- **`-Woverloaded-virtual`** (in `-Wall` for Clang; `-Woverloaded-virtual=1` in recent GCC's `-Wall`) warns when a derived function has the same name as a base *virtual* function but a different signature. **`-Wnon-virtual-dtor`** and **`-Wdelete-non-virtual-dtor`** catch a base class with virtual functions and a non-virtual destructor. Treat these as errors in your own projects (`-Werror` for the relevant ones).
+- **Abstract class errors**: *cannot instantiate abstract class* / *allocating an object of abstract class type*; the note names every still-pure function. Common causes: a forgotten override, or a changed signature in the base class that the derived one no longer matches (another reason for `override`).
+- **`class D : Base`** is **private** inheritance; **`struct D : Base`** is public. Name the access on every base class.
+- **Slicing** has no diagnostic in standard compilers. Rules that prevent it: pass polymorphic objects by reference or pointer; make base classes abstract or non-copyable (`Base(const Base&) = delete`, protected copy constructor) so a by-value copy does not compile.
+- **Static analyzers** (clang-tidy: `cppcoreguidelines-slicing`, `cppcoreguidelines-virtual-class-destructor`, `modernize-use-override`, `hicpp-use-override`) check exactly these. Sanitizers: AddressSanitizer reports `new-delete-type-mismatch` for a delete through a base without a virtual destructor.
+- **Reading order for a wall of errors**: the first error; its notes; the first `requested here` that points at your file. Everything else is probably a consequence.

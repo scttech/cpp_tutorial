@@ -1,0 +1,24 @@
+ladder:
+  - level: 1
+    text: "Work in the order of the file, and let the test groups guide you: the nine stages first (they do not depend on each other; each overrides name, process and clone), then the Pipeline (add/emplace/names/run, then the copy operations), then the Registry, then build_pipeline. Every stage's clone() is `return std::make_unique<ThatClass>(*this);`."
+  - level: 2
+    text: "Pipeline::run: build `fresh`, a vector of clones of the stages, then loop over the lines. Per line: `std::optional<std::string> current = line;` and for each fresh stage `current = stage->process(std::move(*current));` inside a try/catch(const std::exception&) that records a StageError and `current.reset()`s; leave the stage loop as soon as `current` is empty. Find the lines with `text.find('\\n', pos)`; stop when pos reaches text.size() (that is why a final newline makes no extra line)."
+  - level: 3
+    text: "Pipeline copy: `Pipeline(const Pipeline& other)` clones every stage into stages_; `operator=(const Pipeline& other)` makes a copy and swaps the vectors; the move operations are `= default`. Registry: `std::map<std::string, Factory, std::less<>> factories_`; add checks `name.empty() || !factory` and uses `emplace(...).second` to detect a duplicate; make splits at `spec.find(':')` and calls `it->second(arg)`. with_builtins: lambdas that parse the argument; for numbers use std::from_chars on the arg and check both the error code and that it stopped at the end."
+  - level: 4
+    text: |
+      class Dedupe final : public Stage {
+      public:
+          std::string name() const override { return "dedupe"; }
+          std::optional<std::string> process(std::string line) override {
+              const bool same = previous_ && *previous_ == line;
+              previous_ = line;
+              if (same) return std::nullopt;
+              return line;
+          }
+          std::unique_ptr<Stage> clone() const override { return std::make_unique<Dedupe>(*this); }
+      private:
+          std::optional<std::string> previous_;
+      };
+      // Replace::process: for (size_t hit; (hit = line.find(from_, pos)) != npos; pos = hit + from_.size()) { out.append(line, pos, hit - pos); out += to_; }  out.append(line, pos, npos);
+      // build_pipeline: loop: bar = recipe.find('|', pos); spec = trimmed(recipe.substr(pos, bar - pos)); empty -> invalid_argument; pipeline.add(registry.make(spec));

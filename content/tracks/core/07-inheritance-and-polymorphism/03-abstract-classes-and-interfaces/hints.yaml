@@ -1,0 +1,28 @@
+ladder:
+  - level: 1
+    text: "Do the interfaces first (TODOs 1-3): write is `= 0`, format is `= 0` with its body defined AFTER the class as `inline std::string Sink::format(Level level, std::string_view message) const { ... }`, a virtual destructor in both, deleted copying and a protected default constructor in Sink. The Robust tests check each of these with type traits, so they will tell you which one is missing. Then the sinks, then the Logger."
+  - level: 2
+    text: "MemorySink::write: `lines_.push_back(format(level, message));` (a virtual call, so a JsonSink stores JSON). JsonSink: `class JsonSink final : public MemorySink` with only `std::string format(...) const override`, building the text with a loop over the message that escapes `\"` `\\` and newline. FilterSink::write: `if (level >= minimum_) target_.write(level, message);`. BufferedSink: `std::vector<std::pair<Level, std::string>> pending_`, `emplace_back(level, std::string(message))`; flush loops and clears; the destructor calls flush."
+  - level: 3
+    text: "Logger::add: `if (!sink) throw std::invalid_argument(...)`, `sinks_.push_back(std::move(sink)); return *sinks_.back();`. emplace: `auto sink = std::make_unique<S>(std::forward<Args>(args)...); S& ref = *sink; sinks_.push_back(std::move(sink)); return ref;`. log: `for (const auto& s : sinks_) s->write(level, message);`. flush_all: `if (auto* f = dynamic_cast<Flushable*>(s.get())) { f->flush(); ++n; }`."
+  - level: 4
+    text: |
+      class Sink {
+      public:
+          virtual ~Sink() = default;
+          Sink(const Sink&) = delete;
+          Sink& operator=(const Sink&) = delete;
+          virtual void write(Level level, std::string_view message) = 0;
+          virtual std::string format(Level level, std::string_view message) const = 0;
+      protected:
+          Sink() = default;
+      };
+      inline std::string Sink::format(Level level, std::string_view message) const {
+          return std::string("[") + to_string(level) + "] " + std::string(message);
+      }
+      class Flushable { public: virtual ~Flushable() = default; virtual void flush() = 0; };
+      class BufferedSink final : public Sink, public Flushable {
+          ~BufferedSink() override { flush(); }
+          void flush() override { for (const auto& [level, message] : pending_) target_.write(level, message); pending_.clear(); }
+          ...
+      };
