@@ -115,8 +115,11 @@ try {
 
   // ---------------- course map ----------------
   await page.goto(`${APP}/#/`);
-  await page.getByRole("link", { name: /I\/O basics/ }).waitFor();
   const module1 = page.locator("section.module").first();
+  await module1.locator("h2").waitFor();
+  // A module that is complete starts collapsed; open it to see the lessons.
+  if ((await module1.locator(".module-toggle").getAttribute("aria-expanded")) !== "true") await module1.locator(".module-toggle").click();
+  await page.getByRole("link", { name: /I\/O basics/ }).waitFor();
   const links = await module1.locator(".lesson-list a").count();
   check(links === 9, `course map lists test-out + 7 lessons + capstone in Module 1 (${links})`);
   check((await module1.locator(".lesson-list li").first().getAttribute("class"))?.includes("test-out"), "the test-out is listed first");

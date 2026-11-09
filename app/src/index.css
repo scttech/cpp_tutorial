@@ -43,6 +43,13 @@ h1, h2, h3, h4 { margin: 0.4em 0; }
 .badge { display: inline-block; font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--muted); }
 .badge.kind { color: var(--gold); border-color: var(--gold); }
 .lesson-list li.test-out { background: rgba(255, 201, 60, 0.07); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 6px; }
+.module h2 { margin: 0; }
+.module-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.module-toggle:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.module-toggle .module-title { flex: 1; font-size: 1.25rem; font-weight: 600; }
+.module-toggle .chevron { color: var(--gold); width: 1em; }
+.continue-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; }
+.continue-card .btn { text-decoration: none; white-space: nowrap; }
 .module.complete { border-color: var(--ok); }
 .badge.ok { color: var(--ok); border-color: var(--ok); }
 .badge.bad { color: var(--bad); border-color: var(--bad); }

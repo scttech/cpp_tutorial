@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { modules } from "../content/loader";
 import type { Lesson } from "../content/types";
@@ -5,7 +6,7 @@ import { runner } from "../runner";
 import { wasmProblem } from "../content/wasmCompat";
 import { catalog } from "../badges/catalog";
 import { isModuleComplete } from "../badges/engine";
-import type { LessonProgress } from "../state/model";
+import type { LessonProgress, Progress } from "../state/model";
 import { useAllProgress } from "../state/store";
 
 /** Why this lesson cannot run with the current runner, or null if it can. */
@@ -53,11 +54,70 @@ function Row({ lesson, p }: { lesson: Lesson; p: LessonProgress | undefined }) {
   );
 }
 
+const OPEN_KEY = "zth.home.open";
+
+/** The modules the learner opened or closed by hand (module id to open?). Absent ids follow the default. */
+function loadChoices(): Record<string, boolean> {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(OPEN_KEY) ?? "{}");
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+    return Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "boolean"));
+  } catch {
+    return {};
+  }
+}
+function saveChoices(c: Record<string, boolean>) {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify(c));
+  } catch {
+    /* storage unavailable: the choice just lasts until the page reloads */
+  }
+}
+
+/** The first lesson, in course order, that the learner can run and has not completed (modules that are complete are skipped). */
+export function nextLesson(progress: Progress): { moduleId: string; lesson: Lesson; started: boolean } | null {
+  const started = Object.values(progress.lessons).some((p) => p.status !== "available");
+  for (const m of modules) {
+    if (isModuleComplete(progress, catalog, m.id)) continue;
+    const lesson = m.lessons.find((l) => l.meta.type !== "test-out" && isRunnable(l) && progress.lessons[l.meta.id]?.status !== "complete");
+    if (lesson) return { moduleId: m.id, lesson, started };
+  }
+  return null;
+}
+
+function ContinueCard({ progress }: { progress: Progress }) {
+  const next = nextLesson(progress);
+  if (!next) return null;
+  const inProgress = progress.lessons[next.lesson.meta.id]?.status === "in_progress";
+  const module = modules.find((m) => m.id === next.moduleId)!;
+  return (
+    <section className="continue-card" aria-label="Continue learning">
+      <div>
+        <div className="muted small">{next.started ? (inProgress ? "Pick up where you left off" : "Up next") : "Start here"}</div>
+        <strong>{next.lesson.meta.title}</strong> <span className="muted small">in {module.title}</span>
+      </div>
+      <Link className="btn primary" to={`/lesson/${next.lesson.meta.id}`}>
+        {next.started ? "Continue" : "Start"}
+      </Link>
+    </section>
+  );
+}
+
 export function Home() {
   const progress = useAllProgress();
+  const [choices, setChoices] = useState(loadChoices);
+  // Unless the learner chose, only the module holding the next lesson is open.
+  const defaultOpen = nextLesson(progress)?.moduleId;
+  const toggle = (id: string, open: boolean) =>
+    setChoices((c) => {
+      const next = { ...c, [id]: open };
+      saveChoices(next);
+      return next;
+    });
   return (
     <main className="home">
       <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
+      <ContinueCard progress={progress} />
       {modules.map((m) => {
         const status = (l: Lesson) => progress.lessons[l.meta.id]?.status;
         const testOut = m.lessons.find((l) => l.meta.type === "test-out");
@@ -66,29 +126,37 @@ export function Home() {
         // A module is complete when its test-out is passed, or when every other lesson is complete.
         const testedOut = testOut ? status(testOut) === "complete" : false;
         const moduleComplete = isModuleComplete(progress, catalog, m.id);
+        const open = choices[m.id] ?? m.id === defaultOpen;
         return (
           <section key={m.id} className={moduleComplete ? "module complete" : "module"}>
             <h2>
-              {m.title}{" "}
-              {moduleComplete ? (
-                <span className="badge ok">✔ module complete{testedOut && done < regular.length ? " (tested out)" : ""}</span>
-              ) : (
-                <span className="muted small">
-                  {done}/{regular.length} complete
+              <button type="button" className="module-toggle" aria-expanded={open} aria-controls={`mod-${m.id}`} onClick={() => toggle(m.id, !open)}>
+                <span className="chevron" aria-hidden="true">
+                  {open ? "▾" : "▸"}
                 </span>
-              )}
+                <span className="module-title">{m.title}</span>
+                {moduleComplete ? (
+                  <span className="badge ok">✔ module complete{testedOut && done < regular.length ? " (tested out)" : ""}</span>
+                ) : (
+                  <span className="muted small">
+                    {done}/{regular.length} complete
+                  </span>
+                )}
+              </button>
             </h2>
-            {m.summary && <p className="muted">{m.summary}</p>}
-            {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
-            <ul className="lesson-list">
-              {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
-              {regular.map((l) => (
-                <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
-              ))}
-            </ul>
-            {testOut && !moduleComplete && (
-              <p className="muted small">Know this already? Pass the test-out to complete the whole module. The lessons stay available.</p>
-            )}
+            <div id={`mod-${m.id}`} hidden={!open}>
+              {m.summary && <p className="muted">{m.summary}</p>}
+              {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
+              <ul className="lesson-list">
+                {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
+                {regular.map((l) => (
+                  <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
+                ))}
+              </ul>
+              {testOut && !moduleComplete && (
+                <p className="muted small">Know this already? Pass the test-out to complete the whole module. The lessons stay available.</p>
+              )}
+            </div>
           </section>
         );
       })}
