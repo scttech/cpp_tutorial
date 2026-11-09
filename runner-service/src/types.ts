@@ -6,10 +6,26 @@ export interface RunLimits {
   maxOutputBytes: number;
 }
 
+/** Test frameworks a job can link (doctest is header-only; the others are static libraries in the sandbox image). */
+export type Lib = "gtest" | "gmock" | "catch2" | "doctest";
+
+/** A tool that checks the learner's files after the build: findings become Problems and a "clean"-tier test result. */
+export interface AnalyzerSpec {
+  tool: "clang-tidy" | "cppcheck" | "clang-format";
+  /** The files to check (names as in userFiles). */
+  files: string[];
+  /** clang-tidy only: a --checks list. */
+  checks?: string;
+  /** clang-tidy / clang-format: a configuration file among userFiles (e.g. a .clang-tidy kept under a visible name). */
+  config?: string;
+}
+
 export interface RunRequest {
   userFiles: Record<string, string>;
   testFiles: Record<string, string>;
   flags: string[];
+  libs: Lib[];
+  analyzers: AnalyzerSpec[];
   stdin?: string;
   limits: RunLimits;
 }
@@ -98,6 +114,8 @@ export interface SandboxJob {
   testFiles: Record<string, string>;
   flags: string[];
   stdin: string;
-  mode: "run" | "test";
+  mode: "run" | "test" | "grade";
+  libs: Lib[];
+  analyzers: AnalyzerSpec[];
   limits: RunLimits;
 }

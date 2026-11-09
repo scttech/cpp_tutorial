@@ -39,6 +39,8 @@ export async function buildServer(deps: { sandbox: Sandbox; config: Config; logg
           files: job.userFiles,
           testFiles: job.testFiles,
           flags: job.flags,
+          libs: job.libs,
+          analyzers: job.analyzers,
           stdin: job.stdin ?? "",
           mode: job.mode,
           limits: job.limits,

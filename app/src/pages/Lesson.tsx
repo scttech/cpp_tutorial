@@ -86,10 +86,12 @@ function LessonView({ lesson }: { lesson: Lesson }) {
         const testFiles = mode === "test" ? await lesson.loadTests() : {};
         const res = await runner.run(
           {
-            mode,
+            mode: mode === "test" && meta.grader === "variants" ? "grade" : mode,
             userFiles: filesRef.current,
             testFiles,
             flags: meta.flags ?? ["-std=c++20", "-Wall", "-Wextra"],
+            libs: meta.libs,
+            analyzers: mode === "run" ? undefined : meta.analyzers,
             stdin: mode === "run" ? stdin : undefined,
             limits: meta.limits ?? {},
           },

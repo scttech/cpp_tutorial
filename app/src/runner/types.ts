@@ -2,7 +2,8 @@
 // server-backed runner and the in-browser WASM runner are interchangeable.
 // Keep in sync with runner-service/src/types.ts.
 
-export type Capability = "exceptions" | "threads" | "sanitizers";
+/** "testing-tools": the test frameworks (GoogleTest, Catch2) and analyzers (clang-tidy, cppcheck, clang-format) in the Docker image. */
+export type Capability = "exceptions" | "threads" | "sanitizers" | "testing-tools";
 export type Tier = "works" | "robust" | "fast" | "clean";
 
 export interface RunLimits {
@@ -11,11 +12,24 @@ export interface RunLimits {
   maxOutputBytes: number;
 }
 
+export type Lib = "gtest" | "gmock" | "catch2" | "doctest";
+
+/** A tool that checks the learner's files after the build (Docker runner only). */
+export interface AnalyzerSpec {
+  tool: "clang-tidy" | "cppcheck" | "clang-format";
+  files: string[];
+  checks?: string;
+  config?: string;
+}
+
 export interface RunRequest {
-  mode: "run" | "test";
+  /** "grade": the learner's own tests are run against the correct code and hidden buggy variants (Docker runner only). */
+  mode: "run" | "test" | "grade";
   userFiles: Record<string, string>;
   testFiles: Record<string, string>;
   flags: string[];
+  libs?: Lib[];
+  analyzers?: AnalyzerSpec[];
   stdin?: string;
   limits: Partial<RunLimits>;
 }

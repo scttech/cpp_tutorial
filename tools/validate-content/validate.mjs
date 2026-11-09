@@ -13,10 +13,12 @@ const filter = process.argv[2];
 
 async function runTests(lesson, userFiles, testFiles) {
   return runJob({
-    mode: "test",
+    mode: lesson.grader === "variants" ? "grade" : "test",
     userFiles,
     testFiles,
     flags: lesson.flags ?? ["-std=c++20", "-Wall", "-Wextra"],
+    libs: lesson.libs,
+    analyzers: lesson.analyzers,
     limits: lesson.limits ?? {},
   });
 }

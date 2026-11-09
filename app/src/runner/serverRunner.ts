@@ -5,7 +5,7 @@ import type { Capability, RunRequest, RunResult, Runner } from "./types";
 export class ServerRunner implements Runner {
   readonly id = "server";
   readonly label = "Docker runner";
-  readonly capabilities: ReadonlySet<Capability> = new Set<Capability>(["exceptions", "threads", "sanitizers"]);
+  readonly capabilities: ReadonlySet<Capability> = new Set<Capability>(["exceptions", "threads", "sanitizers", "testing-tools"]);
 
   private readonly baseUrl: string;
 

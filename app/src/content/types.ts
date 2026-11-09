@@ -1,4 +1,4 @@
-import type { Capability, Tier } from "../runner/types";
+import type { AnalyzerSpec, Capability, Lib, Tier } from "../runner/types";
 
 export type LessonType = "lesson" | "challenge" | "capstone" | "test-out" | "debug";
 
@@ -12,6 +12,12 @@ export interface LessonMeta {
   prerequisites?: string[];
   files: { editable: string[]; readonly?: string[] };
   flags?: string[];
+  /** Test frameworks linked into the build (also for plain Run). Lessons using them declare `requires: [testing-tools]`. */
+  libs?: Lib[];
+  /** Run after the build in Run Tests: clang-tidy, cppcheck, clang-format over the learner's files. */
+  analyzers?: AnalyzerSpec[];
+  /** "variants": Run Tests grades the learner's own tests against the correct code and hidden buggy variants (tests/grade.json). */
+  grader?: "variants";
   limits?: { wallMs?: number; memoryMb?: number };
   requires?: Capability[];
   tiers: Record<Tier, boolean>;

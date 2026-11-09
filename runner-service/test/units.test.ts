@@ -87,6 +87,30 @@ describe("validation", () => {
       expect(runBodySchema.safeParse({ ...ok, flags: [flag] }).success).toBe(false);
     },
   );
+  it("accepts libs, analyzers and the grade mode", () => {
+    const n = normalize(
+      runBodySchema.parse({ ...ok, mode: "grade", libs: ["gtest", "catch2"], analyzers: [{ tool: "clang-tidy", files: ["a.cpp"], checks: "bugprone-*,-bugprone-easily-swappable-parameters" }] }),
+      config,
+    );
+    expect(n.mode).toBe("grade");
+    expect(n.libs).toEqual(["gtest", "catch2"]);
+    expect(n.analyzers[0]?.tool).toBe("clang-tidy");
+  });
+  it("defaults libs and analyzers to none", () => {
+    const n = normalize(runBodySchema.parse(ok), config);
+    expect(n.libs).toEqual([]);
+    expect(n.analyzers).toEqual([]);
+  });
+  it.each([
+    [{ libs: ["boost"] }],
+    [{ analyzers: [{ tool: "rm", files: ["a.cpp"] }] }],
+    [{ analyzers: [{ tool: "clang-tidy", files: ["../a.cpp"] }] }],
+    [{ analyzers: [{ tool: "clang-tidy", files: ["a.cpp"], checks: "x$(id)" }] }],
+    [{ analyzers: [{ tool: "clang-tidy", files: [] }] }],
+    [{ mode: "compile" }],
+  ])("rejects %j", (extra) => {
+    expect(runBodySchema.safeParse({ ...ok, ...extra }).success).toBe(false);
+  });
   it.each([["../evil.cpp"], ["/abs.cpp"], ["a b.cpp"], [""]])("rejects file name %j", (name) => {
     expect(runBodySchema.safeParse({ userFiles: { [name]: "x" } }).success).toBe(false);
   });

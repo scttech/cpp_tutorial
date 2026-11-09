@@ -3,7 +3,9 @@
 
 job = {
   "files": {"main.cpp": "..."}, "testFiles": {...}, "flags": [...],
-  "stdin": "", "mode": "run" | "test",
+  "stdin": "", "mode": "run" | "test" | "grade",
+  "libs": ["gtest", "gmock", "catch2", "doctest"],           # test frameworks to link
+  "analyzers": [{"tool": "clang-tidy" | "cppcheck" | "clang-format", "files": [...], "checks": "...", "config": "file"}],
   "limits": {"wallMs": 5000, "maxOutputBytes": 65536, "compileMs": 30000}
 }
 Runs inside a throwaway, network-less container; the work dir is a tmpfs.
@@ -118,7 +120,19 @@ def is_source(name):
     return name.endswith((".cpp", ".cc", ".cxx"))
 
 
-def build(flags, user_sources, test_sources, compile_s):
+def link_flags(libs):
+    """Linker flags for the test frameworks a lesson asks for (doctest is header-only). Order matters for static libraries."""
+    out = []
+    if "gmock" in libs:
+        out.append("-lgmock")
+    if "gtest" in libs or "gmock" in libs:
+        out += ["-lgtest", "-lgtest_main", "-pthread"]
+    if "catch2" in libs:
+        out += ["-lCatch2Main", "-lCatch2"]
+    return out
+
+
+def build(flags, user_sources, test_sources, compile_s, libs=()):
     """Compile + link. Returns (ok, compiler_stderr, timed_out).
 
     Run mode: one clang++ invocation. Test mode: the learner's files are compiled normally and
@@ -128,7 +142,7 @@ def build(flags, user_sources, test_sources, compile_s):
     """
     base = ["clang++", *flags, "-I/opt/zth/include", "-I" + WORK]
     if not test_sources:
-        r = run_capped([*base, *user_sources, "-o", "/work/a.out"], "", compile_s, 262144)
+        r = run_capped([*base, *user_sources, *link_flags(libs), "-o", "/work/a.out"], "", compile_s, 262144)
         return r["exitCode"] == 0 and not r["timedOut"], r["stderr"], r["timedOut"]
     os.makedirs(os.path.join(WORK, "obj"), exist_ok=True)
     objs, output = [], ""
@@ -146,8 +160,144 @@ def build(flags, user_sources, test_sources, compile_s):
             if rn["exitCode"] != 0:
                 return False, output + rn["stderr"], False
         objs.append(obj)
-    r = run_capped([*base, *objs, "-o", "/work/a.out"], "", max(deadline - time.monotonic(), 1), 262144)
+    r = run_capped([*base, *objs, *link_flags(libs), "-o", "/work/a.out"], "", max(deadline - time.monotonic(), 1), 262144)
     return r["exitCode"] == 0 and not r["timedOut"], output + r["stderr"], r["timedOut"]
+
+
+# ---- analyzers: clang-tidy, cppcheck, clang-format ---------------------------------------------------------------------
+
+import re
+
+FINDING = re.compile(r"^(?:/work/)?([^\s:][^:\n]*):(\d+):(\d+): (warning|error|note|style|performance|portability|information): (.*)$")
+NAME_OK = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_\-./]*$")
+CHECKS_OK = re.compile(r"^[A-Za-z0-9*,\-_.+ ]+$")
+
+
+def protocol_line(name, tier, status, msg=None):
+    ev = {"event": "test", "name": name, "tier": tier, "status": status}
+    if msg:
+        ev["msg"] = msg
+    return "@@ZTH " + json.dumps(ev)
+
+
+def normalize_findings(text):
+    """Keep only 'file:line:col: severity: message' lines, with /work/ removed and every severity turned into warning/error/note."""
+    kept = []
+    for line in text.splitlines():
+        m = FINDING.match(line)
+        if not m:
+            continue
+        file, ln, col, sev, msg = m.groups()
+        sev = sev if sev in ("error", "note") else "warning"
+        kept.append((sev, f"{file}:{ln}:{col}: {sev}: {msg}"))
+    return kept
+
+
+def analyzer_command(spec, flags):
+    tool, files = spec["tool"], spec["files"]
+    if tool == "clang-tidy":
+        cmd = ["clang-tidy", "-quiet", "--warnings-as-errors="]
+        if spec.get("config"):
+            cmd.append("--config-file=" + spec["config"])
+        elif spec.get("checks"):
+            cmd.append("--checks=" + spec["checks"])
+        # Report findings in the learner's own files only, never in the framework or standard headers.
+        cmd.append("--header-filter=/work/(" + "|".join(re.escape(f) for f in files) + ")$")
+        std = [f for f in flags if f.startswith(("-std=", "-D"))]
+        return [*cmd, *[f for f in files if is_source(f)], "--", *std, "-I/opt/zth/include", "-I" + WORK]
+    if tool == "cppcheck":
+        return ["cppcheck", "--quiet", "--enable=warning,style,performance,portability", "--inline-suppr", "--suppress=missingIncludeSystem",
+                "--suppress=unmatchedSuppression", "--template={file}:{line}:{column}: {severity}: {message} [{id}]",
+                *["-" + f for f in flags if f.startswith("-std=")], *files]
+    if tool == "clang-format":
+        style = "file:" + spec["config"] if spec.get("config") else "LLVM"
+        return ["clang-format", "--dry-run", "-Werror", "--style=" + style, *files]
+    raise ValueError(f"unknown analyzer: {tool}")
+
+
+def run_analyzers(analyzers, flags, budget_s):
+    """Run each analyzer over its files. Returns (protocol lines, findings text for the Problems list)."""
+    lines, findings = [], []
+    deadline = time.monotonic() + budget_s
+    for spec in analyzers:
+        if not spec.get("files") or not all(NAME_OK.match(f) for f in spec["files"]):
+            raise ValueError("analyzer needs a list of safe file names")
+        if spec.get("checks") and not CHECKS_OK.match(spec["checks"]):
+            raise ValueError("unsafe analyzer checks")
+        if spec.get("config") and not NAME_OK.match(spec["config"]):
+            raise ValueError("unsafe analyzer config name")
+        name = spec["tool"] + ": no findings"
+        r = run_capped(analyzer_command(spec, flags), "", max(deadline - time.monotonic(), 1), 262144)
+        if r["timedOut"]:
+            lines.append(protocol_line(name, "clean", "timeout", "the analyzer took too long"))
+            continue
+        found = normalize_findings(r["stdout"] + "\n" + r["stderr"])
+        problems = [t for sev, t in found if sev != "note"]
+        findings.extend(t for _, t in found)
+        if problems:
+            lines.append(protocol_line(name, "clean", "fail", f"{len(problems)} finding(s). First: " + problems[0]))
+        elif r["exitCode"] not in (0, None):
+            lines.append(protocol_line(name, "clean", "error", (r["stderr"] or r["stdout"])[:300]))
+        else:
+            lines.append(protocol_line(name, "clean", "pass"))
+    return lines, "\n".join(findings)
+
+
+# ---- grade mode: the learner's tests are graded against the correct code and against hidden buggy copies -----------------
+
+def grade(files, tests, flags, libs, lim, result, env):
+    """tests/grade.json lists the variants; each one overlays files from tests/variants/<name>/. The learner's tests must PASS on the
+    correct code and FAIL on every variant (a variant the tests do not notice is a bug the tests cannot catch)."""
+    manifest = json.loads(tests["grade.json"])
+    variants = manifest.get("variants", [])
+    user_sources = [n for n in files if is_source(n)]
+    compile_s = int(lim.get("compileMs", 30000)) / 1000
+    wall_s = int(lim.get("wallMs", 5000)) / 1000
+    max_out = int(lim.get("maxOutputBytes", 65536))
+    t0 = time.monotonic()
+    ok, output, _ = build(flags, user_sources, [], compile_s, libs)
+    result["compileMs"] = int((time.monotonic() - t0) * 1000)
+    result["compileOutput"] = output
+    if not ok:
+        return []
+    result["compiled"] = True
+    t1 = time.monotonic()
+    base = run_capped(["/work/a.out"], "", wall_s, max_out, env=env)
+    result.update(base)
+    passed = base["exitCode"] == 0 and not base["timedOut"] and not base["signal"]
+    lines = [protocol_line(manifest.get("baseline", "Your tests pass on the correct code"), "works", "pass" if passed else "fail",
+                           None if passed else "Your tests fail even though the code under test is correct. Fix the tests first (see the output).")]
+    deadline = time.monotonic() + compile_s
+    for i, v in enumerate(variants):
+        name = v.get("label") or v["name"]
+        tier = v.get("tier", "works")
+        if not passed:
+            lines.append(protocol_line(name, tier, "fail", "Not checked: your tests must pass on the correct code first."))
+            continue
+        vdir = f"{WORK}/v{i}"
+        os.makedirs(vdir, exist_ok=True)
+        write_files({f"v{i}/{n}": c for n, c in files.items()})
+        prefix = f"variants/{v['name']}/"
+        write_files({f"v{i}/{k[len(prefix):]}": c for k, c in tests.items() if k.startswith(prefix)})
+        left = deadline - time.monotonic()
+        if left <= 0:
+            lines.append(protocol_line(name, tier, "error", "ran out of time before this check"))
+            continue
+        built = run_capped(["clang++", *flags, "-I/opt/zth/include", "-I" + vdir, *[f"{vdir}/{n}" for n in user_sources], *link_flags(libs),
+                            "-o", f"{vdir}/a.out"], "", left, 262144)
+        if built["timedOut"] or built["exitCode"] != 0:
+            lines.append(protocol_line(name, tier, "error", "your tests do not compile against this variant: " + built["stderr"][:300]))
+            continue
+        ran = run_capped([f"{vdir}/a.out"], "", min(wall_s, 3), 4096, env=env)
+        caught = ran["timedOut"] or bool(ran["signal"]) or ran["exitCode"] != 0
+        hint = v.get("hint") or "Add a test that would fail in that case."
+        lines.append(protocol_line(name, tier, "pass" if caught else "fail",
+                                   None if caught else f"Your tests still pass when {name[0].lower() + name[1:]}. {hint}"))
+    if manifest.get("clean"):
+        warned = any("warning:" in l for l in output.splitlines())
+        lines.append(protocol_line("Your tests compile without warnings", "clean", "fail" if warned else "pass", "See the Problems tab." if warned else None))
+    result["runMs"] = int((time.monotonic() - t1) * 1000)
+    return lines
 
 
 def main():
@@ -165,23 +315,34 @@ def main():
     max_out = int(lim.get("maxOutputBytes", 65536))
     flags = with_sanitizer_flags(job.get("flags") or DEFAULT_FLAGS)
     sanitized = any(f.startswith("-fsanitize=") for f in flags)
-    test_mode = job.get("mode") == "test"
+    mode = job.get("mode")
+    test_mode = mode == "test"
+    grade_mode = mode == "grade"
+    libs = [l for l in job.get("libs", []) if l in ("gtest", "gmock", "catch2", "doctest")]
+    analyzers = job.get("analyzers", []) if (test_mode or grade_mode) else []
     files, tests = job.get("files", {}), job.get("testFiles", {})
     result = {"compiled": False, "compileOutput": "", "stdout": "", "stderr": "",
               "exitCode": None, "signal": None, "timedOut": False,
               "compileMs": 0, "runMs": 0}
     try:
         write_files(files)
-        if test_mode:
+        if test_mode or grade_mode:
             write_files(tests)
         user_sources = [n for n in files if is_source(n)]
         test_sources = [n for n in tests if is_source(n)] if test_mode else []
         if not user_sources and not test_sources:
             result["compileOutput"] = "no .cpp files to compile"
+        elif grade_mode:
+            extra = grade(files, tests, flags, libs, lim, result, sanitizer_env(True) if sanitized else None)
+            if result["compiled"]:
+                alines, findings = run_analyzers(analyzers, flags, 25)
+                result["stdout"] = result["stdout"].rstrip("\n") + "\n" + "\n".join(extra + alines) + "\n"
+                if findings:
+                    result["compileOutput"] += "\n" + findings
         else:
             t0 = time.monotonic()
             ok, output, _ = build(flags, user_sources, test_sources,
-                                  int(lim.get("compileMs", 30000)) / 1000)
+                                  int(lim.get("compileMs", 30000)) / 1000, libs)
             result["compileMs"] = int((time.monotonic() - t0) * 1000)
             result["compileOutput"] = output
             if ok:
@@ -192,6 +353,11 @@ def main():
                                env=sanitizer_env(test_mode) if sanitized else None)
                 result["runMs"] = int((time.monotonic() - t1) * 1000)
                 result.update(r)
+                if analyzers:
+                    alines, findings = run_analyzers(analyzers, flags, 25)
+                    result["stdout"] = result["stdout"].rstrip("\n") + "\n" + "\n".join(alines) + "\n"
+                    if findings:
+                        result["compileOutput"] += "\n" + findings
     except Exception as e:  # job-level failure, not a user-code failure
         result["internalError"] = f"{type(e).__name__}: {e}"
     json.dump(result, sys.stdout)
