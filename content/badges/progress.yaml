@@ -107,3 +107,10 @@
       - { type: module-complete, module: core.concurrency }
       - { type: module-complete, module: core.performance }
       - { type: lesson-count, where: { module: core.heroes, status: complete }, atLeast: 3 }
+
+- id: hero-of-heroes
+  name: "Hero of Heroes"
+  category: progress
+  icon: "🏆"
+  description: "Complete all six Hero Projects."
+  rule: { type: module-complete, module: core.heroes }

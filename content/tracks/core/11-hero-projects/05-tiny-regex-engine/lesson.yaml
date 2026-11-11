@@ -1,0 +1,15 @@
+id: core.heroes.regex
+title: "Hero Project: Tiny Regex Engine"
+module: core.heroes
+type: capstone
+estimatedMinutes: 210
+concepts: [recursive-descent, abstract-syntax-tree, thompson-construction, nfa-simulation, epsilon-closure, leftmost-longest, no-backtracking, catastrophic-backtracking, character-classes, anchors, sparse-sets, linear-time-matching, differential-testing]
+prerequisites: [core.heroes.text-adventure]
+files:
+  editable: [parser.hpp, nfa.hpp, matcher.hpp]
+  readonly: [types.hpp, regex.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 14000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [precedence-of-alternation, quantifier-on-nothing, quantifier-after-anchor, stacked-quantifiers, empty-alternatives, empty-regex, escapes-outside-and-inside-classes, bracket-first-literal, ranges-and-dash, reversed-range, dot-and-newline, negated-class-matches-newline, anchors-are-absolute, leftmost-vs-longest, empty-matches-in-find-all, epsilon-cycles, star-of-star, exponential-backtracking, restart-at-every-position, recursion-depth-in-parser]

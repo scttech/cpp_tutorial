@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Do the stages in order. parse(): a class with the pattern and an index, and one function per precedence level: parse_alt (branches separated by '|'), parse_concat (items until '|' or ')'), parse_postfix (an atom followed by any number of * + ?), parse_atom (the literal, '.', '^', '$', '(' alt ')', '[' class, '\\\\' escape). Return a null pointer after recording an error, so that every caller only has to check for null. The shape tests (describe) only need the parser."
+  - level: 2
+    text: "build_nfa: write std::size_t compile(Nfa&, const Node&, std::size_t next) that returns the entry state of the node and continues with `next`. Concat: loop over the parts from the last to the first. Alt: compile every option with the same next, then chain Split states over the entries. Star: add the Split first (out1 = next), compile the body with the Split as its next, then set the Split's out to the body entry with nfa.edit(split).out = body. Plus is the same but the entry is the body. Quest: a Split with out = body entry and out1 = next. The Match state is added first and is the `next` of the whole tree."
+  - level: 3
+    text: "nfa_full_match: a list of threads (state indices that consume input or are Match) plus a 'seen' array (seen[state] == position). close(): a loop with an explicit stack: pop a state; skip it if seen at this position; for Split push both exits, for Jump the exit, for Begin/End push the exit only if the position is 0 / the end of the text, otherwise add it to the thread list. Then for every byte: build the next list from the threads whose Char/Any/Set accepts it. At the end the text matches if a Match state is in the list."
+  - level: 4
+    text: |
+      // nfa_search in one pass: a thread is {state, start}. Loop pos from `from` to the end of the text:
+      //   if no match was found yet: close() the start state with start = pos into the current list (AFTER the older threads)
+      //   for each thread (they are ordered by start): if a match exists and thread.start > best.begin: stop looking at threads
+      //     if the state is Match: best = {thread.start, pos} when it is the first match, or has an earlier start, or the same start and a later end
+      //   step the threads over text[pos] into the next list; swap; if the list is empty and a match exists: stop
+      // Two threads reaching the same state: the first one (the earlier start) is kept -- the seen[] mark does that for free.

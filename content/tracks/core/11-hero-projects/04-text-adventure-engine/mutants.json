@@ -1,0 +1,1171 @@
+[
+  {
+    "name": "load-uppercase-id-accepted",
+    "why": "ids may contain capital letters",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "const bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_';",
+        "new": "const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_';"
+      }
+    ]
+  },
+  {
+    "name": "load-underscore-rejected",
+    "why": "an underscore is not allowed in ids",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": " || c == '-' || c == '_';",
+        "new": " || c == '-';"
+      }
+    ]
+  },
+  {
+    "name": "load-hash-in-quotes-is-comment",
+    "why": "a # anywhere on the line starts a comment",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "        const std::size_t first = line.find_first_not_of(\" \\t\\r\");\n        if (first == std::string_view::npos || line[first] == '#') continue;\n        words.clear();\n        if (!detail::split_words(line, words))",
+        "new": "        const std::size_t first = line.find_first_not_of(\" \\t\\r\");\n        if (first == std::string_view::npos || line[first] == '#') continue;\n        words.clear();\n        if (!detail::split_words(line.substr(0, line.find('#')), words))"
+      }
+    ]
+  },
+  {
+    "name": "load-cr-not-blank",
+    "why": "a Windows line ending is not whitespace",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r'; }",
+        "new": "inline bool is_space(char c) { return c == ' ' || c == '\\t'; }"
+      }
+    ]
+  },
+  {
+    "name": "load-tab-not-blank",
+    "why": "a tab is not whitespace",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r'; }",
+        "new": "inline bool is_space(char c) { return c == ' ' || c == '\\r'; }"
+      }
+    ]
+  },
+  {
+    "name": "load-blank-lines-not-counted",
+    "why": "line numbers skip blank and comment lines",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "        pos = end + 1;\n        ++line_no;\n\n        const std::size_t first = line.find_first_not_of(\" \\t\\r\");\n        if (first == std::string_view::npos || line[first] == '#') continue;",
+        "new": "        pos = end + 1;\n\n        const std::size_t first = line.find_first_not_of(\" \\t\\r\");\n        if (first == std::string_view::npos || line[first] == '#') continue;\n        ++line_no;"
+      }
+    ]
+  },
+  {
+    "name": "load-line-numbers-zero-based",
+    "why": "lines are numbered from 0",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "    std::size_t line_no = 0;\n    std::size_t pos = 0;",
+        "new": "    std::size_t line_no = static_cast<std::size_t>(-1);\n    std::size_t pos = 0;"
+      }
+    ]
+  },
+  {
+    "name": "load-unclosed-quote-accepted",
+    "why": "a quote that is never closed ends at the end of the line",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (close == std::string_view::npos) return false;\n            w.text = std::string(line.substr(i + 1, close - i - 1));",
+        "new": "            if (close == std::string_view::npos) {\n                w.text = std::string(line.substr(i + 1));\n                w.quoted = true;\n                out.push_back(std::move(w));\n                return true;\n            }\n            w.text = std::string(line.substr(i + 1, close - i - 1));"
+      }
+    ]
+  },
+  {
+    "name": "load-glued-quote-accepted",
+    "why": "text glued to a closing quote is accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            i = close + 1;\n            if (i < n && !is_space(line[i])) return false;",
+        "new": "            i = close + 1;"
+      }
+    ]
+  },
+  {
+    "name": "load-description-unquoted-accepted",
+    "why": "room accepts an unquoted description",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "|| !detail::valid_id(words[1].text) || !words[2].quoted) {\n                return fail(LoadError::BadSyntax, line_no, \"room needs an id and a \\\"description\\\"\");",
+        "new": "|| !detail::valid_id(words[1].text)) {\n                return fail(LoadError::BadSyntax, line_no, \"room needs an id and a \\\"description\\\"\");"
+      }
+    ]
+  },
+  {
+    "name": "load-room-named-inventory",
+    "why": "a room may be called inventory",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (words[1].text == kInventory) return fail(LoadError::BadSyntax, line_no, \"\\\"inventory\\\" is not a room\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-duplicate-room-allowed",
+    "why": "a second definition of a room replaces the first",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (w.rooms.count(room.id)) return fail(LoadError::DuplicateId, line_no, \"this room is already defined\");\n            current_room = room.id;\n            w.rooms.emplace(room.id, std::move(room));",
+        "new": "            current_room = room.id;\n            w.rooms[room.id] = std::move(room);"
+      }
+    ]
+  },
+  {
+    "name": "load-duplicate-item-allowed",
+    "why": "a second definition of an item replaces the first",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (w.items.count(item.id)) return fail(LoadError::DuplicateId, line_no, \"this item is already defined\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-duplicate-start-allowed",
+    "why": "the last start line wins",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (!w.start.empty()) return fail(LoadError::DuplicateId, line_no, \"there is already a start line\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-duplicate-alias-allowed",
+    "why": "the last alias wins",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (!w.aliases.emplace(words[1].text, std::move(expansion)).second) return fail(LoadError::DuplicateId, line_no, \"this alias is already defined\");",
+        "new": "w.aliases[words[1].text] = std::move(expansion);"
+      }
+    ]
+  },
+  {
+    "name": "load-duplicate-direction-allowed",
+    "why": "two exits in the same direction are fine",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            for (const Exit& e : room.exits) {\n                if (e.dir == words[1].text) return fail(LoadError::BadSyntax, line_no, \"this room already has an exit in that direction\");\n            }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-exit-before-room-crashes-or-passes",
+    "why": "an exit before any room is a syntax error instead",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (current_room.empty()) return fail(LoadError::ExitOutsideRoom, line_no, \"an exit must come after a room\");",
+        "new": "if (current_room.empty()) return fail(LoadError::BadSyntax, line_no, \"an exit must come after a room\");"
+      }
+    ]
+  },
+  {
+    "name": "load-unknown-directive-is-skipped",
+    "why": "unknown directives are ignored",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            return fail(LoadError::UnknownDirective, line_no, \"unknown directive (start, alias, room, exit, item)\");",
+        "new": "            continue;"
+      }
+    ]
+  },
+  {
+    "name": "load-directive-case-insensitive",
+    "why": "START and Room are accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "        const std::string& directive = words[0].text;",
+        "new": "        std::string directive = words[0].text;\n        for (char& ch : directive) ch = static_cast<char>(ch >= 'A' && ch <= 'Z' ? ch - 'A' + 'a' : ch);"
+      }
+    ]
+  },
+  {
+    "name": "load-room-flag-repeated-ok",
+    "why": "dark may be repeated",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (!words[i].quoted && words[i].text == \"dark\" && !seen_dark) seen_dark = room.dark = true;",
+        "new": "if (!words[i].quoted && words[i].text == \"dark\") seen_dark = room.dark = true;"
+      }
+    ]
+  },
+  {
+    "name": "load-room-flag-unknown-ignored",
+    "why": "unknown room flags are ignored",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "                else return fail(LoadError::BadSyntax, line_no, \"after the description only the flags dark and win (once each) are allowed\");",
+        "new": "                else continue;"
+      }
+    ]
+  },
+  {
+    "name": "load-item-flag-unknown-ignored",
+    "why": "unknown item flags are ignored",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "                    return fail(LoadError::BadSyntax, line_no, \"unknown or repeated flag (portable, switch on|off, door locked|closed|open [key <item>])\");",
+        "new": "                    continue;"
+      }
+    ]
+  },
+  {
+    "name": "load-switch-and-door-allowed",
+    "why": "an item may be a switch and a door",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "} else if (flag == \"switch\" && !seen_switch && !seen_door) {",
+        "new": "} else if (flag == \"switch\" && !seen_switch) {"
+      }
+    ]
+  },
+  {
+    "name": "load-door-lock-closed-default",
+    "why": "door locked is read as closed",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (lock == \"locked\") door.lock = Lock::Locked;",
+        "new": "if (lock == \"locked\") door.lock = Lock::Closed;"
+      }
+    ]
+  },
+  {
+    "name": "load-switch-on-off-swapped",
+    "why": "switch on means off",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "item.state = Switch{words[i + 1].text == \"on\"};",
+        "new": "item.state = Switch{words[i + 1].text == \"off\"};"
+      }
+    ]
+  },
+  {
+    "name": "load-switch-value-unchecked",
+    "why": "switch accepts any word",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (i + 1 >= words.size() || (words[i + 1].text != \"on\" && words[i + 1].text != \"off\") || words[i + 1].quoted) {",
+        "new": "if (i + 1 >= words.size()) {"
+      }
+    ]
+  },
+  {
+    "name": "load-key-ignored",
+    "why": "the key of a door is not stored",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "                        door.key = words[i + 2].text;\n",
+        "new": "                        door.key = \"\";\n"
+      }
+    ]
+  },
+  {
+    "name": "load-references-not-checked",
+    "why": "unknown rooms and items are accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "    if (worst) return fail(LoadError::UnknownReference, worst->line, worst->message);",
+        "new": "    (void)worst;"
+      }
+    ]
+  },
+  {
+    "name": "load-first-reference-not-smallest",
+    "why": "the last unknown reference is reported",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "if (!known && (!worst || ref.line < worst->line)) worst = &ref;",
+        "new": "if (!known) worst = &ref;"
+      }
+    ]
+  },
+  {
+    "name": "load-start-reference-unchecked",
+    "why": "an unknown start room is accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            refs.push_back({RefKind::Room, w.start, line_no, \"the start room is never defined\"});\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-via-reference-unchecked",
+    "why": "an exit via an unknown item is accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (via) refs.push_back({RefKind::Item, e.via, line_no, \"this exit needs an item that is never defined\"});\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-place-reference-unchecked",
+    "why": "an item in an unknown room is accepted (and lost)",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            refs.push_back({RefKind::Place, place, line_no, \"this item is in a room that is never defined\"});\n",
+        "new": ""
+      },
+      {
+        "file": "loader.hpp",
+        "old": "        else w.rooms.at(place).items.insert(item_id);",
+        "new": "        else if (w.rooms.count(place)) w.rooms.at(place).items.insert(item_id);"
+      }
+    ]
+  },
+  {
+    "name": "load-key-reference-unchecked",
+    "why": "a door key that is not an item is accepted",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "                        refs.push_back({RefKind::Item, door.key, line_no, \"this door needs a key item that is never defined\"});\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "load-missing-start-accepted",
+    "why": "a world without start is fine",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "    if (w.start.empty()) return fail(LoadError::MissingStart, 0, \"there is no start line\");",
+        "new": "    if (w.start.empty() && !w.rooms.empty()) w.start = w.rooms.begin()->first;"
+      }
+    ]
+  },
+  {
+    "name": "load-missing-start-line-one",
+    "why": "MissingStart reports line 1",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "return fail(LoadError::MissingStart, 0, \"there is no start line\");",
+        "new": "return fail(LoadError::MissingStart, 1, \"there is no start line\");"
+      }
+    ]
+  },
+  {
+    "name": "load-item-in-inventory-lost",
+    "why": "items in the inventory are not carried",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "        if (place == kInventory) w.inventory.insert(item_id);",
+        "new": "        if (place == kInventory) continue;"
+      }
+    ]
+  },
+  {
+    "name": "load-exits-sorted",
+    "why": "exits are kept in alphabetical order",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            room.exits.push_back(std::move(e));",
+        "new": "            room.exits.push_back(std::move(e));\n            std::sort(room.exits.begin(), room.exits.end(), [](const Exit& a, const Exit& b) { return a.dir < b.dir; });"
+      },
+      {
+        "file": "loader.hpp",
+        "old": "#include <string>\n#include <string_view>\n",
+        "new": "#include <algorithm>\n#include <string>\n#include <string_view>\n"
+      }
+    ]
+  },
+  {
+    "name": "load-copies-room",
+    "why": "every room is copied into the map",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            w.rooms.emplace(room.id, std::move(room));",
+        "new": "            const Room copy = room;\n            w.rooms.emplace(copy.id, copy);"
+      }
+    ]
+  },
+  {
+    "name": "load-copies-item",
+    "why": "every item is copied into the map",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            w.items.emplace(item.id, std::move(item));",
+        "new": "            const Item copy = item;\n            w.items.emplace(copy.id, copy);"
+      }
+    ]
+  },
+  {
+    "name": "load-result-world-copied",
+    "why": "the finished world is copied into the result",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "    for (const auto& [item_id, place] : places) {\n        if (place == kInventory) w.inventory.insert(item_id);\n        else w.rooms.at(place).items.insert(item_id);\n    }\n    return r;",
+        "new": "    for (const auto& [item_id, place] : places) {\n        if (place == kInventory) w.inventory.insert(item_id);\n        else w.rooms.at(place).items.insert(item_id);\n    }\n    LoadResult copy;\n    copy.world = w;\n    return copy;"
+      }
+    ]
+  },
+  {
+    "name": "load-quadratic-lookup",
+    "why": "duplicates are found by scanning a vector of all ids so far",
+    "edits": [
+      {
+        "file": "loader.hpp",
+        "old": "            if (w.items.count(item.id)) return fail(LoadError::DuplicateId, line_no, \"this item is already defined\");",
+        "new": "            for (const auto& entry : places) {\n                if (entry.first == item.id) return fail(LoadError::DuplicateId, line_no, \"this item is already defined\");\n            }"
+      }
+    ]
+  },
+  {
+    "name": "game-finished-check-missing",
+    "why": "commands work after the game is won",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        if (finished_) return \"The game is over.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "game-finished-after-empty-check",
+    "why": "an empty line after the end says \"Say something.\"",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        if (finished_) return \"The game is over.\";\n        std::vector<std::string> words = detail::split_lower(line);\n        if (words.empty()) return \"Say something.\";",
+        "new": "        std::vector<std::string> words = detail::split_lower(line);\n        if (words.empty()) return \"Say something.\";\n        if (finished_) return \"The game is over.\";"
+      }
+    ]
+  },
+  {
+    "name": "game-case-sensitive-input",
+    "why": "capital letters are not lowered",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "current.push_back((c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c);",
+        "new": "current.push_back(c);"
+      }
+    ]
+  },
+  {
+    "name": "game-tab-not-separator",
+    "why": "a tab is not a word separator",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "if (c == ' ' || c == '\\t' || c == '\\r' || c == '\\n') {",
+        "new": "if (c == ' ' || c == '\\r' || c == '\\n') {"
+      }
+    ]
+  },
+  {
+    "name": "game-articles-kept",
+    "why": "the, a, an are not removed",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "            if (!detail::is_article(words[i])) args.push_back(std::move(words[i]));",
+        "new": "            args.push_back(std::move(words[i]));"
+      }
+    ]
+  },
+  {
+    "name": "game-article-an-forgotten",
+    "why": "\"an\" is not an article",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "inline bool is_article(const std::string& w) { return w == \"the\" || w == \"a\" || w == \"an\"; }",
+        "new": "inline bool is_article(const std::string& w) { return w == \"the\" || w == \"a\"; }"
+      }
+    ]
+  },
+  {
+    "name": "game-alias-drops-rest-of-line",
+    "why": "an alias ignores the words after it",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "            expanded.insert(expanded.end(), std::make_move_iterator(words.begin() + 1), std::make_move_iterator(words.end()));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "game-alias-expands-again",
+    "why": "aliases are expanded repeatedly",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        const auto action = actions_.find(words[0]);",
+        "new": "        for (int again = 0; again < 5; ++again) {\n            const auto more = world_.aliases.find(words[0]);\n            if (more == world_.aliases.end()) break;\n            std::vector<std::string> expanded = detail::split_lower(more->second);\n            expanded.insert(expanded.end(), std::make_move_iterator(words.begin() + 1), std::make_move_iterator(words.end()));\n            words = std::move(expanded);\n        }\n        const auto action = actions_.find(words[0]);"
+      }
+    ]
+  },
+  {
+    "name": "game-alias-after-lookup",
+    "why": "aliases only apply to unknown verbs",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        const auto alias = world_.aliases.find(words[0]);\n        if (alias != world_.aliases.end()) {",
+        "new": "        const auto alias = world_.aliases.find(words[0]);\n        if (alias != world_.aliases.end() && actions_.find(words[0]) == actions_.end()) {"
+      }
+    ]
+  },
+  {
+    "name": "game-unknown-verb-message",
+    "why": "unknown verbs get another message",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        if (action == actions_.end()) return \"I don't understand.\";",
+        "new": "        if (action == actions_.end()) return \"I do not understand.\";"
+      }
+    ]
+  },
+  {
+    "name": "game-empty-line-message",
+    "why": "an empty line gets another message",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        if (words.empty()) return \"Say something.\";",
+        "new": "        if (words.empty()) return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "game-verb-in-game-hpp",
+    "why": "the Game knows the verb take",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        const auto action = actions_.find(words[0]);",
+        "new": "        if (words[0] == \"take\" && words.size() == 1) return \"What do you want to take?\";\n        const auto action = actions_.find(words[0]);"
+      }
+    ]
+  },
+  {
+    "name": "game-add-action-keeps-old",
+    "why": "add_action does not replace an existing verb",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "    void add_action(std::string verb, std::unique_ptr<Action> action) { actions_[std::move(verb)] = std::move(action); }",
+        "new": "    void add_action(std::string verb, std::unique_ptr<Action> action) { actions_.emplace(std::move(verb), std::move(action)); }"
+      }
+    ]
+  },
+  {
+    "name": "game-world-copied",
+    "why": "the Game copies the world it is given",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "    explicit Game(World world) : world_(std::move(world)), location_(world_.start), actions_(make_default_actions()) {}",
+        "new": "    explicit Game(const World& world) : world_(world), location_(world_.start), actions_(make_default_actions()) {}"
+      }
+    ]
+  },
+  {
+    "name": "game-world-copied-per-command",
+    "why": "every command works on a copy of the world",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        return action->second->perform(*this, args);",
+        "new": "        const World backup = world_;\n        (void)backup;\n        return action->second->perform(*this, args);"
+      }
+    ]
+  },
+  {
+    "name": "game-start-not-look",
+    "why": "start() prints the description only",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "    std::string start() { return execute(\"look\"); }",
+        "new": "    std::string start() { return world_.rooms.at(location_).description; }"
+      }
+    ]
+  },
+  {
+    "name": "game-args-include-article-when-only-word",
+    "why": "articles are removed from the verb too",
+    "edits": [
+      {
+        "file": "game.hpp",
+        "old": "        std::vector<std::string> words = detail::split_lower(line);\n        if (words.empty()) return \"Say something.\";",
+        "new": "        std::vector<std::string> words = detail::split_lower(line);\n        while (!words.empty() && detail::is_article(words[0])) words.erase(words.begin());\n        if (words.empty()) return \"Say something.\";"
+      }
+    ]
+  },
+  {
+    "name": "look-lists-items-unsorted",
+    "why": "room items are listed in the order of their names, not their ids",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        out += \"\\nYou see: \";\n        bool first = true;\n        for (const std::string& id : room.items) {\n            if (!first) out += \", \";\n            first = false;\n            out += w.items.at(id).name;\n        }\n        out += \".\";",
+        "new": "        out += \"\\nYou see: \";\n        std::vector<std::string> names;\n        for (const std::string& id : room.items) names.push_back(w.items.at(id).name);\n        std::sort(names.begin(), names.end());\n        for (std::size_t k = 0; k < names.size(); ++k) out += (k ? \", \" : \"\") + names[k];\n        out += \".\";"
+      },
+      {
+        "file": "actions.hpp",
+        "old": "#include <map>\n#include <memory>",
+        "new": "#include <algorithm>\n#include <map>\n#include <memory>"
+      }
+    ]
+  },
+  {
+    "name": "look-no-exits-line",
+    "why": "the exits are not listed",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    if (!room.exits.empty()) {\n        out += \"\\nExits: \";",
+        "new": "    if (false) {\n        out += \"\\nExits: \";"
+      }
+    ]
+  },
+  {
+    "name": "look-always-lists-you-see",
+    "why": "an empty room says You see: nothing",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    if (!room.items.empty()) {\n        out += \"\\nYou see: \";",
+        "new": "    if (true) {\n        out += \"\\nYou see: \";"
+      }
+    ]
+  },
+  {
+    "name": "look-lists-carried-items-too",
+    "why": "carried items appear in the room list",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        for (const std::string& id : room.items) {\n            if (!first) out += \", \";\n            first = false;\n            out += w.items.at(id).name;\n        }\n        out += \".\";\n    }\n    if (!room.exits",
+        "new": "        for (const std::string& id : room.items) {\n            if (!first) out += \", \";\n            first = false;\n            out += w.items.at(id).name;\n        }\n        for (const std::string& id : w.inventory) {\n            if (!first) out += \", \";\n            first = false;\n            out += w.items.at(id).name;\n        }\n        out += \".\";\n    }\n    if (!room.exits"
+      }
+    ]
+  },
+  {
+    "name": "dark-needs-no-light",
+    "why": "dark rooms are always dark",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    if (!room.dark) return true;\n    for (const std::string& id : w.inventory) {\n        if (gives_light(w, id)) return true;\n    }\n    for (const std::string& id : room.items) {\n        if (gives_light(w, id)) return true;\n    }\n    return false;",
+        "new": "    return !room.dark;"
+      }
+    ]
+  },
+  {
+    "name": "light-only-when-carried",
+    "why": "a lamp lying on the floor gives no light",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    for (const std::string& id : room.items) {\n        if (gives_light(w, id)) return true;\n    }\n    return false;",
+        "new": "    return false;"
+      }
+    ]
+  },
+  {
+    "name": "light-only-when-in-room",
+    "why": "a carried lamp does not light the room",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    for (const std::string& id : w.inventory) {\n        if (gives_light(w, id)) return true;\n    }\n    for (const std::string& id : room.items) {",
+        "new": "    for (const std::string& id : room.items) {"
+      }
+    ]
+  },
+  {
+    "name": "light-ignores-switch-state",
+    "why": "a lamp that is off gives light too",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    return sw && sw->on;\n}",
+        "new": "    return sw != nullptr;\n}"
+      }
+    ]
+  },
+  {
+    "name": "light-from-any-room",
+    "why": "a lamp anywhere in the world gives light",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    for (const std::string& id : room.items) {\n        if (gives_light(w, id)) return true;\n    }\n    return false;",
+        "new": "    for (const auto& kv : w.items) {\n        if (gives_light(w, kv.first)) return true;\n    }\n    return false;"
+      }
+    ]
+  },
+  {
+    "name": "locate-ignores-darkness",
+    "why": "items in a dark room can be reached",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "(w.inventory.count(noun) > 0 || (lit && w.rooms.at(game.location()).items.count(noun) > 0));",
+        "new": "(w.inventory.count(noun) > 0 || w.rooms.at(game.location()).items.count(noun) > 0);"
+      }
+    ]
+  },
+  {
+    "name": "locate-reaches-other-rooms",
+    "why": "items in other rooms can be reached",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "(w.inventory.count(noun) > 0 || (lit && w.rooms.at(game.location()).items.count(noun) > 0));",
+        "new": "(true);"
+      }
+    ]
+  },
+  {
+    "name": "locate-dark-message-always-unseen",
+    "why": "the dark message is used in lit rooms too",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        problem = lit ? \"You don't see that here.\" : \"You can't see anything.\";",
+        "new": "        problem = \"You can't see anything.\";"
+      }
+    ]
+  },
+  {
+    "name": "locate-lit-message-always",
+    "why": "the dark message is never used",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        problem = lit ? \"You don't see that here.\" : \"You can't see anything.\";",
+        "new": "        problem = \"You don't see that here.\";"
+      }
+    ]
+  },
+  {
+    "name": "examine-no-state",
+    "why": "look at does not tell the state",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "return \"This is \" + item->name + \".\" + detail::state_sentence(item->state);",
+        "new": "return \"This is \" + item->name + \".\";"
+      }
+    ]
+  },
+  {
+    "name": "examine-door-closed-for-locked",
+    "why": "a locked door is described as closed",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "case Lock::Locked: return std::string(\" It is locked.\");",
+        "new": "case Lock::Locked: return std::string(\" It is closed.\");"
+      }
+    ]
+  },
+  {
+    "name": "examine-switch-inverted",
+    "why": "a lamp that is on is described as off",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "return std::string(s.on ? \" It is on.\" : \" It is off.\");",
+        "new": "return std::string(s.on ? \" It is off.\" : \" It is on.\");"
+      }
+    ]
+  },
+  {
+    "name": "look-at-without-at",
+    "why": "look at needs no noun check",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (args.size() == first) return \"What do you want to look at?\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "go-ignores-doors",
+    "why": "closed doors do not block",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            if (door && door->lock != Lock::Open) return",
+        "new": "            if (door && door->lock == Lock::Locked && false) return"
+      }
+    ]
+  },
+  {
+    "name": "go-locked-only-blocks",
+    "why": "only locked doors block (closed ones let you through)",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            if (door && door->lock != Lock::Open) return",
+        "new": "            if (door && door->lock == Lock::Locked) return"
+      }
+    ]
+  },
+  {
+    "name": "go-blocks-for-any-via-item",
+    "why": "a via item that is not a door also blocks",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            if (door && door->lock != Lock::Open) return \"The way is blocked by \" + blocker.name + \".\";",
+        "new": "            if (!door || door->lock != Lock::Open) return \"The way is blocked by \" + blocker.name + \".\";"
+      }
+    ]
+  },
+  {
+    "name": "go-win-does-not-finish",
+    "why": "winning does not end the game",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            text += \"\\n*** You have won! ***\";\n            game.finish();",
+        "new": "            text += \"\\n*** You have won! ***\";"
+      }
+    ]
+  },
+  {
+    "name": "go-win-message-missing",
+    "why": "winning shows no message",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            text += \"\\n*** You have won! ***\";\n            game.finish();",
+        "new": "            game.finish();"
+      }
+    ]
+  },
+  {
+    "name": "go-last-exit-wins",
+    "why": "the last matching exit is used, but the first is expected: no, the first is ignored",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        for (const Exit& e : here.exits) {\n            if (e.dir == args[0]) exit = &e;\n        }",
+        "new": "        for (const Exit& e : here.exits) {\n            if (e.dir == args[0] && !exit) exit = &e;\n            else if (e.dir == args[0]) exit = &e;\n        }\n        if (here.exits.size() > 1 && exit == &here.exits.front()) exit = nullptr;"
+      }
+    ]
+  },
+  {
+    "name": "go-moves-before-checking-door",
+    "why": "the player moves even when the way is blocked",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (!exit->via.empty()) {",
+        "new": "        game.set_location(exit->to);\n        if (!exit->via.empty()) {"
+      }
+    ]
+  },
+  {
+    "name": "take-ignores-portable",
+    "why": "everything can be taken",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (!item->portable) return \"You can't take that.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "take-copies-instead-of-moves",
+    "why": "taking leaves the item in the room too",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        w.rooms.at(game.location()).items.erase(item->id);\n        w.inventory.insert(item->id);",
+        "new": "        w.inventory.insert(item->id);"
+      }
+    ]
+  },
+  {
+    "name": "take-already-have-after-portable",
+    "why": "a carried non-portable thing says it cannot be taken",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (w.inventory.count(item->id)) return \"You already have that.\";\n        if (!item->portable) return \"You can't take that.\";",
+        "new": "        if (!item->portable) return \"You can't take that.\";\n        if (w.inventory.count(item->id)) return \"You already have that.\";"
+      }
+    ]
+  },
+  {
+    "name": "drop-leaves-in-inventory",
+    "why": "dropping puts the item in the room but keeps it in the inventory",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        w.rooms.at(game.location()).items.insert(*it);\n        w.inventory.erase(it);",
+        "new": "        w.rooms.at(game.location()).items.insert(*it);"
+      }
+    ]
+  },
+  {
+    "name": "drop-loses-item",
+    "why": "dropping destroys the item",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        w.rooms.at(game.location()).items.insert(*it);\n        w.inventory.erase(it);",
+        "new": "        w.inventory.erase(it);"
+      }
+    ]
+  },
+  {
+    "name": "inventory-no-nothing-message",
+    "why": "an empty inventory prints an empty list",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (w.inventory.empty()) return \"You are carrying nothing.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "open-locked-opens",
+    "why": "a locked door can be opened",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->lock == Lock::Locked) return \"It is locked.\";\n        door->lock = Lock::Open;",
+        "new": "        door->lock = Lock::Open;"
+      }
+    ]
+  },
+  {
+    "name": "close-locked-unlocks",
+    "why": "closing a locked door unlocks it",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->lock != Lock::Open) return \"It is already closed.\";",
+        "new": "        if (door->lock == Lock::Closed) return \"It is already closed.\";"
+      }
+    ]
+  },
+  {
+    "name": "unlock-any-key",
+    "why": "any carried item unlocks any door",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->key != dk.key->id) return \"That doesn't fit.\";\n        door->lock = Lock::Closed;",
+        "new": "        door->lock = Lock::Closed;"
+      }
+    ]
+  },
+  {
+    "name": "unlock-key-not-needed-in-hand",
+    "why": "the key does not have to be carried",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "            if (w.inventory.count(args[2]) == 0) {",
+        "new": "            if (w.items.count(args[2]) == 0) {"
+      }
+    ]
+  },
+  {
+    "name": "unlock-opens-the-door",
+    "why": "unlocking opens the door",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->key != dk.key->id) return \"That doesn't fit.\";\n        door->lock = Lock::Closed;\n        return \"You unlock it.\";",
+        "new": "        if (door->key != dk.key->id) return \"That doesn't fit.\";\n        door->lock = Lock::Open;\n        return \"You unlock it.\";"
+      }
+    ]
+  },
+  {
+    "name": "lock-open-door-locks",
+    "why": "an open door can be locked",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->lock == Lock::Open) return \"Close it first.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lock-any-key",
+    "why": "any key locks any door",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->key != dk.key->id) return \"That doesn't fit.\";\n        door->lock = Lock::Locked;",
+        "new": "        door->lock = Lock::Locked;"
+      }
+    ]
+  },
+  {
+    "name": "lock-already-locked-silent",
+    "why": "locking a locked door succeeds again",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (door->lock == Lock::Locked) return \"It is already locked.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "turn-on-twice-allowed",
+    "why": "switching on a lamp that is on succeeds again",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (sw->on == want) return want ? \"It is already on.\" : \"It is already off.\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "turn-word-order-fixed",
+    "why": "only \"turn on lamp\" works, not \"turn lamp on\"",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        const bool on_first = args[0] == \"on\" || args[0] == \"off\";",
+        "new": "        const bool on_first = true;"
+      }
+    ]
+  },
+  {
+    "name": "turn-non-switch-succeeds",
+    "why": "anything can be switched",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        if (!sw) return \"You can't switch that.\";\n        const bool want = mode == \"on\";",
+        "new": "        if (!sw) return \"You turn it \" + mode + \".\";\n        const bool want = mode == \"on\";"
+      }
+    ]
+  },
+  {
+    "name": "one-noun-extra-words-ignored",
+    "why": "extra words after the noun are ignored",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    if (args.size() > 1) {\n        reply = \"I don't understand.\";\n        return false;\n    }\n    return true;",
+        "new": "    return true;"
+      }
+    ]
+  },
+  {
+    "name": "actions-share-one-class",
+    "why": "close is implemented as open (copy-paste)",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    table.emplace(\"close\", std::make_unique<CloseAction>());",
+        "new": "    table.emplace(\"close\", std::make_unique<OpenAction>());"
+      }
+    ]
+  },
+  {
+    "name": "describe-room-copies-room",
+    "why": "describe_room copies the room",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "    const World& w = game.world();\n    const Room& room = w.rooms.at(game.location());\n    std::string out = room.description;",
+        "new": "    const World& w = game.world();\n    const Room room = w.rooms.at(game.location());\n    std::string out = room.description;"
+      }
+    ]
+  },
+  {
+    "name": "go-copies-room",
+    "why": "go copies the current room",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        const Room& here = w.rooms.at(game.location());\n        const Exit* exit = nullptr;",
+        "new": "        const Room here = w.rooms.at(game.location());\n        const Exit* exit = nullptr;"
+      },
+      {
+        "file": "actions.hpp",
+        "old": "        game.set_location(exit->to);\n        std::string text",
+        "new": "        const std::string target = exit->to;\n        game.set_location(target);\n        std::string text"
+      },
+      {
+        "file": "actions.hpp",
+        "old": "        if (w.rooms.at(exit->to).win) {",
+        "new": "        if (w.rooms.at(target).win) {"
+      }
+    ]
+  },
+  {
+    "name": "locate-copies-item",
+    "why": "the item is copied for the look at command",
+    "edits": [
+      {
+        "file": "actions.hpp",
+        "old": "        const Item* item = detail::locate(game, args[first], problem);\n        if (!item) return problem;\n        return \"This is \" + item->name + \".\" + detail::state_sentence(item->state);",
+        "new": "        const Item* found = detail::locate(game, args[first], problem);\n        if (!found) return problem;\n        const Item item = *found;\n        return \"This is \" + item.name + \".\" + detail::state_sentence(item.state);"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Start small. blocks.hpp: a Header {size_flags, prev_size} and a Links {next, prev} (both 16 bytes), kHeader = 16, kMinBlock = 32. In the constructor write one Header at offset 0 whose size is heap.size() and put it on the free list. Use heap.at<Header>(off) for every access, never a pointer. allocate: round the request up to a multiple of 16 (at least 16), add the header, find a free block that is big enough (walk the free list), take it. The pointer you return is heap.base() + off + kHeader."
+  - level: 2
+    text: "Splitting: if the free block has at least kMinBlock bytes more than needed, shrink it to the needed size and write a new free Header after it (with prev_size = the needed size!), and also fix the prev_size of the block that FOLLOWS the new one. Coalescing in deallocate: next block = off + size (if it is inside the heap and not in use: unlink it from the free list and add its size); previous block = off - prev_size (if prev_size != 0 and that block is not in use: unlink it, add its size, and continue from its offset). Then write the final size and update the following block's prev_size."
+  - level: 3
+    text: "validate(p): inside the heap; (p - base) at least kHeader and a multiple of 16; the header at (p - base - kHeader) says in use; its size is >= kMinBlock, a multiple of 16 and fits in the heap; the block after it has prev_size equal to that size; the block before it (if any) has a size equal to this prev_size. Check every range BEFORE calling heap.at, because at() aborts on a wild offset. reallocate: validate; shrink -> give the tail back (like a split + coalesce with the next block); grow -> if the next block is free and big enough absorb it (unlink first); else allocate a new block, memcpy the old payload, deallocate the old one; if the allocation fails return nullptr and touch nothing."
+  - level: 4
+    text: |
+      // keep these counters up to date at every link_free / unlink_free / take / release, then check() can compare them with a walk:
+      //   used_blocks_, used_bytes_ (sum of size - kHeader of blocks in use), free_blocks_, free_bytes_
+      // free list: LIFO. link_free(off): links(off) = {next: head, prev: kNil}; if (head != kNil) links(head).prev = off; head = off.
+      //            unlink_free(off): fix the neighbours' links, or the head when prev == kNil.
+      // check(): off = 0; prev = 0; while (off < heap.size()) { size = block_size(hdr(off)); verify size >= kMinBlock, multiple of 16, fits, hdr.prev_size == prev;
+      //          no two free blocks in a row; off += size; prev = size; }  then walk the free list and compare the counts.

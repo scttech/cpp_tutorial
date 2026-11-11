@@ -1,0 +1,5 @@
+id: core.heroes
+title: "Hero Projects"
+track: core
+order: 11
+summary: "Six larger, multi-file projects that combine everything: a JSON library, an expression compiler, a mini database, a text adventure engine, a regex engine and a memory allocator. Finish any three for the Zero to Hero badge, all six for Hero of Heroes."

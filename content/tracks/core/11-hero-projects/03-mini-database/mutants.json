@@ -1,0 +1,666 @@
+[
+  {
+    "name": "parse-case-sensitive-commands",
+    "why": "only upper-case command names are accepted",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "if (upper(word[i]) != upper_name[i]) return false;",
+        "new": "if (word[i] != upper_name[i]) return false;"
+      }
+    ]
+  },
+  {
+    "name": "parse-arguments-upper-cased",
+    "why": "arguments are upper-cased too",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "            t.text = std::string(line.substr(start, i - start));",
+        "new": "            t.text = std::string(line.substr(start, i - start));\n            for (char& ch : t.text) ch = detail::upper(ch);"
+      }
+    ]
+  },
+  {
+    "name": "parse-tab-is-not-space",
+    "why": "a tab does not separate arguments",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n'; }",
+        "new": "inline bool is_space(char c) { return c == ' ' || c == '\\r' || c == '\\n'; }"
+      }
+    ]
+  },
+  {
+    "name": "parse-cr-is-not-space",
+    "why": "a trailing carriage return becomes part of the last word",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n'; }",
+        "new": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\n'; }"
+      }
+    ]
+  },
+  {
+    "name": "parse-quoted-command-accepted",
+    "why": "\"SET\" in quotes is a command",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    if (!first.quoted) {\n        for (const Spec& s : specs) {\n            if (detail::same_word(first.text, s.name)) spec = &s;\n        }\n    }",
+        "new": "    for (const Spec& s : specs) {\n        if (detail::same_word(first.text, s.name)) spec = &s;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "parse-command-prefix-match",
+    "why": "SETS matches SET",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    if (word.size() != upper_name.size()) return false;\n    for (std::size_t i = 0; i < word.size(); ++i) {",
+        "new": "    if (word.size() < upper_name.size()) return false;\n    for (std::size_t i = 0; i < upper_name.size(); ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-n-missing",
+    "why": "\\n inside quotes is an error",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "                    case 'n': t.text.push_back('\\n'); break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-t-wrong",
+    "why": "\\t gives the letter t",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "case 't': t.text.push_back('\\t'); break;",
+        "new": "case 't': t.text.push_back('t'); break;"
+      }
+    ]
+  },
+  {
+    "name": "parse-unknown-escape-passes",
+    "why": "\\q gives q",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "                    default: return detail::parse_failure(ParseError::BadEscape, backslash, \"unknown escape (use \\\\\\\" \\\\\\\\ \\\\n or \\\\t)\");",
+        "new": "                    default: t.text.push_back(line[i]); break;"
+      }
+    ]
+  },
+  {
+    "name": "parse-bad-escape-position-after-backslash",
+    "why": "BadEscape points one past the backslash",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "return detail::parse_failure(ParseError::BadEscape, backslash,",
+        "new": "return detail::parse_failure(ParseError::BadEscape, backslash + 1,"
+      }
+    ]
+  },
+  {
+    "name": "parse-unterminated-position-at-end",
+    "why": "UnterminatedString points at the end of the line",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "return detail::parse_failure(ParseError::UnterminatedString, t.pos, \"the quoted string is not closed\");",
+        "new": "return detail::parse_failure(ParseError::UnterminatedString, n, \"the quoted string is not closed\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-trailing-backslash-ignored",
+    "why": "a backslash at the end of the line is dropped silently",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "                if (i >= n) break;\n                switch (line[i]) {",
+        "new": "                if (i >= n) {\n                    closed = true;\n                    break;\n                }\n                switch (line[i]) {"
+      }
+    ]
+  },
+  {
+    "name": "parse-stray-quote-in-word-allowed",
+    "why": "ab\"c is a word",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "                if (line[i] == '\"') return detail::parse_failure(ParseError::StrayQuote, i, \"a quote cannot appear inside a word\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-glued-text-after-quote-allowed",
+    "why": "\"a\"b is accepted",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "            if (i < n && !detail::is_space(line[i])) return detail::parse_failure(ParseError::StrayQuote, i, \"a closing quote must be followed by a space or the end\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-stray-quote-position-start-of-word",
+    "why": "StrayQuote points at the start of the word",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "return detail::parse_failure(ParseError::StrayQuote, i, \"a quote cannot appear inside a word\");",
+        "new": "return detail::parse_failure(ParseError::StrayQuote, start, \"a quote cannot appear inside a word\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-empty-position-zero",
+    "why": "Empty points at the start of the line",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "return detail::parse_failure(ParseError::Empty, n, \"empty command\");",
+        "new": "return detail::parse_failure(ParseError::Empty, 0, \"empty command\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-arity-position-at-argument",
+    "why": "WrongArity points at the first argument",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "        p.pos = first.pos;\n        p.message = std::string(spec->name)",
+        "new": "        p.pos = tokens.size() > 1 ? tokens[1].pos : first.pos;\n        p.message = std::string(spec->name)"
+      }
+    ]
+  },
+  {
+    "name": "parse-arity-too-many-allowed",
+    "why": "extra arguments are ignored",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    if (args != spec->arity) {",
+        "new": "    if (args < spec->arity) {"
+      }
+    ]
+  },
+  {
+    "name": "parse-unknown-before-quote-errors",
+    "why": "an unknown command is reported before the quotes are checked",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    std::vector<Token> tokens;\n    const std::size_t n = line.size();",
+        "new": "    std::vector<Token> tokens;\n    const std::size_t n = line.size();\n    {\n        std::size_t k = 0;\n        while (k < n && detail::is_space(line[k])) ++k;\n        std::size_t e = k;\n        while (e < n && !detail::is_space(line[e])) ++e;\n        const std::string word(line.substr(k, e - k));\n        bool known = false;\n        for (const char* nm : {\"SET\", \"GET\", \"DEL\", \"COUNT\", \"RANGE\", \"INCR\", \"BEGIN\", \"ROLLBACK\", \"COMMIT\"}) known = known || detail::same_word(word, nm);\n        if (k < n && !known) return detail::parse_failure(ParseError::UnknownCommand, k, \"unknown command\");\n    }"
+      }
+    ]
+  },
+  {
+    "name": "parse-tokens-copied",
+    "why": "the token text is copied into the command instead of moved",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    if (cmd == \"SET\") p.command = Set{Text(std::move(tokens[1].text)), Text(std::move(tokens[2].text))};",
+        "new": "    if (cmd == \"SET\") p.command = Set{Text(std::string(tokens[1].text)), Text(std::string(tokens[2].text))};"
+      }
+    ]
+  },
+  {
+    "name": "parse-extra-copies-of-tokens",
+    "why": "the whole token vector is copied before use",
+    "edits": [
+      {
+        "file": "query.hpp",
+        "old": "    if (tokens.empty()) return detail::parse_failure(ParseError::Empty, n, \"empty command\");",
+        "new": "    if (tokens.empty()) return detail::parse_failure(ParseError::Empty, n, \"empty command\");\n    const std::vector<Token> backup = tokens;\n    (void)backup;"
+      }
+    ]
+  },
+  {
+    "name": "store-count-not-reduced-on-overwrite",
+    "why": "COUNT keeps the old value after SET overwrites it",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            unindex(it->second);\n            index(value);\n            it->second = std::move(value);",
+        "new": "            index(value);\n            it->second = std::move(value);"
+      }
+    ]
+  },
+  {
+    "name": "store-count-not-reduced-on-delete",
+    "why": "COUNT keeps a value after DEL",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        if (!txns_.empty()) txns_.back().push_back(Undo{it->first, it->second});\n        unindex(it->second);\n        data_.erase(it);",
+        "new": "        if (!txns_.empty()) txns_.back().push_back(Undo{it->first, it->second});\n        data_.erase(it);"
+      }
+    ]
+  },
+  {
+    "name": "store-count-not-reduced-on-rollback-drop",
+    "why": "COUNT keeps the value of a key that ROLLBACK removed",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        if (it == data_.end()) return;\n        unindex(it->second);\n        data_.erase(it);",
+        "new": "        if (it == data_.end()) return;\n        data_.erase(it);"
+      }
+    ]
+  },
+  {
+    "name": "store-count-scan",
+    "why": "COUNT scans all the keys",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        const auto it = counts_.find(value);\n        return it == counts_.end() ? 0 : it->second;",
+        "new": "        std::size_t n = 0;\n        for (const auto& kv : data_) n += kv.second == value ? 1 : 0;\n        return n;"
+      }
+    ]
+  },
+  {
+    "name": "store-range-scan-from-begin",
+    "why": "RANGE walks the whole map from the start",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        for (auto it = data_.lower_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "        for (auto it = data_.begin(); it != data_.end() && !(hi < it->first); ++it) {\n            if (!(it->first < lo)) keys.push_back(it->first);\n        }"
+      }
+    ]
+  },
+  {
+    "name": "store-range-scan-to-end",
+    "why": "RANGE does not stop after hi",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        for (auto it = data_.lower_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "        for (auto it = data_.lower_bound(lo); it != data_.end(); ++it) {\n            if (!(hi < it->first)) keys.push_back(it->first);\n        }"
+      }
+    ]
+  },
+  {
+    "name": "store-range-excludes-hi",
+    "why": "RANGE excludes the upper end",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "!(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "it->first < hi; ++it) keys.push_back(it->first);"
+      }
+    ]
+  },
+  {
+    "name": "store-range-excludes-lo",
+    "why": "RANGE excludes the lower end",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        for (auto it = data_.lower_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "        for (auto it = data_.upper_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);"
+      }
+    ]
+  },
+  {
+    "name": "store-range-reversed-bounds-not-empty",
+    "why": "RANGE with lo > hi swaps the bounds",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        if (hi < lo) return keys;\n        for (auto it = data_.lower_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "        const Text& a = hi < lo ? hi : lo;\n        const Text& b = hi < lo ? lo : hi;\n        for (auto it = data_.lower_bound(a); it != data_.end() && !(b < it->first); ++it) keys.push_back(it->first);"
+      }
+    ]
+  },
+  {
+    "name": "store-unordered-keys",
+    "why": "the data is a hash map: RANGE is no longer ascending",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "    std::map<Text, Text> data_;",
+        "new": "    std::unordered_map<Text, Text> data_;"
+      },
+      {
+        "file": "store.hpp",
+        "old": "        for (auto it = data_.lower_bound(lo); it != data_.end() && !(hi < it->first); ++it) keys.push_back(it->first);",
+        "new": "        for (auto it = data_.begin(); it != data_.end(); ++it) {\n            if (!(it->first < lo) && !(hi < it->first)) keys.push_back(it->first);\n        }"
+      },
+      {
+        "file": "store.hpp",
+        "old": "        const auto it = data_.lower_bound(key);\n        if (it != data_.end() && !(key < it->first)) {\n            unindex(it->second);\n            index(value);\n            it->second = std::move(value);\n        } else {\n            index(value);\n            data_.emplace_hint(it, std::move(key), std::move(value));\n        }",
+        "new": "        const auto it = data_.find(key);\n        if (it != data_.end()) {\n            unindex(it->second);\n            index(value);\n            it->second = std::move(value);\n        } else {\n            index(value);\n            data_.emplace(std::move(key), std::move(value));\n        }"
+      }
+    ]
+  },
+  {
+    "name": "store-begin-copies-the-data",
+    "why": "BEGIN takes a snapshot of the whole map",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "    void begin() { txns_.emplace_back(); }",
+        "new": "    void begin() {\n        txns_.emplace_back();\n        snapshot_ = data_;\n    }"
+      },
+      {
+        "file": "store.hpp",
+        "old": "    std::vector<std::vector<Undo>> txns_;\n",
+        "new": "    std::vector<std::vector<Undo>> txns_;\n    std::map<Text, Text> snapshot_;\n"
+      }
+    ]
+  },
+  {
+    "name": "store-rollback-forward-order",
+    "why": "the undo log is replayed from the front",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        for (auto it = log.rbegin(); it != log.rend(); ++it) {",
+        "new": "        for (auto it = log.begin(); it != log.end(); ++it) {"
+      }
+    ]
+  },
+  {
+    "name": "store-rollback-drops-instead-of-restoring",
+    "why": "ROLLBACK removes the key even if it existed before",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            if (it->old_value) put(std::move(it->key), std::move(*it->old_value));\n            else drop(it->key);",
+        "new": "            drop(it->key);"
+      }
+    ]
+  },
+  {
+    "name": "store-set-not-logged-when-existing",
+    "why": "overwriting a key in a transaction is not undone",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            txns_.back().push_back(it == data_.end() ? Undo{key, std::nullopt} : Undo{key, it->second});",
+        "new": "            if (it == data_.end()) txns_.back().push_back(Undo{key, std::nullopt});"
+      }
+    ]
+  },
+  {
+    "name": "store-set-not-logged-when-new",
+    "why": "a key created in a transaction survives ROLLBACK",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            txns_.back().push_back(it == data_.end() ? Undo{key, std::nullopt} : Undo{key, it->second});",
+        "new": "            if (it != data_.end()) txns_.back().push_back(Undo{key, it->second});"
+      }
+    ]
+  },
+  {
+    "name": "store-del-not-logged",
+    "why": "a deleted key does not come back on ROLLBACK",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        if (!txns_.empty()) txns_.back().push_back(Undo{it->first, it->second});\n        unindex(it->second);",
+        "new": "        unindex(it->second);"
+      }
+    ]
+  },
+  {
+    "name": "store-rollback-undoes-everything",
+    "why": "ROLLBACK closes all the transactions",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        std::vector<Undo> log = std::move(txns_.back());\n        txns_.pop_back();\n        for (auto it = log.rbegin(); it != log.rend(); ++it) {\n            if (it->old_value) put(std::move(it->key), std::move(*it->old_value));\n            else drop(it->key);\n        }\n        return true;",
+        "new": "        while (!txns_.empty()) {\n            std::vector<Undo> log = std::move(txns_.back());\n            txns_.pop_back();\n            for (auto it = log.rbegin(); it != log.rend(); ++it) {\n                if (it->old_value) put(std::move(it->key), std::move(*it->old_value));\n                else drop(it->key);\n            }\n        }\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "store-commit-closes-only-innermost",
+    "why": "COMMIT closes just one level",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        txns_.clear();\n        return true;",
+        "new": "        txns_.pop_back();\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "store-commit-without-transaction-ok",
+    "why": "COMMIT with no transaction succeeds",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "    bool commit() {\n        if (txns_.empty()) return false;",
+        "new": "    bool commit() {\n        if (txns_.empty()) return true;"
+      }
+    ]
+  },
+  {
+    "name": "store-commit-merges-into-parent-only",
+    "why": "COMMIT merges the log into the parent but keeps it open",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        txns_.clear();\n        return true;",
+        "new": "        if (txns_.size() > 1) {\n            auto inner = std::move(txns_.back());\n            txns_.pop_back();\n            for (Undo& u : inner) txns_.back().push_back(std::move(u));\n        } else {\n            txns_.clear();\n        }\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "store-rollback-copies-values",
+    "why": "ROLLBACK copies the saved values back instead of moving them",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            if (it->old_value) put(std::move(it->key), std::move(*it->old_value));",
+        "new": "            if (it->old_value) put(Text(it->key), Text(*it->old_value));"
+      }
+    ]
+  },
+  {
+    "name": "store-set-copies-key-and-value",
+    "why": "SET copies its arguments into the map",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            data_.emplace_hint(it, std::move(key), std::move(value));",
+        "new": "            const Text key_copy = key;\n            const Text value_copy = value;\n            data_.emplace_hint(it, key_copy, value_copy);"
+      }
+    ]
+  },
+  {
+    "name": "store-log-every-key-twice",
+    "why": "each change logs two undo entries",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "            txns_.back().push_back(it == data_.end() ? Undo{key, std::nullopt} : Undo{key, it->second});",
+        "new": "            txns_.back().push_back(it == data_.end() ? Undo{key, std::nullopt} : Undo{key, it->second});\n            txns_.back().push_back(it == data_.end() ? Undo{key, std::nullopt} : Undo{key, it->second});"
+      }
+    ]
+  },
+  {
+    "name": "store-depth-always-zero",
+    "why": "depth() does not count the open transactions",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "    std::size_t depth() const { return txns_.size(); }",
+        "new": "    std::size_t depth() const { return txns_.empty() ? 0 : 1; }"
+      }
+    ]
+  },
+  {
+    "name": "store-get-pointer-to-copy",
+    "why": "get returns a pointer to a static copy that is overwritten",
+    "edits": [
+      {
+        "file": "store.hpp",
+        "old": "        const auto it = data_.find(key);\n        return it == data_.end() ? nullptr : &it->second;\n    }\n\n    bool del",
+        "new": "        const auto it = data_.find(key);\n        static Text last;\n        if (it == data_.end()) return nullptr;\n        last = it->second;\n        return &last;\n    }\n\n    bool del"
+      }
+    ]
+  },
+  {
+    "name": "db-del-always-one",
+    "why": "DEL always answers 1",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "Reply run(Del& c) { return Reply::integer(store_.del(c.key) ? 1 : 0); }",
+        "new": "Reply run(Del& c) { store_.del(c.key); return Reply::integer(1); }"
+      }
+    ]
+  },
+  {
+    "name": "db-rollback-error-message",
+    "why": "ROLLBACK without BEGIN says something else",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "Reply run(Rollback&) { return store_.rollback() ? Reply::ok() : Reply::error(\"NO TRANSACTION\"); }",
+        "new": "Reply run(Rollback&) { return store_.rollback() ? Reply::ok() : Reply::error(\"no transaction\"); }"
+      }
+    ]
+  },
+  {
+    "name": "db-commit-without-transaction-ok",
+    "why": "COMMIT without BEGIN is OK",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "Reply run(Commit&) { return store_.commit() ? Reply::ok() : Reply::error(\"NO TRANSACTION\"); }",
+        "new": "Reply run(Commit&) { store_.commit(); return Reply::ok(); }"
+      }
+    ]
+  },
+  {
+    "name": "db-get-missing-is-empty-string",
+    "why": "GET of a missing key gives an empty value",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "return value ? Reply::value(value->s) : Reply::nil();",
+        "new": "return Reply::value(value ? value->s : std::string());"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-accepts-plus",
+    "why": "INCR accepts \"+5\" by skipping the sign itself",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "            const char* first = current->s.data();\n            const char* last = first + current->s.size();",
+        "new": "            const char* first = current->s.data();\n            const char* last = first + current->s.size();\n            if (current->s.size() > 1 && *first == '+') ++first;"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-trailing-garbage-ok",
+    "why": "INCR accepts 12abc",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "if (ec != std::errc() || end != last) return Reply::error(\"value is not an integer\");",
+        "new": "if (ec != std::errc()) return Reply::error(\"value is not an integer\");"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-overflow-wraps",
+    "why": "INCR of the largest long long wraps around",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "        if (n == LLONG_MAX) return Reply::error(\"increment would overflow\");\n        ++n;",
+        "new": "        n = static_cast<long long>(static_cast<unsigned long long>(n) + 1ULL);"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-bad-value-resets",
+    "why": "INCR on a bad value resets it to 1",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "if (ec != std::errc() || end != last) return Reply::error(\"value is not an integer\");",
+        "new": "if (ec != std::errc() || end != last) n = 0;"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-out-of-range-is-zero",
+    "why": "a value too big for long long counts as 0",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "if (ec != std::errc() || end != last) return Reply::error(\"value is not an integer\");",
+        "new": "if (ec == std::errc::result_out_of_range) n = 0;\n            else if (ec != std::errc() || end != last) return Reply::error(\"value is not an integer\");"
+      }
+    ]
+  },
+  {
+    "name": "db-parse-error-executes-anyway",
+    "why": "a bad line still runs as an empty command",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "        if (!parsed.ok()) return Reply::error(parsed.message);",
+        "new": "        if (!parsed.ok()) {\n            store_.begin();\n            return Reply::error(parsed.message);\n        }"
+      }
+    ]
+  },
+  {
+    "name": "db-count-off-by-one",
+    "why": "COUNT adds one",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "Reply run(Count& c) { return Reply::integer(static_cast<long long>(store_.count(c.value))); }",
+        "new": "Reply run(Count& c) { return Reply::integer(static_cast<long long>(store_.count(c.value)) + (store_.count(c.value) > 1 ? 1 : 0)); }"
+      }
+    ]
+  },
+  {
+    "name": "db-set-copies",
+    "why": "SET copies the key and value out of the command",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "        store_.set(std::move(c.key), std::move(c.value));\n        return Reply::ok();",
+        "new": "        store_.set(c.key, c.value);\n        return Reply::ok();"
+      }
+    ]
+  },
+  {
+    "name": "db-incr-key-copied",
+    "why": "INCR copies the key twice",
+    "edits": [
+      {
+        "file": "database.hpp",
+        "old": "store_.set(std::move(c.key), Text(std::to_string(n)));",
+        "new": "const Text again = c.key;\n        store_.set(again, Text(std::to_string(n)));"
+      }
+    ]
+  }
+]

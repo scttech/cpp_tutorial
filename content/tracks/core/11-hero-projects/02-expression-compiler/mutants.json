@@ -1,0 +1,924 @@
+[
+  {
+    "name": "lexer-dot-without-digit-allowed",
+    "why": "\"1.\" is accepted as a number",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "                if (i >= n || !detail::is_digit(s[i])) return detail::lex_error(Error::BadNumber, i, \"digits are needed after the decimal point\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-exponent-without-digit-allowed",
+    "why": "\"1e\" is accepted as a number",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "                if (i >= n || !detail::is_digit(s[i])) return detail::lex_error(Error::BadNumber, i, \"digits are needed in the exponent\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-exponent-sign-missing",
+    "why": "\"1e+5\" is rejected",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "                if (i < n && (s[i] == '+' || s[i] == '-')) ++i;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-capital-e-missing",
+    "why": "\"1E5\" is read as 1 followed by a name",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "if (i < n && (s[i] == 'e' || s[i] == 'E')) {",
+        "new": "if (i < n && s[i] == 'e') {"
+      }
+    ]
+  },
+  {
+    "name": "lexer-huge-number-accepted",
+    "why": "1e999 becomes infinity without an error",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "            if (!std::isfinite(t.number)) return detail::lex_error(Error::BadNumber, start, \"the number is too large\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-huge-number-position-at-end",
+    "why": "the position of a too large number is its end",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "return detail::lex_error(Error::BadNumber, start, \"the number is too large\");",
+        "new": "return detail::lex_error(Error::BadNumber, i, \"the number is too large\");"
+      }
+    ]
+  },
+  {
+    "name": "lexer-name-cannot-contain-digits",
+    "why": "x2 is the name x followed by the number 2",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "inline bool is_name_char(char c) { return is_name_start(c) || is_digit(c); }",
+        "new": "inline bool is_name_char(char c) { return is_name_start(c); }"
+      }
+    ]
+  },
+  {
+    "name": "lexer-underscore-not-a-name",
+    "why": "_a is a bad character",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "(c >= 'A' && c <= 'Z') || c == '_'; }",
+        "new": "(c >= 'A' && c <= 'Z'); }"
+      }
+    ]
+  },
+  {
+    "name": "lexer-tab-is-an-error",
+    "why": "tabs are not whitespace",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "if (c == ' ' || c == '\\t' || c == '\\n' || c == '\\r') {",
+        "new": "if (c == ' ' || c == '\\n' || c == '\\r') {"
+      }
+    ]
+  },
+  {
+    "name": "lexer-newline-is-an-error",
+    "why": "newlines are not whitespace",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "if (c == ' ' || c == '\\t' || c == '\\n' || c == '\\r') {",
+        "new": "if (c == ' ' || c == '\\t' || c == '\\r') {"
+      }
+    ]
+  },
+  {
+    "name": "lexer-percent-missing",
+    "why": "the % operator is not a token",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "                case '%': t.kind = Kind::Percent; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-comma-missing",
+    "why": "the comma is not a token",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "                case ',': t.kind = Kind::Comma; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "lexer-bad-character-position-off-by-one",
+    "why": "BadCharacter points one past the character",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "default: return detail::lex_error(Error::BadCharacter, i, \"unexpected character\");",
+        "new": "default: return detail::lex_error(Error::BadCharacter, i + 1, \"unexpected character\");"
+      }
+    ]
+  },
+  {
+    "name": "lexer-end-token-position-zero",
+    "why": "the End token has position 0",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "    end.pos = n;",
+        "new": "    end.pos = 0;"
+      }
+    ]
+  },
+  {
+    "name": "lexer-token-text-copied-per-char",
+    "why": "a name is built one character at a time",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "            t.text = std::string(s.substr(start, i - start));",
+        "new": "            for (std::size_t k = start; k < i; ++k) t.text = t.text + std::string(1, s[k]);"
+      }
+    ]
+  },
+  {
+    "name": "lexer-leading-dot-allowed",
+    "why": "\".5\" is a number",
+    "edits": [
+      {
+        "file": "lexer.hpp",
+        "old": "        if (detail::is_digit(c)) {\n            const std::size_t start = i;",
+        "new": "        if (detail::is_digit(c) || (c == '.' && i + 1 < n && detail::is_digit(s[i + 1]))) {\n            const std::size_t start = i;"
+      }
+    ]
+  },
+  {
+    "name": "parser-add-right-associative",
+    "why": "1-2-3 is 1-(2-3)",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr rhs = parse_mul(depth);\n            if (!rhs) return nullptr;\n            lhs = make_binary(op, std::move(lhs), std::move(rhs));\n        }\n        return lhs;\n    }\n\n    NodePtr parse_mul(int depth) {",
+        "new": "            NodePtr rhs = parse_add(depth);\n            if (!rhs) return nullptr;\n            return make_binary(op, std::move(lhs), std::move(rhs));\n        }\n        return lhs;\n    }\n\n    NodePtr parse_mul(int depth) {"
+      }
+    ]
+  },
+  {
+    "name": "parser-mul-right-associative",
+    "why": "10/2/5 is 10/(2/5)",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr rhs = parse_unary(depth);\n            if (!rhs) return nullptr;\n            lhs = make_binary(op, std::move(lhs), std::move(rhs));\n        }\n        return lhs;\n    }\n\n    NodePtr parse_unary(int depth) {",
+        "new": "            NodePtr rhs = parse_mul(depth);\n            if (!rhs) return nullptr;\n            return make_binary(op, std::move(lhs), std::move(rhs));\n        }\n        return lhs;\n    }\n\n    NodePtr parse_unary(int depth) {"
+      }
+    ]
+  },
+  {
+    "name": "parser-all-operators-one-level",
+    "why": "+ - * / % all have the same precedence, left to right",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        NodePtr lhs = parse_mul(depth);\n        while (lhs && (peek().kind == Kind::Plus || peek().kind == Kind::Minus)) {\n            const char op = peek().kind == Kind::Plus ? '+' : '-';\n            advance();\n            NodePtr rhs = parse_mul(depth);",
+        "new": "        NodePtr lhs = parse_unary(depth);\n        while (lhs && (peek().kind == Kind::Plus || peek().kind == Kind::Minus || peek().kind == Kind::Star || peek().kind == Kind::Slash || peek().kind == Kind::Percent)) {\n            const Kind k = peek().kind;\n            const char op = k == Kind::Plus ? '+' : k == Kind::Minus ? '-' : k == Kind::Star ? '*' : k == Kind::Slash ? '/' : '%';\n            advance();\n            NodePtr rhs = parse_unary(depth);"
+      }
+    ]
+  },
+  {
+    "name": "parser-percent-like-plus",
+    "why": "% binds like + instead of like *",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        while (lhs && (peek().kind == Kind::Star || peek().kind == Kind::Slash || peek().kind == Kind::Percent)) {\n            const char op = peek().kind == Kind::Star ? '*' : peek().kind == Kind::Slash ? '/' : '%';",
+        "new": "        while (lhs && (peek().kind == Kind::Star || peek().kind == Kind::Slash)) {\n            const char op = peek().kind == Kind::Star ? '*' : '/';"
+      }
+    ]
+  },
+  {
+    "name": "parser-pow-left-associative",
+    "why": "2^3^2 is (2^3)^2",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (peek().kind == Kind::Caret) {\n            advance();\n            NodePtr exponent = parse_unary(depth + 1);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));\n        }\n        return base;",
+        "new": "        while (peek().kind == Kind::Caret) {\n            advance();\n            NodePtr exponent = parse_primary(depth + 1);\n            if (!exponent) return nullptr;\n            base = make_binary('^', std::move(base), std::move(exponent));\n        }\n        return base;"
+      }
+    ]
+  },
+  {
+    "name": "parser-minus-binds-tighter-than-pow",
+    "why": "-2^2 is (-2)^2",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        return parse_pow(depth);\n    }",
+        "new": "        NodePtr base = parse_primary(depth);\n        if (!base) return nullptr;\n        if (peek().kind == Kind::Caret) {\n            advance();\n            NodePtr exponent = parse_unary(depth + 1);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));\n        }\n        return base;\n    }"
+      },
+      {
+        "file": "parser.hpp",
+        "old": "        if (peek().kind == Kind::Minus) {\n            advance();\n            NodePtr operand = parse_unary(depth + 1);\n            if (!operand) return nullptr;\n            return make_unary('-', std::move(operand));\n        }",
+        "new": "        if (peek().kind == Kind::Minus) {\n            advance();\n            NodePtr operand = parse_primary(depth + 1);\n            if (!operand) return nullptr;\n            NodePtr negated = make_unary('-', std::move(operand));\n            if (peek().kind == Kind::Caret) {\n                advance();\n                NodePtr exponent = parse_unary(depth + 1);\n                if (!exponent) return nullptr;\n                return make_binary('^', std::move(negated), std::move(exponent));\n            }\n            return negated;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "parser-exponent-cannot-be-negative",
+    "why": "2^-1 is an error",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr exponent = parse_unary(depth + 1);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));",
+        "new": "            NodePtr exponent = parse_primary(depth + 1);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));"
+      }
+    ]
+  },
+  {
+    "name": "parser-unary-plus-keeps-a-node",
+    "why": "+5 stays a node",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            advance();\n            return parse_unary(depth + 1);\n        }\n        return parse_pow(depth);",
+        "new": "            advance();\n            NodePtr operand = parse_unary(depth + 1);\n            if (!operand) return nullptr;\n            return make_unary('+', std::move(operand));\n        }\n        return parse_pow(depth);"
+      }
+    ]
+  },
+  {
+    "name": "parser-trailing-tokens-ignored",
+    "why": "\"1 2\" parses as 1",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (e && peek().kind != Kind::End) {\n            unexpected(\"expected an operator or the end of the expression\");\n            e = nullptr;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parser-end-reported-as-unexpected-token",
+    "why": "the end of the input is reported as an unexpected token",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "return fail(t.kind == Kind::End ? Error::UnexpectedEnd : Error::UnexpectedToken, t.pos, std::move(message));",
+        "new": "return fail(Error::UnexpectedToken, t.pos, std::move(message));"
+      }
+    ]
+  },
+  {
+    "name": "parser-wrong-token-reported-as-end",
+    "why": "any unexpected token is reported as the end",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "return fail(t.kind == Kind::End ? Error::UnexpectedEnd : Error::UnexpectedToken, t.pos, std::move(message));",
+        "new": "return fail(Error::UnexpectedEnd, t.pos, std::move(message));"
+      }
+    ]
+  },
+  {
+    "name": "parser-unknown-function-checked-late",
+    "why": "the function name is only checked after the arguments",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (arity_of(name) < 0) return fail(Error::UnknownFunction, name_pos, \"there is no function called \" + name);\n            advance();  // the (",
+        "new": "            advance();  // the ("
+      },
+      {
+        "file": "parser.hpp",
+        "old": "            if (static_cast<int>(args.size()) != arity_of(name)) return fail(",
+        "new": "            if (arity_of(name) < 0) return fail(Error::UnknownFunction, name_pos, \"there is no function called \" + name);\n            if (static_cast<int>(args.size()) != arity_of(name)) return fail("
+      }
+    ]
+  },
+  {
+    "name": "parser-arity-not-checked",
+    "why": "max(1) is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (static_cast<int>(args.size()) != arity_of(name)) return fail(Error::WrongArity, name_pos, name + \" takes \" + std::to_string(arity_of(name)) + \" argument(s)\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parser-arity-error-at-paren",
+    "why": "WrongArity points at the closing parenthesis",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (peek().kind != Kind::RParen) return unexpected(\"expected ',' or ')'\");\n            advance();\n            if (static_cast<int>(args.size()) != arity_of(name)) return fail(Error::WrongArity, name_pos,",
+        "new": "            if (peek().kind != Kind::RParen) return unexpected(\"expected ',' or ')'\");\n            const std::size_t close_pos = peek().pos;\n            advance();\n            if (static_cast<int>(args.size()) != arity_of(name)) return fail(Error::WrongArity, close_pos,"
+      }
+    ]
+  },
+  {
+    "name": "parser-trailing-comma-allowed",
+    "why": "max(1,) is accepted as a call with one argument",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                    if (peek().kind == Kind::Comma) {\n                        advance();\n                        continue;\n                    }",
+        "new": "                    if (peek().kind == Kind::Comma) {\n                        advance();\n                        if (peek().kind == Kind::RParen) break;\n                        continue;\n                    }"
+      }
+    ]
+  },
+  {
+    "name": "parser-no-depth-limit",
+    "why": "nesting is not limited",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (depth > kMaxDepth) return fail(Error::TooDeep, peek().pos, \"the expression is nested too deeply\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parser-parens-not-counted",
+    "why": "parentheses do not count towards the depth",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr inner = parse_add(depth + 1);",
+        "new": "            NodePtr inner = parse_add(depth);"
+      }
+    ]
+  },
+  {
+    "name": "parser-calls-not-counted",
+    "why": "call arguments do not count towards the depth",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                    NodePtr arg = parse_add(depth + 1);",
+        "new": "                    NodePtr arg = parse_add(depth);"
+      }
+    ]
+  },
+  {
+    "name": "parser-minus-not-counted",
+    "why": "a chain of prefix minus signs does not count towards the depth",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr operand = parse_unary(depth + 1);\n            if (!operand) return nullptr;\n            return make_unary('-', std::move(operand));",
+        "new": "            NodePtr operand = parse_unary(depth);\n            if (!operand) return nullptr;\n            return make_unary('-', std::move(operand));"
+      }
+    ]
+  },
+  {
+    "name": "parser-pow-chain-not-counted",
+    "why": "a chain of ^ does not count towards the depth",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr exponent = parse_unary(depth + 1);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));",
+        "new": "            NodePtr exponent = parse_unary(depth);\n            if (!exponent) return nullptr;\n            return make_binary('^', std::move(base), std::move(exponent));"
+      }
+    ]
+  },
+  {
+    "name": "parser-chain-depth-limited",
+    "why": "a long chain of + counts as nesting",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr rhs = parse_mul(depth);\n            if (!rhs) return nullptr;\n            lhs = make_binary(op, std::move(lhs), std::move(rhs));\n        }\n        return lhs;\n    }\n\n    NodePtr parse_mul(int depth) {",
+        "new": "            NodePtr rhs = parse_mul(depth);\n            if (!rhs) return nullptr;\n            lhs = make_binary(op, std::move(lhs), std::move(rhs));\n            if (++chain_ > 1000) return fail(Error::TooDeep, peek().pos, \"too long\");\n        }\n        return lhs;\n    }\n\n    NodePtr parse_mul(int depth) {"
+      },
+      {
+        "file": "parser.hpp",
+        "old": "    std::size_t pos_ = 0;\n",
+        "new": "    std::size_t pos_ = 0;\n    int chain_ = 0;\n"
+      }
+    ]
+  },
+  {
+    "name": "parser-copies-the-token-vector-per-primary",
+    "why": "the token vector is copied for every primary",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "    NodePtr parse_primary(int depth) {\n        const Token& t = peek();",
+        "new": "    NodePtr parse_primary(int depth) {\n        const std::vector<Token> wasted(t_);\n        (void)wasted;\n        const Token& t = peek();"
+      }
+    ]
+  },
+  {
+    "name": "parser-erases-consumed-tokens",
+    "why": "consumed tokens are erased from the front of a copy: quadratic",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "    void advance() {\n        if (i_ + 1 < t_.size()) ++i_;\n    }",
+        "new": "    void advance() {\n        if (i_ + 1 < t_.size()) ++i_;\n        if (i_ % 2 == 0) {\n            std::vector<Token> shifted(t_.begin() + static_cast<std::ptrdiff_t>(i_ / 2), t_.end());\n            (void)shifted;\n        }\n    }"
+      }
+    ]
+  },
+  {
+    "name": "parser-name-copied-twice",
+    "why": "the identifier name is copied again for the node",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (peek().kind != Kind::LParen) return make_variable(std::move(name));",
+        "new": "            if (peek().kind != Kind::LParen) {\n                const std::string again = name;\n                return make_variable(again);\n            }"
+      }
+    ]
+  },
+  {
+    "name": "eval-modulo-by-zero-unchecked",
+    "why": "5 % 0 is not reported",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "                case '%':\n                    if (b == 0) return fail(EvalError::DivisionByZero);\n                    out = std::fmod(a, b);",
+        "new": "                case '%':\n                    out = std::fmod(a, b);"
+      }
+    ]
+  },
+  {
+    "name": "eval-divide-by-zero-unchecked",
+    "why": "1/0 is infinity",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "                    if (b == 0) return fail(EvalError::DivisionByZero);\n                    out = a / b;",
+        "new": "                    out = a / b;"
+      }
+    ]
+  },
+  {
+    "name": "eval-division-by-zero-is-not-finite",
+    "why": "1/0 is reported as NotFinite",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "                    if (b == 0) return fail(EvalError::DivisionByZero);\n                    out = a / b;",
+        "new": "                    if (b == 0) return fail(EvalError::NotFinite);\n                    out = a / b;"
+      }
+    ]
+  },
+  {
+    "name": "eval-not-finite-unchecked",
+    "why": "infinity and NaN are valid results",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "            if (!std::isfinite(out)) return fail(EvalError::NotFinite);\n            return true;\n        }\n        const auto& call",
+        "new": "            return true;\n        }\n        const auto& call"
+      }
+    ]
+  },
+  {
+    "name": "eval-call-result-not-checked",
+    "why": "sqrt(-1) is NaN without an error",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "        else out = std::pow(a[0], a[1]);\n        if (!std::isfinite(out)) return fail(EvalError::NotFinite);\n        return true;",
+        "new": "        else out = std::pow(a[0], a[1]);\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "eval-modulo-is-integer",
+    "why": "% truncates to integers",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "out = std::fmod(a, b);",
+        "new": "out = static_cast<double>(static_cast<long long>(a) % static_cast<long long>(b == 0 ? 1 : b));"
+      }
+    ]
+  },
+  {
+    "name": "eval-modulo-always-positive",
+    "why": "-7 % 3 is 2",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "out = std::fmod(a, b);",
+        "new": "out = std::fmod(std::fmod(a, b) + std::fabs(b), std::fabs(b));"
+      }
+    ]
+  },
+  {
+    "name": "eval-second-operand-first",
+    "why": "the right side is evaluated before the left",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "            if (!eval(*bin->lhs, a)) return false;\n            if (!eval(*bin->rhs, b)) return false;",
+        "new": "            if (!eval(*bin->rhs, b)) return false;\n            if (!eval(*bin->lhs, a)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "eval-last-argument-first",
+    "why": "call arguments are evaluated right to left",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "        for (std::size_t k = 0; k < call.args.size(); ++k) {\n            if (!eval(*call.args[k], a[k])) return false;\n        }",
+        "new": "        for (std::size_t k = call.args.size(); k-- > 0;) {\n            if (!eval(*call.args[k], a[k])) return false;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "eval-unknown-variable-without-name",
+    "why": "the detail of UnknownVariable is empty",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "if (!value) return fail(EvalError::UnknownVariable, var->name);",
+        "new": "if (!value) return fail(EvalError::UnknownVariable);"
+      }
+    ]
+  },
+  {
+    "name": "eval-unknown-variable-is-zero",
+    "why": "a missing variable counts as 0",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "            if (!value) return fail(EvalError::UnknownVariable, var->name);\n            out = *value;",
+        "new": "            out = value ? *value : 0.0;"
+      }
+    ]
+  },
+  {
+    "name": "eval-double-lookup",
+    "why": "the variable is looked up twice",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "            const double* value = env_.find(var->name);",
+        "new": "            (void)env_.find(var->name);\n            const double* value = env_.find(var->name);"
+      }
+    ]
+  },
+  {
+    "name": "eval-env-copied",
+    "why": "the Env is copied for every evaluation",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "    explicit Evaluator(const Env& env) : env_(env) {}",
+        "new": "    explicit Evaluator(const Env& env) : env_(env) { const Env copy = env; (void)copy; }"
+      }
+    ]
+  },
+  {
+    "name": "eval-name-copied-per-lookup",
+    "why": "the variable name is copied for the lookup",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "            const double* value = env_.find(var->name);",
+        "new": "            const std::string copy = var->name;\n            const double* value = env_.find(copy);"
+      }
+    ]
+  },
+  {
+    "name": "eval-power-is-xor",
+    "why": "^ is computed by multiplying a by b",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "case '^': out = std::pow(a, b); break;",
+        "new": "case '^': out = a * b; break;"
+      }
+    ]
+  },
+  {
+    "name": "eval-min-max-swapped",
+    "why": "min and max are swapped",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "        else if (call.name == \"min\") out = a[0] < a[1] ? a[0] : a[1];\n        else if (call.name == \"max\") out = a[0] > a[1] ? a[0] : a[1];",
+        "new": "        else if (call.name == \"min\") out = a[0] > a[1] ? a[0] : a[1];\n        else if (call.name == \"max\") out = a[0] < a[1] ? a[0] : a[1];"
+      }
+    ]
+  },
+  {
+    "name": "eval-floor-truncates",
+    "why": "floor(-2.5) is -2",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "out = std::floor(a[0]);",
+        "new": "out = std::trunc(a[0]);"
+      }
+    ]
+  },
+  {
+    "name": "eval-bad-call-not-checked",
+    "why": "a hand-built call with the wrong arity reads garbage",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "        if (arity < 0 || static_cast<std::size_t>(arity) != call.args.size()) return fail(EvalError::BadCall, call.name);",
+        "new": "        if (arity < 0) return fail(EvalError::BadCall, call.name);"
+      }
+    ]
+  },
+  {
+    "name": "eval-result-keeps-partial-value",
+    "why": "a failed evaluation leaves a leftover value in the result",
+    "edits": [
+      {
+        "file": "eval.hpp",
+        "old": "        r.value = 0;\n        r.error = error_;",
+        "new": "        r.error = error_;"
+      },
+      {
+        "file": "eval.hpp",
+        "old": "        EvalResult r;\n        if (eval(n, r.value)) return r;",
+        "new": "        EvalResult r;\n        r.value = 42;\n        if (eval(n, r.value)) return r;"
+      }
+    ]
+  },
+  {
+    "name": "opt-no-folding",
+    "why": "constants are never folded",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        if (is_number(bin->lhs) && is_number(bin->rhs)) {\n            try_fold(n);\n            return n;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "opt-fold-errors",
+    "why": "1/0 is folded to a number",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "    if (r.ok()) n->v = Number{r.value};  // the old children are destroyed by this assignment; the node itself is reused",
+        "new": "    n->v = Number{r.value};"
+      }
+    ]
+  },
+  {
+    "name": "opt-times-zero",
+    "why": "x*0 becomes 0",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '*':\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);",
+        "new": "            case '*':\n                if (is_number(bin->rhs, 0) || is_number(bin->lhs, 0)) {\n                    n->v = Number{0};\n                    return n;\n                }\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-reassociate",
+    "why": "(x+1)+2 becomes x+3",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '+':\n                if (is_number(bin->rhs, 0)) return std::move(bin->lhs);",
+        "new": "            case '+':\n                if (is_number(bin->rhs)) {\n                    if (auto* inner = std::get_if<Binary>(&bin->lhs->v)) {\n                        if (inner->op == '+' && is_number(inner->rhs)) {\n                            const double sum = std::get<Number>(inner->rhs->v).value + std::get<Number>(bin->rhs->v).value;\n                            NodePtr x = std::move(inner->lhs);\n                            bin->lhs = std::move(x);\n                            bin->rhs = make_number(sum);\n                            return n;\n                        }\n                    }\n                }\n                if (is_number(bin->rhs, 0)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-x-minus-x",
+    "why": "x-x becomes 0",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '-':\n                if (is_number(bin->rhs, 0)) return std::move(bin->lhs);",
+        "new": "            case '-':\n                if (std::holds_alternative<Variable>(bin->lhs->v) && std::holds_alternative<Variable>(bin->rhs->v) &&\n                    std::get<Variable>(bin->lhs->v).name == std::get<Variable>(bin->rhs->v).name) {\n                    n->v = Number{0};\n                    return n;\n                }\n                if (is_number(bin->rhs, 0)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-power-zero",
+    "why": "x^0 becomes 1",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '^':\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);",
+        "new": "            case '^':\n                if (is_number(bin->rhs, 0)) {\n                    n->v = Number{1};\n                    return n;\n                }\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-zero-divided-by-x",
+    "why": "0/x becomes 0",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '/':\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);",
+        "new": "            case '/':\n                if (is_number(bin->lhs, 0)) {\n                    n->v = Number{0};\n                    return n;\n                }\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-one-divided-by-x",
+    "why": "1/x becomes x",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '/':\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);",
+        "new": "            case '/':\n                if (is_number(bin->lhs, 1)) return std::move(bin->rhs);\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);"
+      }
+    ]
+  },
+  {
+    "name": "opt-one-minus-x",
+    "why": "1-x becomes -x",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "                if (is_number(bin->lhs, 0)) {\n                    NodePtr x = std::move(bin->rhs);\n                    n->v = Unary{'-', std::move(x)};\n                    return n;\n                }",
+        "new": "                if (is_number(bin->lhs, 0) || is_number(bin->lhs, 1)) {\n                    NodePtr x = std::move(bin->rhs);\n                    n->v = Unary{'-', std::move(x)};\n                    return n;\n                }"
+      }
+    ]
+  },
+  {
+    "name": "opt-zero-minus-x-kept",
+    "why": "0-x is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "                if (is_number(bin->lhs, 0)) {\n                    NodePtr x = std::move(bin->rhs);\n                    n->v = Unary{'-', std::move(x)};\n                    return n;\n                }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "opt-double-negation-kept",
+    "why": "--x is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        if (auto* inner = std::get_if<Unary>(&un->operand->v)) {  // --x is x\n            NodePtr x = std::move(inner->operand);\n            return x;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "opt-double-negation-drops-sign",
+    "why": "--x becomes -x",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            NodePtr x = std::move(inner->operand);\n            return x;",
+        "new": "            NodePtr x = std::move(un->operand);\n            return x;"
+      }
+    ]
+  },
+  {
+    "name": "opt-plus-zero-left-only",
+    "why": "0+x is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "                if (is_number(bin->lhs, 0)) return std::move(bin->rhs);\n                break;\n            case '-':",
+        "new": "                break;\n            case '-':"
+      }
+    ]
+  },
+  {
+    "name": "opt-times-one-right-only",
+    "why": "1*x is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "                if (is_number(bin->lhs, 1)) return std::move(bin->rhs);\n                break;\n            case '/':",
+        "new": "                break;\n            case '/':"
+      }
+    ]
+  },
+  {
+    "name": "opt-power-one-missing",
+    "why": "x^1 is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "            case '^':\n                if (is_number(bin->rhs, 1)) return std::move(bin->lhs);\n                break;",
+        "new": "            case '^':\n                break;"
+      }
+    ]
+  },
+  {
+    "name": "opt-calls-not-folded",
+    "why": "sqrt(16) is left alone",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        if (all_numbers) try_fold(n);",
+        "new": "        (void)all_numbers;"
+      }
+    ]
+  },
+  {
+    "name": "opt-call-args-not-optimized",
+    "why": "the arguments of a call are not optimized",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        for (NodePtr& a : call->args) a = optimize(std::move(a));",
+        "new": "        (void)call;"
+      }
+    ]
+  },
+  {
+    "name": "opt-unary-operand-not-optimized",
+    "why": "the operand of a minus is not optimized",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        un->operand = optimize(std::move(un->operand));",
+        "new": "        (void)un;"
+      }
+    ]
+  },
+  {
+    "name": "opt-right-child-not-optimized",
+    "why": "only the left child is optimized",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        bin->rhs = optimize(std::move(bin->rhs));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "opt-rebuilds-the-tree",
+    "why": "every binary node is rebuilt: allocations for the whole tree",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "        bin->lhs = optimize(std::move(bin->lhs));\n        bin->rhs = optimize(std::move(bin->rhs));",
+        "new": "        bin->lhs = optimize(std::move(bin->lhs));\n        bin->rhs = optimize(std::move(bin->rhs));\n        n = make_binary(bin->op, std::move(bin->lhs), std::move(bin->rhs));"
+      }
+    ]
+  },
+  {
+    "name": "opt-fold-allocates-new-node",
+    "why": "a folded node is replaced by a freshly allocated number",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "    if (r.ok()) n->v = Number{r.value};  // the old children are destroyed by this assignment; the node itself is reused",
+        "new": "    if (r.ok()) n = make_number(r.value);"
+      }
+    ]
+  },
+  {
+    "name": "opt-fold-copies-env",
+    "why": "folding evaluates with a fresh environment that is copied",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "    const Env no_variables;\n    const EvalResult r = evaluate(*n, no_variables);",
+        "new": "    const Env no_variables;\n    const Env copy = no_variables;\n    const EvalResult r = evaluate(*n, copy);"
+      }
+    ]
+  },
+  {
+    "name": "opt-variable-names-copied",
+    "why": "identity rewrites copy the surviving subtree through its text",
+    "edits": [
+      {
+        "file": "optimize.hpp",
+        "old": "                if (is_number(bin->rhs, 0)) return std::move(bin->lhs);\n                if (is_number(bin->lhs, 0)) return std::move(bin->rhs);\n                break;\n            case '-':",
+        "new": "                if (is_number(bin->rhs, 0)) return make_variable(to_string(*bin->lhs));\n                if (is_number(bin->lhs, 0)) return std::move(bin->rhs);\n                break;\n            case '-':"
+      }
+    ]
+  }
+]

@@ -1,0 +1,568 @@
+[
+  {
+    "name": "block-for-not-aligned",
+    "why": "sizes are not rounded to 16",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "static std::size_t block_for(std::size_t bytes) { return kHeader + (bytes < kAlign ? kAlign : round_up(bytes)); }",
+        "new": "static std::size_t block_for(std::size_t bytes) { return kHeader + (bytes < kAlign ? kAlign : bytes); }"
+      }
+    ]
+  },
+  {
+    "name": "block-for-zero-gives-null",
+    "why": "allocate(0) fails",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;",
+        "new": "        if (bytes == 0) {\n            ++failed_;\n            return nullptr;\n        }\n        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;"
+      }
+    ]
+  },
+  {
+    "name": "overflow-guard-missing",
+    "why": "a huge request overflows the rounding",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (bytes > static_cast<std::size_t>(-1) - 4 * kAlign) {  // rounding up would overflow\n            ++failed_;\n            return nullptr;\n        }\n        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;",
+        "new": "        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;"
+      }
+    ]
+  },
+  {
+    "name": "overflow-guard-too-weak",
+    "why": "only SIZE_MAX itself is rejected",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (bytes > static_cast<std::size_t>(-1) - 4 * kAlign) {  // rounding up would overflow\n            ++failed_;\n            return nullptr;\n        }\n        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;",
+        "new": "        if (bytes == static_cast<std::size_t>(-1)) {\n            ++failed_;\n            return nullptr;\n        }\n        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-overflow-guard-missing",
+    "why": "reallocate to a huge size overflows",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (bytes > static_cast<std::size_t>(-1) - 4 * kAlign) {\n            ++failed_;\n            return nullptr;\n        }\n        const std::size_t need = block_for(bytes);\n        const std::size_t current",
+        "new": "        const std::size_t need = block_for(bytes);\n        const std::size_t current"
+      }
+    ]
+  },
+  {
+    "name": "header-is-32-bytes",
+    "why": "the header is 48 bytes: too much overhead",
+    "edits": [
+      {
+        "file": "blocks.hpp",
+        "old": "struct Header {\n    std::size_t size_flags;  // total size of the block (a multiple of 16) | 1 when in use\n    std::size_t prev_size;   // total size of the physically previous block, 0 for the first one\n};",
+        "new": "struct Header {\n    std::size_t size_flags;  // total size of the block (a multiple of 16) | 1 when in use\n    std::size_t prev_size;   // total size of the physically previous block, 0 for the first one\n    std::size_t padding_a;\n    std::size_t padding_b;\n    std::size_t padding_c;\n    std::size_t padding_d;\n};"
+      }
+    ]
+  },
+  {
+    "name": "payload-misaligned",
+    "why": "the payload starts 8 bytes too early",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "void* payload(std::size_t off) const { return heap_.base() + off + kHeader; }",
+        "new": "void* payload(std::size_t off) const { return heap_.base() + off + kHeader - 8; }"
+      },
+      {
+        "file": "allocator.hpp",
+        "old": "        const std::size_t at = static_cast<std::size_t>(static_cast<const std::byte*>(p) - heap_.base());\n        if (at < kHeader || at % kAlign != 0) return kNil;",
+        "new": "        const std::size_t at = static_cast<std::size_t>(static_cast<const std::byte*>(p) - heap_.base()) + 8;\n        if (at < kHeader || at % kAlign != 0) return kNil;"
+      }
+    ]
+  },
+  {
+    "name": "minimum-block-too-big",
+    "why": "the minimum block is 96 bytes",
+    "edits": [
+      {
+        "file": "blocks.hpp",
+        "old": "inline constexpr std::size_t kMinBlock = 2 * kAlign;",
+        "new": "inline constexpr std::size_t kMinBlock = 6 * kAlign;"
+      }
+    ]
+  },
+  {
+    "name": "no-splitting",
+    "why": "a block is always handed out whole",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (size - need < kMinBlock) return;\n        hdr(off).size_flags = need | 1;",
+        "new": "        if (size - need < kMinBlock || true) return;\n        hdr(off).size_flags = need | 1;"
+      }
+    ]
+  },
+  {
+    "name": "splitting-leaves-slivers",
+    "why": "a remainder of any size (even 16 bytes) is split off",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (size - need < kMinBlock) return;\n        hdr(off).size_flags = need | 1;",
+        "new": "        if (size - need < kAlign) return;\n        hdr(off).size_flags = need | 1;"
+      }
+    ]
+  },
+  {
+    "name": "split-prev-size-not-set",
+    "why": "the remainder block does not record its predecessor size",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        t.size_flags = size - need;\n        t.prev_size = need;",
+        "new": "        t.size_flags = size - need;"
+      }
+    ]
+  },
+  {
+    "name": "split-successor-prev-size-not-updated",
+    "why": "the block after the remainder keeps its old prev_size",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (tail + (size - need) < heap_.size()) hdr(tail + (size - need)).prev_size = size - need;\n        merge_and_link(tail);",
+        "new": "        merge_and_link(tail);"
+      }
+    ]
+  },
+  {
+    "name": "split-takes-tail-wrongly",
+    "why": "the used block is the tail but the header stays at the front",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        hdr(off).size_flags = need | 1;\n        used_bytes_ -= size - need;\n        const std::size_t tail = off + need;",
+        "new": "        hdr(off).size_flags = need | 1;\n        used_bytes_ -= size - need;\n        const std::size_t tail = off + need + kAlign;"
+      }
+    ]
+  },
+  {
+    "name": "fit-ignores-size",
+    "why": "the first free block is used even if it is too small",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            if (block_size(hdr(off)) >= need) {",
+        "new": "            if (block_size(hdr(off)) + kAlign >= need) {"
+      }
+    ]
+  },
+  {
+    "name": "fit-exact-only",
+    "why": "only an exactly fitting block (or a bigger one by a lot) is accepted",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            if (block_size(hdr(off)) >= need) {",
+        "new": "            if (block_size(hdr(off)) >= need + (block_size(hdr(off)) > need ? kMinBlock : 0)) {"
+      }
+    ]
+  },
+  {
+    "name": "constructor-block-too-small",
+    "why": "the initial block leaves out the last 16 bytes",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            h.size_flags = heap_.size();\n            h.prev_size = 0;",
+        "new": "            h.size_flags = heap_.size() - kAlign;\n            h.prev_size = 0;"
+      }
+    ]
+  },
+  {
+    "name": "no-coalescing-next",
+    "why": "a freed block does not merge with a free successor",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (next < heap_.size() && !in_use(hdr(next))) {\n            unlink_free(next);\n            size += block_size(hdr(next));\n            hdr(off).size_flags = size;\n            if (off + size < heap_.size()) hdr(off + size).prev_size = size;\n        }\n        link_free(off);",
+        "new": "        link_free(off);"
+      }
+    ]
+  },
+  {
+    "name": "no-coalescing-previous",
+    "why": "a freed block does not merge with a free predecessor",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (before != 0 && !in_use(hdr(off - before))) {",
+        "new": "        if (before != 0 && false && !in_use(hdr(off - before))) {"
+      }
+    ]
+  },
+  {
+    "name": "coalescing-previous-no-unlink",
+    "why": "the merged predecessor stays on the free list",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            const std::size_t prev = off - before;\n            unlink_free(prev);\n            const std::size_t merged = block_size(hdr(prev)) + size;",
+        "new": "            const std::size_t prev = off - before;\n            const std::size_t merged = block_size(hdr(prev)) + size;"
+      }
+    ]
+  },
+  {
+    "name": "coalescing-next-no-unlink",
+    "why": "the merged successor stays on the free list",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (next < heap_.size() && !in_use(hdr(next))) {\n            unlink_free(next);\n            size += block_size(hdr(next));",
+        "new": "        if (next < heap_.size() && !in_use(hdr(next))) {\n            size += block_size(hdr(next));"
+      }
+    ]
+  },
+  {
+    "name": "coalescing-successor-prev-size-stale",
+    "why": "the block after a merge keeps the old prev_size",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            size += block_size(hdr(next));\n            hdr(off).size_flags = size;\n            if (off + size < heap_.size()) hdr(off + size).prev_size = size;",
+        "new": "            size += block_size(hdr(next));\n            hdr(off).size_flags = size;"
+      }
+    ]
+  },
+  {
+    "name": "coalescing-previous-successor-prev-size-stale",
+    "why": "after merging with the predecessor the following block is not updated",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            hdr(prev).size_flags = merged;\n            if (prev + merged < heap_.size()) hdr(prev + merged).prev_size = merged;\n            off = prev;",
+        "new": "            hdr(prev).size_flags = merged;\n            off = prev;"
+      }
+    ]
+  },
+  {
+    "name": "free-bytes-not-reduced-on-unlink",
+    "why": "free_bytes forgets merged blocks",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        --free_blocks_;\n        free_bytes_ -= block_size(hdr(off)) - kHeader;",
+        "new": "        --free_blocks_;"
+      }
+    ]
+  },
+  {
+    "name": "used-bytes-not-reduced",
+    "why": "used_bytes never goes down",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        --used_blocks_;\n        used_bytes_ -= size - kHeader;\n        hdr(off).size_flags = size;",
+        "new": "        --used_blocks_;\n        hdr(off).size_flags = size;"
+      }
+    ]
+  },
+  {
+    "name": "stats-largest-free-total",
+    "why": "largest_free is the sum, not the maximum",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            if (usable > s.largest_free) s.largest_free = usable;",
+        "new": "            s.largest_free += usable;"
+      }
+    ]
+  },
+  {
+    "name": "stats-dealloc-count-forgotten",
+    "why": "deallocations are not counted",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        release(off);\n        ++deallocations_;\n    }\n\n    void* reallocate",
+        "new": "        release(off);\n    }\n\n    void* reallocate"
+      }
+    ]
+  },
+  {
+    "name": "stats-failed-not-counted",
+    "why": "failures are not counted",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        ++failed_;\n        return nullptr;\n    }\n\n    void deallocate",
+        "new": "        return nullptr;\n    }\n\n    void deallocate"
+      }
+    ]
+  },
+  {
+    "name": "stats-rejected-not-counted",
+    "why": "rejected frees are not counted",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (off == kNil) {\n            ++rejected_;\n            return;\n        }\n        release(off);",
+        "new": "        if (off == kNil) return;\n        release(off);"
+      }
+    ]
+  },
+  {
+    "name": "stats-null-free-counted",
+    "why": "free(nullptr) is counted as rejected",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (p == nullptr) return;\n        const std::size_t off = validate(p);\n        if (off == kNil) {\n            ++rejected_;\n            return;\n        }\n        release(off);",
+        "new": "        const std::size_t off = validate(p);\n        if (off == kNil) {\n            ++rejected_;\n            return;\n        }\n        release(off);"
+      }
+    ]
+  },
+  {
+    "name": "validate-in-use-unchecked",
+    "why": "a double free is not detected",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        const Header& h = hdr(off);\n        if (!in_use(h)) return kNil;\n        const std::size_t size = block_size(h);",
+        "new": "        const Header& h = hdr(off);\n        const std::size_t size = block_size(h);"
+      }
+    ]
+  },
+  {
+    "name": "validate-alignment-unchecked",
+    "why": "a misaligned pointer reaches the header read",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (at < kHeader || at % kAlign != 0) return kNil;",
+        "new": "        if (at < kHeader) return kNil;"
+      }
+    ]
+  },
+  {
+    "name": "validate-range-unchecked",
+    "why": "a pointer outside the heap is looked at",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (p == nullptr || !heap_.contains(p)) return kNil;",
+        "new": "        if (p == nullptr) return kNil;"
+      }
+    ]
+  },
+  {
+    "name": "usable-size-of-anything",
+    "why": "usable_size does not validate",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        const std::size_t off = validate(p);\n        return off == kNil ? 0 : block_size(hdr(off)) - kHeader;",
+        "new": "        const std::size_t off = static_cast<std::size_t>(static_cast<const std::byte*>(p) - heap_.base()) - kHeader;\n        return block_size(hdr(off)) - kHeader;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-null-fails",
+    "why": "reallocate(nullptr, n) returns nullptr",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (p == nullptr) return allocate(bytes);\n        const std::size_t off = validate(p);",
+        "new": "        if (p == nullptr) return nullptr;\n        const std::size_t off = validate(p);"
+      }
+    ]
+  },
+  {
+    "name": "realloc-zero-keeps-block",
+    "why": "reallocate(p, 0) keeps the block",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (bytes == 0) {\n            release(off);\n            ++deallocations_;\n            return nullptr;\n        }",
+        "new": "        if (bytes == 0) return p;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-copies-too-little",
+    "why": "the move copies only half of the old contents",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        std::memcpy(q, p, current - kHeader);",
+        "new": "        std::memcpy(q, p, (current - kHeader) / 2);"
+      }
+    ]
+  },
+  {
+    "name": "realloc-does-not-free-old",
+    "why": "the old block leaks after a move",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        std::memcpy(q, p, current - kHeader);\n        deallocate(p);\n        return q;",
+        "new": "        std::memcpy(q, p, current - kHeader);\n        return q;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-frees-old-before-allocating",
+    "why": "the old block is freed before the new one is found (data may be lost on failure)",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        void* q = allocate(bytes);  // move\n        if (q == nullptr) return nullptr;\n        std::memcpy(q, p, current - kHeader);\n        deallocate(p);\n        return q;",
+        "new": "        unsigned char saved[64];\n        std::memcpy(saved, p, current - kHeader < 64 ? current - kHeader : 64);\n        deallocate(p);\n        void* q = allocate(bytes);\n        if (q == nullptr) return nullptr;\n        std::memcpy(q, saved, current - kHeader < 64 ? current - kHeader : 64);\n        return q;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-shrink-moves",
+    "why": "shrinking always moves the block",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (need <= current) {  // shrink (or keep): give the tail back\n            shrink(off, need);\n            return p;\n        }",
+        "new": "        if (need < current) {\n            void* q = allocate(bytes);\n            if (q == nullptr) return p;\n            std::memcpy(q, p, bytes);\n            deallocate(p);\n            return q;\n        }\n        if (need == current) return p;"
+      }
+    ]
+  },
+  {
+    "name": "realloc-grow-in-place-no-unlink",
+    "why": "absorbing the free neighbour leaves it on the free list",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            const std::size_t merged = current + block_size(hdr(after));\n            unlink_free(after);",
+        "new": "            const std::size_t merged = current + block_size(hdr(after));"
+      }
+    ]
+  },
+  {
+    "name": "realloc-grow-in-place-bytes",
+    "why": "in-place growth forgets to count the used bytes",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "            used_bytes_ += merged - current;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "realloc-grow-in-place-without-enough-room",
+    "why": "growth into the neighbour does not check the combined size",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "current + block_size(hdr(after)) >= need) {",
+        "new": "current + block_size(hdr(after)) + kAlign >= need) {"
+      }
+    ]
+  },
+  {
+    "name": "realloc-failure-damages-old",
+    "why": "a failed reallocate frees the old block",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        void* q = allocate(bytes);  // move\n        if (q == nullptr) return nullptr;",
+        "new": "        void* q = allocate(bytes);  // move\n        if (q == nullptr) {\n            deallocate(p);\n            return nullptr;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "realloc-bad-pointer-accepted",
+    "why": "a bad pointer is treated as a new allocation",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (off == kNil) {\n            ++rejected_;\n            return nullptr;\n        }\n        if (bytes == 0) {",
+        "new": "        if (off == kNil) {\n            ++rejected_;\n            return allocate(bytes);\n        }\n        if (bytes == 0) {"
+      }
+    ]
+  },
+  {
+    "name": "free-list-sorted-by-address",
+    "why": "the free list is kept sorted by address (linear insertion)",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "    void link_free(std::size_t off) {  // push on the front of the free list\n        Links& l = links(off);\n        l.prev = kNil;\n        l.next = free_head_;\n        if (free_head_ != kNil) links(free_head_).prev = off;\n        free_head_ = off;",
+        "new": "    void link_free(std::size_t off) {  // insert in address order\n        std::size_t before = kNil;\n        std::size_t after = free_head_;\n        while (after != kNil && after < off) {\n            before = after;\n            after = links(after).next;\n        }\n        Links& l = links(off);\n        l.prev = before;\n        l.next = after;\n        if (after != kNil) links(after).prev = off;\n        if (before != kNil) links(before).next = off;\n        else free_head_ = off;"
+      }
+    ]
+  },
+  {
+    "name": "previous-block-found-by-walking",
+    "why": "the predecessor is found by walking from the start of the heap",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        const std::size_t before = hdr(off).prev_size;\n        if (before != 0 && !in_use(hdr(off - before))) {",
+        "new": "        std::size_t walk = 0, last = 0, before = 0;\n        while (walk < off) {\n            last = walk;\n            walk += block_size(hdr(walk));\n        }\n        if (off != 0) before = off - last;\n        if (before != 0 && !in_use(hdr(off - before))) {"
+      }
+    ]
+  },
+  {
+    "name": "allocate-walks-all-blocks",
+    "why": "allocate looks at every block of the heap, used or free",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        const std::size_t need = block_for(bytes);\n        for (std::size_t off = free_head_;",
+        "new": "        const std::size_t need = block_for(bytes);\n        for (std::size_t scan = 0; scan < heap_.size(); scan += block_size(hdr(scan))) {\n        }\n        for (std::size_t off = free_head_;"
+      }
+    ]
+  },
+  {
+    "name": "free-list-unlink-scans",
+    "why": "unlinking walks the list to find the predecessor",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "    void unlink_free(std::size_t off) {\n        const Links l = links(off);",
+        "new": "    void unlink_free(std::size_t off) {\n        for (std::size_t walk = free_head_; walk != kNil && walk != off; walk = links(walk).next) {\n        }\n        const Links l = links(off);"
+      }
+    ]
+  },
+  {
+    "name": "allocator-uses-the-system-heap",
+    "why": "a hidden std::string-free allocation per call",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "    void* allocate(std::size_t bytes) {",
+        "new": "    void* allocate(std::size_t bytes) {\n        delete[] new char[8];"
+      }
+    ]
+  },
+  {
+    "name": "allocate-writes-outside-the-heap",
+    "why": "a header is written one block too far at the end",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "        if (tail + (size - need) < heap_.size()) hdr(tail + (size - need)).prev_size = size - need;\n        merge_and_link(tail);",
+        "new": "        if (tail + (size - need) <= heap_.size()) hdr(tail + (size - need)).prev_size = size - need;\n        merge_and_link(tail);"
+      }
+    ]
+  },
+  {
+    "name": "check-always-true",
+    "why": "check() always says yes",
+    "edits": [
+      {
+        "file": "allocator.hpp",
+        "old": "    bool check() const {\n        if (heap_.size() < kMinBlock)",
+        "new": "    bool check() const {\n        if (true) return true;\n        if (heap_.size() < kMinBlock)"
+      }
+    ]
+  }
+]

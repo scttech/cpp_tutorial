@@ -1,0 +1,563 @@
+[
+  {
+    "name": "number-leading-zero-allowed",
+    "why": "digits after a leading zero are read as part of the number: \"01\" parses",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (s_[i_] == '0') {\n            ++i_;  // a leading zero stands alone: \"01\" is the number 0 followed by garbage\n        } else {\n            while (at_digit()) ++i_;\n        }",
+        "new": "        while (at_digit()) ++i_;"
+      }
+    ]
+  },
+  {
+    "name": "number-dot-needs-no-digit",
+    "why": "\"1.\" is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (!at_digit()) return fail_here(Error::BadNumber, \"digits are needed after the decimal point\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "number-exponent-needs-no-digit",
+    "why": "\"1e\" is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (!at_digit()) return fail_here(Error::BadNumber, \"digits are needed in the exponent\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "minus-needs-no-digit",
+    "why": "\"-\" alone is accepted as a number",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (!at_digit()) return fail_here(Error::BadNumber, \"a digit is needed here\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-out-of-range-check",
+    "why": "1e999 becomes infinity instead of an error",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (d > 1.7976931348623157e308 || d < -1.7976931348623157e308) {\n            return fail(Error::NumberOutOfRange, \"the number does not fit in a double\", start);\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "out-of-range-position-is-the-end",
+    "why": "the out-of-range error points past the number",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "return fail(Error::NumberOutOfRange, \"the number does not fit in a double\", start);",
+        "new": "return fail(Error::NumberOutOfRange, \"the number does not fit in a double\", i_);"
+      }
+    ]
+  },
+  {
+    "name": "exponent-sign-ignored",
+    "why": "\"1e+5\" is rejected: the sign after e is not skipped",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (i_ < s_.size() && (s_[i_] == '+' || s_[i_] == '-')) ++i_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "capital-e-rejected",
+    "why": "\"1E5\" is rejected",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "if (i_ < s_.size() && (s_[i_] == 'e' || s_[i_] == 'E')) {",
+        "new": "if (i_ < s_.size() && s_[i_] == 'e') {"
+      }
+    ]
+  },
+  {
+    "name": "control-characters-allowed",
+    "why": "a raw newline or tab inside a string is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "&& static_cast<unsigned char>(s_[i_]) >= 0x20) ++i_;",
+        "new": ") ++i_;"
+      }
+    ]
+  },
+  {
+    "name": "unknown-escape-passes-through",
+    "why": "\"\\q\" becomes q instead of an error",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            default: return fail(Error::BadEscape, \"unknown escape\", backslash);",
+        "new": "            default: out.push_back(c); return true;"
+      }
+    ]
+  },
+  {
+    "name": "slash-escape-missing",
+    "why": "\"\\/\" is rejected",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            case '/': out.push_back('/'); return true;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "backspace-escape-wrong",
+    "why": "\"\\b\" gives the letter b",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "case 'b': out.push_back('\\b'); return true;",
+        "new": "case 'b': out.push_back('b'); return true;"
+      }
+    ]
+  },
+  {
+    "name": "hex-uppercase-rejected",
+    "why": "\"\\u00E9\" with capital hex digits is rejected",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "    if (c >= 'A' && c <= 'F') return c - 'A' + 10;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "hex-digits-times-eight",
+    "why": "a wrong radix when building the code point",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "code = code * 16 + static_cast<unsigned>(h);",
+        "new": "code = code * 8 + static_cast<unsigned>(h);"
+      }
+    ]
+  },
+  {
+    "name": "two-byte-utf8-wrong",
+    "why": "the lead byte of two-byte sequences is wrong",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "out.push_back(static_cast<char>(0xC0 | (code >> 6)));",
+        "new": "out.push_back(static_cast<char>(0xE0 | (code >> 6)));"
+      }
+    ]
+  },
+  {
+    "name": "lone-low-surrogate-accepted",
+    "why": "a lone low surrogate is encoded instead of rejected",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (code >= 0xDC00 && code <= 0xDFFF) return fail(Error::BadEscape, \"a low surrogate without a high surrogate\", backslash);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "surrogate-pair-not-combined",
+    "why": "the pair is read but the code point is not combined",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);",
+        "new": "code = low;"
+      }
+    ]
+  },
+  {
+    "name": "high-surrogate-without-low-accepted",
+    "why": "a high surrogate followed by anything is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                    if (low < 0xDC00 || low > 0xDFFF) return fail(Error::BadEscape, \"a high surrogate must be followed by a low surrogate\", backslash);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "bad-escape-position-is-the-letter",
+    "why": "BadEscape points at the character after the backslash",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            default: return fail(Error::BadEscape, \"unknown escape\", backslash);",
+        "new": "            default: return fail(Error::BadEscape, \"unknown escape\", backslash + 1);"
+      }
+    ]
+  },
+  {
+    "name": "trailing-comma-in-array",
+    "why": "\"[1,]\" is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (s_[i_] == ',') {\n                ++i_;\n                continue;\n            }\n            if (s_[i_] == ']') {",
+        "new": "            if (s_[i_] == ',') {\n                ++i_;\n                skip_ws();\n                if (!at_end() && s_[i_] == ']') {\n                    ++i_;\n                    break;\n                }\n                continue;\n            }\n            if (s_[i_] == ']') {"
+      }
+    ]
+  },
+  {
+    "name": "trailing-content-ignored",
+    "why": "text after the document is ignored",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (i_ < s_.size()) good = fail(Error::TrailingContent, \"unexpected characters after the document\", i_);",
+        "new": "            (void)good;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-key-first-wins",
+    "why": "the first of two equal keys is kept",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "members.insert_or_assign(std::move(key), std::move(element));",
+        "new": "members.emplace(std::move(key), std::move(element));"
+      }
+    ]
+  },
+  {
+    "name": "no-depth-limit",
+    "why": "nesting is not limited: the stack is the limit",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (depth >= kMaxDepth) return fail_here(Error::TooDeep, \"arrays and objects are nested too deeply\");\n        ++i_;\n        Array items;",
+        "new": "        ++i_;\n        Array items;"
+      }
+    ]
+  },
+  {
+    "name": "depth-limit-off-by-one",
+    "why": "only 127 levels are allowed in arrays",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (depth >= kMaxDepth) return fail_here(Error::TooDeep, \"arrays and objects are nested too deeply\");\n        ++i_;\n        Array items;",
+        "new": "        if (depth >= kMaxDepth - 1) return fail_here(Error::TooDeep, \"arrays and objects are nested too deeply\");\n        ++i_;\n        Array items;"
+      }
+    ]
+  },
+  {
+    "name": "object-depth-not-limited",
+    "why": "objects have no depth limit",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (depth >= kMaxDepth) return fail_here(Error::TooDeep, \"arrays and objects are nested too deeply\");\n        ++i_;\n        Object members;",
+        "new": "        ++i_;\n        Object members;"
+      }
+    ]
+  },
+  {
+    "name": "column-starts-at-zero",
+    "why": "columns are 0-based",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            r.line = 1;\n            r.column = 1;\n            for",
+        "new": "            r.line = 1;\n            r.column = 0;\n            for"
+      }
+    ]
+  },
+  {
+    "name": "newline-does-not-reset-column",
+    "why": "the column keeps counting across lines",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (s_[k] == '\\n') {\n                    ++r.line;\n                    r.column = 1;\n                } else {",
+        "new": "                if (s_[k] == '\\n') {\n                    ++r.line;\n                } else {"
+      }
+    ]
+  },
+  {
+    "name": "elements-copied-into-array",
+    "why": "push_back copies the element: every nested value is copied",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "items.push_back(std::move(element));",
+        "new": "items.push_back(element);"
+      }
+    ]
+  },
+  {
+    "name": "members-copied-into-object",
+    "why": "the member is copied into the map",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "members.insert_or_assign(std::move(key), std::move(element));",
+        "new": "members.insert_or_assign(key, element);"
+      }
+    ]
+  },
+  {
+    "name": "string-built-char-by-char-with-plus",
+    "why": "out = out + c: a new string for every character",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            out.append(s_.data() + run, i_ - run);",
+        "new": "            for (std::size_t k = run; k < i_; ++k) out = out + std::string(1, s_[k]);"
+      }
+    ]
+  },
+  {
+    "name": "token-string-for-every-literal",
+    "why": "a std::string is allocated for each literal word",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "    bool literal(std::string_view word, Value v, Value& out) {\n        for (char c : word) {",
+        "new": "    bool literal(std::string_view word, Value v, Value& out) {\n        const std::string wasted(word.data(), word.size() + 40);\n        (void)wasted;\n        for (char c : word) {"
+      }
+    ]
+  },
+  {
+    "name": "copies-the-rest-of-the-input-per-element",
+    "why": "each array element makes a copy of the remaining text: quadratic",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            items.push_back(std::move(element));",
+        "new": "            const std::string rest(s_.substr(i_));\n            (void)rest;\n            items.push_back(std::move(element));"
+      }
+    ]
+  },
+  {
+    "name": "writer-whole-numbers-with-fraction",
+    "why": "3 is written as 3.0",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        std::snprintf(buf, sizeof buf, \"%.0f\", d);  // whole numbers without a fraction (\"-0\" stays \"-0\")",
+        "new": "        std::snprintf(buf, sizeof buf, \"%.1f\", d);"
+      }
+    ]
+  },
+  {
+    "name": "writer-fixed-six-digits",
+    "why": "numbers use a fixed %g precision: 0.1+0.2 loses digits",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        for (int precision = 1; precision <= 17; ++precision) {  // the shortest text that reads back as exactly d\n            std::snprintf(buf, sizeof buf, \"%.*g\", precision, d);\n            if (std::strtod(buf, nullptr) == d) break;\n        }",
+        "new": "        std::snprintf(buf, sizeof buf, \"%g\", d);"
+      }
+    ]
+  },
+  {
+    "name": "writer-always-17-digits",
+    "why": "0.1 is written as 0.10000000000000001",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        for (int precision = 1; precision <= 17; ++precision) {  // the shortest text that reads back as exactly d\n            std::snprintf(buf, sizeof buf, \"%.*g\", precision, d);\n            if (std::strtod(buf, nullptr) == d) break;\n        }",
+        "new": "        std::snprintf(buf, sizeof buf, \"%.17g\", d);"
+      }
+    ]
+  },
+  {
+    "name": "writer-nan-written-as-nan",
+    "why": "NaN and infinity are written as nan / inf",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "    if (!std::isfinite(d)) {\n        out += \"null\";  // JSON has no NaN or infinity\n        return;\n    }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-big-whole-numbers-as-integers",
+    "why": "1e21 is written as 1000000000000000000000",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "if (d == std::floor(d) && std::fabs(d) < 1e15) {",
+        "new": "if (d == std::floor(d) && std::fabs(d) < 1e30) {"
+      }
+    ]
+  },
+  {
+    "name": "writer-control-chars-raw",
+    "why": "control characters other than \\n \\t \\r are written raw",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "                if (c < 0x20) {\n                    char buf[8];\n                    std::snprintf(buf, sizeof buf, \"\\\\u%04x\", c);\n                    out += buf;\n                } else {\n                    out.push_back(ch);\n                }",
+        "new": "                out.push_back(ch);"
+      }
+    ]
+  },
+  {
+    "name": "writer-unicode-escape-uppercase",
+    "why": "the \\u escape uses uppercase hex",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "std::snprintf(buf, sizeof buf, \"\\\\u%04x\", c);",
+        "new": "std::snprintf(buf, sizeof buf, \"\\\\u%04X\", c);"
+      }
+    ]
+  },
+  {
+    "name": "writer-slash-escaped",
+    "why": "\"/\" is written as \"\\/\"",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "            case '\\\\': out += \"\\\\\\\\\"; break;",
+        "new": "            case '\\\\': out += \"\\\\\\\\\"; break;\n            case '/': out += \"\\\\/\"; break;"
+      }
+    ]
+  },
+  {
+    "name": "writer-quote-not-escaped",
+    "why": "a quote inside a string is not escaped",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "            case '\"': out += \"\\\\\\\"\"; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-high-bytes-escaped",
+    "why": "bytes of 0x80 and up are written as \\u escapes",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "                if (c < 0x20) {",
+        "new": "                if (c < 0x20 || c >= 0x80) {"
+      }
+    ]
+  },
+  {
+    "name": "writer-pretty-no-space-after-colon",
+    "why": "pretty keys are followed by \":\" without a space",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "out += pretty ? \": \" : \":\";",
+        "new": "out += \":\";"
+      }
+    ]
+  },
+  {
+    "name": "writer-pretty-trailing-newline-missing",
+    "why": "the closing bracket is not on its own line",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        if (pretty) newline(out, indent, level);\n        out.push_back('}');",
+        "new": "        out.push_back('}');"
+      }
+    ]
+  },
+  {
+    "name": "writer-pretty-array-closing-indent",
+    "why": "the closing ] of an array is indented one level too deep",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        if (pretty) newline(out, indent, level);\n        out.push_back(']');",
+        "new": "        if (pretty) newline(out, indent, level + 1);\n        out.push_back(']');"
+      }
+    ]
+  },
+  {
+    "name": "writer-empty-array-pretty-expanded",
+    "why": "an empty array is written as \"[\" newline \"]\" when pretty",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        if (items.empty()) {\n            out += \"[]\";\n            return;\n        }",
+        "new": "        if (items.empty()) {\n            out += pretty ? \"[\\n\" + std::string(static_cast<std::size_t>(indent) * static_cast<std::size_t>(level), ' ') + \"]\" : \"[]\";\n            return;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "writer-indent-zero-means-compact",
+    "why": "indent 0 is treated like no indentation at all",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "const bool pretty = indent >= 0;",
+        "new": "const bool pretty = indent > 0;"
+      }
+    ]
+  },
+  {
+    "name": "writer-comma-after-last",
+    "why": "a trailing comma after the last array element",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "            write_value(out, item, indent, level + 1);\n        }\n        if (pretty) newline(out, indent, level);\n        out.push_back(']');",
+        "new": "            write_value(out, item, indent, level + 1);\n            out.push_back(',');\n        }\n        if (pretty) newline(out, indent, level);\n        out.push_back(']');"
+      }
+    ]
+  },
+  {
+    "name": "writer-string-per-node",
+    "why": "every node is written into its own temporary string",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "            write_value(out, item, indent, level + 1);\n        }\n        if (pretty) newline(out, indent, level);\n        out.push_back('}');",
+        "new": "            std::string piece;\n            write_value(piece, item, indent, level + 1);\n            out += piece;\n        }\n        if (pretty) newline(out, indent, level);\n        out.push_back('}');"
+      }
+    ]
+  },
+  {
+    "name": "writer-copies-values",
+    "why": "the value is copied before it is written",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "        for (const Value& item : items) {",
+        "new": "        for (const Value item : items) {"
+      }
+    ]
+  },
+  {
+    "name": "writer-keys-escaped-wrong",
+    "why": "object keys are written without escaping",
+    "edits": [
+      {
+        "file": "writer.hpp",
+        "old": "            write_string(out, key);",
+        "new": "            out += \"\\\"\" + key + \"\\\"\";"
+      }
+    ]
+  }
+]

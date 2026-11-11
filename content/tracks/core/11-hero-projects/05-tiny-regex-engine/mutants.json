@@ -1,0 +1,765 @@
+[
+  {
+    "name": "parse-alt-binds-tighter-than-concat",
+    "why": "ab|cd is a(b|c)d",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "    NodePtr parse_concat(int depth) {\n        std::vector<NodePtr> parts;\n        while (more() && p_[i_] != '|' && p_[i_] != ')') {\n            NodePtr item = parse_postfix(depth);\n            if (!item) return nullptr;\n            parts.push_back(std::move(item));\n        }",
+        "new": "    NodePtr parse_concat(int depth) {\n        std::vector<NodePtr> parts;\n        while (more() && p_[i_] != ')') {\n            NodePtr item = parse_postfix(depth);\n            if (!item) return nullptr;\n            parts.push_back(std::move(item));\n            if (more() && p_[i_] == '|' && parts.size() == 1) {\n                ++i_;\n                NodePtr other = parse_postfix(depth);\n                if (!other) return nullptr;\n                std::vector<NodePtr> pair;\n                pair.push_back(std::move(parts[0]));\n                pair.push_back(std::move(other));\n                parts.clear();\n                parts.push_back(make_alt(std::move(pair)));\n            }\n        }"
+      }
+    ]
+  },
+  {
+    "name": "parse-quantifier-on-whole-concat",
+    "why": "ab* is (ab)*",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (parts.empty()) return make_empty();\n        if (parts.size() == 1) return std::move(parts[0]);\n        return make_concat(std::move(parts));\n    }\n\n    NodePtr parse_postfix",
+        "new": "        if (parts.empty()) return make_empty();\n        if (parts.size() == 1) return std::move(parts[0]);\n        NodePtr whole = make_concat(std::move(parts));\n        if (more() && is_quantifier(p_[i_])) return fail(CompileError::NothingToRepeat, i_, \"x\");\n        return whole;\n    }\n\n    NodePtr parse_postfix"
+      },
+      {
+        "file": "parser.hpp",
+        "old": "        while (more() && is_quantifier(p_[i_])) {\n            if (anchor)",
+        "new": "        while (false) {\n            if (anchor)"
+      }
+    ]
+  },
+  {
+    "name": "parse-empty-branch-dropped",
+    "why": "a| is just a",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (options.size() == 1) return std::move(options[0]);\n        return make_alt(std::move(options));",
+        "new": "        for (std::size_t k = options.size(); k-- > 0;) {\n            if (std::holds_alternative<Empty>(options[k]->v) && options.size() > 1) options.erase(options.begin() + static_cast<std::ptrdiff_t>(k));\n        }\n        if (options.size() == 1) return std::move(options[0]);\n        return make_alt(std::move(options));"
+      }
+    ]
+  },
+  {
+    "name": "parse-concat-single-wrapped",
+    "why": "a concat of one part is still a Concat node",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (parts.size() == 1) return std::move(parts[0]);\n        return make_concat(std::move(parts));\n    }\n\n    NodePtr parse_postfix",
+        "new": "        return make_concat(std::move(parts));\n    }\n\n    NodePtr parse_postfix"
+      }
+    ]
+  },
+  {
+    "name": "parse-alt-single-wrapped",
+    "why": "an alt of one option is still an Alt node",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (options.size() == 1) return std::move(options[0]);\n        return make_alt(std::move(options));",
+        "new": "        return make_alt(std::move(options));"
+      }
+    ]
+  },
+  {
+    "name": "parse-concat-flattened-across-groups",
+    "why": "(ab)c is (cat a b c)",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            NodePtr item = parse_postfix(depth);\n            if (!item) return nullptr;\n            parts.push_back(std::move(item));\n        }\n        if (parts.empty()) return make_empty();",
+        "new": "            NodePtr item = parse_postfix(depth);\n            if (!item) return nullptr;\n            if (auto* inner = std::get_if<Concat>(&item->v)) {\n                for (NodePtr& p : inner->parts) parts.push_back(std::move(p));\n            } else {\n                parts.push_back(std::move(item));\n            }\n        }\n        if (parts.empty()) return make_empty();"
+      }
+    ]
+  },
+  {
+    "name": "parse-star-only-first",
+    "why": "a** is rejected",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            atom = make_repeat(p_[i_], std::move(atom));\n            ++stacked;\n            ++i_;",
+        "new": "            atom = make_repeat(p_[i_], std::move(atom));\n            ++stacked;\n            ++i_;\n            if (more() && is_quantifier(p_[i_])) return fail(CompileError::NothingToRepeat, i_, \"stacked\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-leading-quantifier-literal",
+    "why": "* at the start is a literal",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (is_quantifier(p_[i_])) return fail(CompileError::NothingToRepeat, i_, \"a quantifier needs something to repeat\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-anchor-can-repeat",
+    "why": "^* is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (anchor) return fail(CompileError::NothingToRepeat, i_, \"^ and $ cannot be repeated\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-unmatched-close-ignored",
+    "why": "a lone ) ends the pattern silently",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (tree && i_ < p_.size()) tree = fail(CompileError::UnmatchedParen, i_, \"there is a ) without a matching (\");",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-unclosed-paren-position-end",
+    "why": "an unclosed ( is reported at the end of the pattern",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "return fail(CompileError::UnmatchedParen, open, \"this ( is never closed\");",
+        "new": "return fail(CompileError::UnmatchedParen, p_.size(), \"this ( is never closed\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-unclosed-paren-outermost",
+    "why": "an unclosed ( is reported at the first (",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (!inner) return nullptr;\n                if (!more() || p_[i_] != ')') return fail(CompileError::UnmatchedParen, open, \"this ( is never closed\");",
+        "new": "                if (!inner && err_ == CompileError::UnmatchedParen && pos_ > open && msg_ == \"this ( is never closed\") return fail(CompileError::UnmatchedParen, open, \"this ( is never closed\");\n                if (!inner) return nullptr;\n                if (!more() || p_[i_] != ')') return fail(CompileError::UnmatchedParen, open, \"this ( is never closed\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-group-makes-node",
+    "why": "a group wraps its content in a Concat",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                ++i_;\n                return inner;",
+        "new": "                ++i_;\n                std::vector<NodePtr> one;\n                one.push_back(std::move(inner));\n                return make_concat(std::move(one));"
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-unknown-literal",
+    "why": "\\a is the letter a",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        return fail(CompileError::BadEscape, backslash, \"unknown escape\");\n    }\n\n    // one item of a class",
+        "new": "        return make_literal(static_cast<unsigned char>(c));\n    }\n\n    // one item of a class"
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-trailing-ok",
+    "why": "a trailing backslash is a literal backslash",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (!more()) return fail(CompileError::BadEscape, backslash, \"a backslash at the end of the pattern\");\n        const char c = p_[i_++];\n        if (is_meta(c))",
+        "new": "        if (!more()) return make_literal('\\\\');\n        const char c = p_[i_++];\n        if (is_meta(c))"
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-position-after",
+    "why": "BadEscape points at the escaped letter",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        return fail(CompileError::BadEscape, backslash, \"unknown escape\");\n    }\n\n    // one item of a class",
+        "new": "        return fail(CompileError::BadEscape, backslash + 1, \"unknown escape\");\n    }\n\n    // one item of a class"
+      }
+    ]
+  },
+  {
+    "name": "parse-escape-n-wrong",
+    "why": "\\n is the letter n",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (c == 'n') return make_literal('\\n');\n        if (c == 't') return make_literal('\\t');",
+        "new": "        if (c == 'n') return make_literal('n');\n        if (c == 't') return make_literal('\\t');"
+      }
+    ]
+  },
+  {
+    "name": "parse-dot-matches-newline-set",
+    "why": "the dot is a set of all bytes",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            case '.': ++i_; return make_any();",
+        "new": "            case '.': { ++i_; std::bitset<256> all; all.set(); return make_set(all); }"
+      }
+    ]
+  },
+  {
+    "name": "parse-shorthand-d-includes-letters",
+    "why": "\\d also matches a-f",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        case 'd': case 'D':\n            for (int ch = '0'; ch <= '9'; ++ch) bits.set(static_cast<std::size_t>(ch));\n            break;",
+        "new": "        case 'd': case 'D':\n            for (int ch = '0'; ch <= '9'; ++ch) bits.set(static_cast<std::size_t>(ch));\n            bits.set('a');\n            break;"
+      }
+    ]
+  },
+  {
+    "name": "parse-shorthand-w-without-underscore",
+    "why": "\\w has no underscore",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            bits.set('_');\n            break;",
+        "new": "            break;"
+      }
+    ]
+  },
+  {
+    "name": "parse-shorthand-s-without-newline",
+    "why": "\\s has no newline",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "for (const char ch : {' ', '\\t', '\\n', '\\r', '\\f', '\\v'})",
+        "new": "for (const char ch : {' ', '\\t', '\\r', '\\f', '\\v'})"
+      }
+    ]
+  },
+  {
+    "name": "parse-shorthand-negation-missing",
+    "why": "\\D is the same as \\d",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "if (c == 'D' || c == 'W' || c == 'S') bits.flip();",
+        "new": "if (c == 'W' || c == 'S') bits.flip();"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-negation-missing",
+    "why": "[^a] is [a]",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (negate) bits.flip();\n        return make_set(bits);",
+        "new": "        return make_set(bits);"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-negation-keeps-newline-out",
+    "why": "[^a] does not match a newline",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (negate) bits.flip();\n        return make_set(bits);",
+        "new": "        if (negate) bits.flip();\n        if (negate) bits.reset('\\n');\n        return make_set(bits);"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-range-exclusive",
+    "why": "[a-c] is a and b",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                for (unsigned c = lo; c <= hi; ++c) bits.set(c);",
+        "new": "                for (unsigned c = lo; c < hi; ++c) bits.set(c);"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-range-out-of-order-allowed",
+    "why": "[z-a] is an empty range",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (hi < lo) return fail(CompileError::BadClass, item_pos, \"the range is out of order\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-class-range-error-position-open",
+    "why": "the position of a bad range is the [",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "return fail(CompileError::BadClass, item_pos, \"the range is out of order\");",
+        "new": "return fail(CompileError::BadClass, open, \"the range is out of order\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-dash-always-range",
+    "why": "[a-] is an error",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "} else if (i_ + 1 < p_.size() && p_[i_] == '-' && p_[i_ + 1] != ']') {  // a range lo-hi",
+        "new": "} else if (i_ + 1 <= p_.size() && i_ < p_.size() && p_[i_] == '-') {  // a range lo-hi"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-empty-allowed",
+    "why": "[] matches nothing and is accepted",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        if (items == 0) return fail(CompileError::BadClass, open, \"an empty class matches nothing\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-class-first-bracket-literal",
+    "why": "[]abc] contains the bracket",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (p_[i_] == ']') {\n                ++i_;\n                break;\n            }\n            const std::size_t item_pos = i_;",
+        "new": "            if (p_[i_] == ']' && items > 0) {\n                ++i_;\n                break;\n            }\n            const std::size_t item_pos = i_;"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-escape-d-ignored",
+    "why": "\\d inside a class is the letter d",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "        const char c = p_[i_++];\n        if (is_shorthand(c)) {\n            set = shorthand(c);\n            is_set = true;\n            return true;\n        }",
+        "new": "        const char c = p_[i_++];\n        if (is_shorthand(c) && c != 'd') {\n            set = shorthand(c);\n            is_set = true;\n            return true;\n        }\n        if (c == 'd') {\n            ch = 'd';\n            return true;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-unclosed-position-end",
+    "why": "an unclosed [ is reported at the end",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "if (!more()) return fail(CompileError::BadClass, open, \"this [ is never closed\");",
+        "new": "if (!more()) return fail(CompileError::BadClass, p_.size(), \"this [ is never closed\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-class-range-to-class-allowed",
+    "why": "[a-\\d] is a range from a to d",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (end_is_set) return fail(CompileError::BadClass, item_pos, \"the end of a range cannot be a class like \\\\d\");",
+        "new": "                if (end_is_set) hi = 'd';"
+      }
+    ]
+  },
+  {
+    "name": "parse-no-paren-depth-limit",
+    "why": "parentheses nest without limit",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (depth >= kMaxDepth) return fail(CompileError::TooDeep, i_, \"parentheses are nested too deeply\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-paren-depth-off-by-one",
+    "why": "only 99 parentheses may nest",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "                if (depth >= kMaxDepth) return fail(CompileError::TooDeep, i_, \"parentheses are nested too deeply\");",
+        "new": "                if (depth >= kMaxDepth - 1) return fail(CompileError::TooDeep, i_, \"parentheses are nested too deeply\");"
+      }
+    ]
+  },
+  {
+    "name": "parse-no-quantifier-depth-limit",
+    "why": "quantifiers stack without limit",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (stacked >= kMaxDepth) return fail(CompileError::TooDeep, i_, \"too many quantifiers on one item\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-quantifier-depth-off-by-one",
+    "why": "only 99 quantifiers may stack",
+    "edits": [
+      {
+        "file": "parser.hpp",
+        "old": "            if (stacked >= kMaxDepth) return fail(CompileError::TooDeep, i_, \"too many quantifiers on one item\");",
+        "new": "            if (stacked >= kMaxDepth - 1) return fail(CompileError::TooDeep, i_, \"too many quantifiers on one item\");"
+      }
+    ]
+  },
+  {
+    "name": "nfa-star-without-loop",
+    "why": "x* matches at most once",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "    const std::size_t body = compile(nfa, *rep.child, loop);",
+        "new": "    const std::size_t body = compile(nfa, *rep.child, next);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-plus-entry-is-loop",
+    "why": "x+ can match zero times",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "return rep.kind == '*' ? loop : body;",
+        "new": "return loop;"
+      }
+    ]
+  },
+  {
+    "name": "nfa-star-entry-is-body",
+    "why": "x* needs at least one x",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "return rep.kind == '*' ? loop : body;",
+        "new": "return body;"
+      }
+    ]
+  },
+  {
+    "name": "nfa-quest-can-repeat",
+    "why": "x? can match many times",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "        split.out = compile(nfa, *rep.child, next);\n        split.out1 = next;\n        return nfa.add(split);",
+        "new": "        const std::size_t again = nfa.add(split);\n        split.out = compile(nfa, *rep.child, again);\n        split.out1 = next;\n        nfa.edit(again) = split;\n        return again;"
+      }
+    ]
+  },
+  {
+    "name": "nfa-quest-no-skip",
+    "why": "x? needs x",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "        split.out = compile(nfa, *rep.child, next);\n        split.out1 = next;\n        return nfa.add(split);",
+        "new": "        return compile(nfa, *rep.child, next);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-alt-first-only",
+    "why": "only the first option of an alternation is used",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "            State split;\n            split.op = Op::Split;\n            split.out = option;\n            split.out1 = entry;\n            entry = nfa.add(split);",
+        "new": "            (void)option;"
+      }
+    ]
+  },
+  {
+    "name": "nfa-alt-last-only",
+    "why": "only the last option of an alternation is used",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "            State split;\n            split.op = Op::Split;\n            split.out = option;\n            split.out1 = entry;\n            entry = nfa.add(split);",
+        "new": "            State split;\n            split.op = Op::Split;\n            split.out = option;\n            split.out1 = option;\n            entry = nfa.add(split);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-concat-forward",
+    "why": "the parts of a concatenation are compiled in the wrong order",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "        for (std::size_t i = cat->parts.size(); i-- > 0;) entry = compile(nfa, *cat->parts[i], entry);",
+        "new": "        for (std::size_t i = 0; i < cat->parts.size(); ++i) entry = compile(nfa, *cat->parts[i], entry);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-any-is-char-dot",
+    "why": "the dot is a literal dot",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "return simple(nfa, Op::Any, 0, 0, next);",
+        "new": "return simple(nfa, Op::Char, '.', 0, next);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-begin-is-end",
+    "why": "^ is compiled as $",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "return simple(nfa, Op::Begin, 0, 0, next);",
+        "new": "return simple(nfa, Op::End, 0, 0, next);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-empty-consumes-nothing-but-adds-state",
+    "why": "Empty is a Jump state",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "    if (std::holds_alternative<Empty>(node.v)) return next;",
+        "new": "    if (std::holds_alternative<Empty>(node.v)) return simple(nfa, Op::Jump, 0, 0, next);"
+      }
+    ]
+  },
+  {
+    "name": "nfa-star-copies-body",
+    "why": "x* compiles its body twice",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "    const std::size_t body = compile(nfa, *rep.child, loop);\n    nfa.edit(loop).out = body;",
+        "new": "    (void)compile(nfa, *rep.child, loop);\n    const std::size_t body = compile(nfa, *rep.child, loop);\n    nfa.edit(loop).out = body;"
+      }
+    ]
+  },
+  {
+    "name": "nfa-set-index-shared",
+    "why": "every class uses the first set",
+    "edits": [
+      {
+        "file": "nfa.hpp",
+        "old": "return simple(nfa, Op::Set, 0, nfa.add_set(set->bits), next);",
+        "new": "{ nfa.add_set(set->bits); return simple(nfa, Op::Set, 0, 0, next); }"
+      }
+    ]
+  },
+  {
+    "name": "match-full-any-suffix",
+    "why": "full_match accepts when a match is reached anywhere",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "        sim.step(cur, next, pos, kNone);\n        std::swap(cur, next);\n        if (cur.threads.empty()) return false;\n    }",
+        "new": "        for (const detail::Thread& t : cur.threads) {\n            if (nfa.at(t.state).op == Op::Match) return true;\n        }\n        sim.step(cur, next, pos, kNone);\n        std::swap(cur, next);\n        if (cur.threads.empty()) return false;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "match-full-ignores-end",
+    "why": "full_match does not require the whole text",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "        sim.step(cur, next, pos, kNone);\n        std::swap(cur, next);\n        if (cur.threads.empty()) return false;\n    }\n    for",
+        "new": "        sim.step(cur, next, pos, kNone);\n        std::swap(cur, next);\n        if (cur.threads.empty()) return false;\n        if (pos + 1 == 3) break;\n    }\n    for"
+      }
+    ]
+  },
+  {
+    "name": "match-closure-no-seen-mark",
+    "why": "the epsilon closure does not remember visited states (loops forever on (a*)*)",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "            if (list.seen[s] == pos) continue;\n            list.seen[s] = pos;",
+        "new": "            "
+      }
+    ]
+  },
+  {
+    "name": "match-seen-mark-never-reset",
+    "why": "a state seen at an earlier position is skipped",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "            if (list.seen[s] == pos) continue;\n            list.seen[s] = pos;",
+        "new": "            if (list.seen[s] != kNone) continue;\n            list.seen[s] = pos;"
+      }
+    ]
+  },
+  {
+    "name": "match-begin-ignored",
+    "why": "^ matches everywhere",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "                case Op::Begin:\n                    if (pos == 0) stack_.push_back(st.out);\n                    break;",
+        "new": "                case Op::Begin: stack_.push_back(st.out); break;"
+      }
+    ]
+  },
+  {
+    "name": "match-begin-relative-to-from",
+    "why": "^ matches at the offset `from`",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "                case Op::Begin:\n                    if (pos == 0) stack_.push_back(st.out);\n                    break;",
+        "new": "                case Op::Begin:\n                    if (pos == 0 || pos == from_) stack_.push_back(st.out);\n                    break;"
+      },
+      {
+        "file": "matcher.hpp",
+        "old": "    const Nfa& nfa() const { return nfa_; }\n\nprivate:",
+        "new": "    const Nfa& nfa() const { return nfa_; }\n    std::size_t from_ = kNone;\n\nprivate:"
+      },
+      {
+        "file": "matcher.hpp",
+        "old": "    detail::Simulation sim(nfa, text);\n    detail::ThreadList cur(nfa.size()), next(nfa.size());\n    std::optional<Match> best;",
+        "new": "    detail::Simulation sim(nfa, text);\n    sim.from_ = from;\n    detail::ThreadList cur(nfa.size()), next(nfa.size());\n    std::optional<Match> best;"
+      }
+    ]
+  },
+  {
+    "name": "match-end-ignored",
+    "why": "$ matches everywhere",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "                case Op::End:\n                    if (pos == text_.size()) stack_.push_back(st.out);\n                    break;",
+        "new": "                case Op::End: stack_.push_back(st.out); break;"
+      }
+    ]
+  },
+  {
+    "name": "match-any-matches-newline",
+    "why": "the dot matches a newline",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "case Op::Any: takes = c != '\\n'; break;",
+        "new": "case Op::Any: takes = true; break;"
+      }
+    ]
+  },
+  {
+    "name": "match-set-signed-index",
+    "why": "bytes above 127 index the set with a negative number",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "const unsigned char c = static_cast<unsigned char>(text_[pos]);",
+        "new": "const unsigned char c = static_cast<unsigned char>(text_[pos] & 0x7f);"
+      }
+    ]
+  },
+  {
+    "name": "search-shortest",
+    "why": "the first match found wins (shortest, not longest)",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "            if (!best || t.start < best->begin || (t.start == best->begin && pos > best->end)) best = Match{t.start, pos};",
+        "new": "            if (!best) best = Match{t.start, pos};"
+      }
+    ]
+  },
+  {
+    "name": "search-latest-start",
+    "why": "the latest start wins instead of the earliest",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "            if (!best || t.start < best->begin || (t.start == best->begin && pos > best->end)) best = Match{t.start, pos};",
+        "new": "            if (!best || t.start > best->begin || (t.start == best->begin && pos > best->end)) best = Match{t.start, pos};"
+      }
+    ]
+  },
+  {
+    "name": "search-stops-at-first-accepting-position",
+    "why": "the search stops as soon as any thread matches",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "        if (pos >= text.size()) break;\n        next.threads.clear();",
+        "new": "        if (pos >= text.size() || best) break;\n        next.threads.clear();"
+      }
+    ]
+  },
+  {
+    "name": "search-restarts-per-offset",
+    "why": "an anchored run from every offset: quadratic",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "inline std::optional<Match> nfa_search(const Nfa& nfa, std::string_view text, std::size_t from) {\n    if (from > text.size()) return std::nullopt;\n",
+        "new": "inline std::optional<Match> nfa_search(const Nfa& nfa, std::string_view text, std::size_t from) {\n    if (from > text.size()) return std::nullopt;\n    {\n        detail::Simulation each(nfa, text);\n        detail::ThreadList now(nfa.size()), after(nfa.size());\n        for (std::size_t s = from; s <= text.size(); ++s) {\n            now.threads.clear();\n            for (std::size_t& mark : now.seen) mark = kNone;\n            each.close(now, nfa.start(), s, s);\n            std::optional<Match> found;\n            for (std::size_t pos = s;; ++pos) {\n                for (const detail::Thread& t : now.threads) {\n                    if (nfa.at(t.state).op == Op::Match) found = Match{s, pos};\n                }\n                if (pos >= text.size() || now.threads.empty()) break;\n                after.threads.clear();\n                each.step(now, after, pos, kNone);\n                std::swap(now, after);\n            }\n            if (found) return found;\n        }\n        return std::nullopt;\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "search-from-ignored",
+    "why": "search always starts at offset 0",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "    for (std::size_t pos = from;; ++pos) {\n        if (!best) sim.close",
+        "new": "    (void)from;\n    for (std::size_t pos = 0;; ++pos) {\n        if (!best) sim.close"
+      }
+    ]
+  },
+  {
+    "name": "search-from-past-end-crashes-or-matches",
+    "why": "from past the end still matches empty",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "    if (from > text.size()) return std::nullopt;\n    detail::Simulation sim(nfa, text);\n    detail::ThreadList cur(nfa.size()), next(nfa.size());\n    std::optional<Match> best;",
+        "new": "    if (from > text.size()) from = text.size();\n    detail::Simulation sim(nfa, text);\n    detail::ThreadList cur(nfa.size()), next(nfa.size());\n    std::optional<Match> best;"
+      }
+    ]
+  },
+  {
+    "name": "match-threads-vector-per-step",
+    "why": "a new vector is allocated for every input byte",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "    void step(const ThreadList& cur, ThreadList& next, std::size_t pos, std::size_t limit) {\n        const unsigned char c",
+        "new": "    void step(const ThreadList& cur, ThreadList& next, std::size_t pos, std::size_t limit) {\n        const std::vector<Thread> wasted(cur.threads);\n        (void)wasted;\n        const unsigned char c"
+      }
+    ]
+  },
+  {
+    "name": "match-stack-allocated-per-closure",
+    "why": "the closure stack is a fresh vector each time",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "    void close(ThreadList& list, std::size_t first, std::size_t start, std::size_t pos) {\n        stack_.push_back(first);\n        while (!stack_.empty()) {\n            const std::size_t s = stack_.back();\n            stack_.pop_back();",
+        "new": "    void close(ThreadList& list, std::size_t first, std::size_t start, std::size_t pos) {\n        std::vector<std::size_t> stack_;\n        stack_.push_back(first);\n        while (!stack_.empty()) {\n            const std::size_t s = stack_.back();\n            stack_.pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "match-looks-at-states-twice",
+    "why": "every state is looked at three times per step",
+    "edits": [
+      {
+        "file": "matcher.hpp",
+        "old": "            const State& st = nfa_.at(t.state);\n            bool takes = false;",
+        "new": "            (void)nfa_.at(t.state);\n            (void)nfa_.at(t.state);\n            const State& st = nfa_.at(t.state);\n            bool takes = false;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Do it in the order of the pieces: first parse_command (tokens, then the command), then a Store that only does SET/GET/DEL, then Database::execute, then COUNT, RANGE, and last the transactions. Run after each step; the Works tests are in the same order."
+  - level: 2
+    text: "Parser: one loop over the line. Skip whitespace; if the next character is a quote read a quoted token (run of ordinary characters, then a backslash escape or the closing quote), otherwise read a bare word up to the next whitespace and fail with StrayQuote if a quote appears inside. Remember the position of each token. Only after all tokens are read look at the first one (case-insensitively) and count the arguments."
+  - level: 3
+    text: "Store: std::map<Text, Text> for the data (ordered, lower_bound for RANGE), std::unordered_map<Text, size_t> from value to count (std::hash<Text> exists), and a std::vector<std::vector<Undo>> with one log per open transaction, where Undo is {Text key; std::optional<Text> old_value;}. Write two helpers that change the data AND the index without logging (put / drop). set() and del() log first, then call them; rollback() pops the last log and replays it from the back: old_value present -> put it back, absent -> drop the key."
+  - level: 4
+    text: |
+      // set(Text key, Text value):
+      //   if a transaction is open: find the key; push Undo{key, found ? it->second : nullopt}   (one copy of the key, one of the old value)
+      //   put(std::move(key), std::move(value))
+      // put: lower_bound; existing -> unindex(old), index(new), assign; missing -> index(new), emplace_hint(it, move(key), move(value))
+      // commit(): txns_.clear() -- the logs are simply forgotten.   begin(): txns_.emplace_back().
+      // range(lo, hi): if (hi < lo) return {}; for (it = lower_bound(lo); it != end && !(hi < it->first); ++it) push_back(it->first);

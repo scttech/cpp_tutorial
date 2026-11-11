@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Work in the order of the data: tokenize first (the Run button shows nothing useful before it works), then parse, then evaluate, then optimize. Test each stage with its own Works tests before moving on. In the lexer, one loop over the characters with an index i: skip whitespace, read a number (digits, optional fraction, optional exponent), read a name, or look at the single character."
+  - level: 2
+    text: "Parser: a class with the token vector, an index, and one member function per precedence level that returns a NodePtr (nullptr on error). parse_add and parse_mul are loops: read the left operand, then while the next token is one of the operators, advance, read the right operand and wrap both in make_binary. Loops make the operators left-associative. parse_unary recurses for a minus (make_unary('-', ...)), and the '^' case in parse_pow reads its right side with parse_unary, which makes ^ right-associative and lets 2^-1 work."
+  - level: 3
+    text: "Errors: keep error kind, offset and message in members; fail() fills them and returns nullptr. When the current token is the End token the kind is UnexpectedEnd, otherwise UnexpectedToken; the offset is the token's pos. Pass a depth parameter down, +1 for every parenthesis, call argument, prefix operator and exponent, and fail with TooDeep when it exceeds kMaxDepth. Evaluator: a recursive bool eval(const Node&, double& out) that returns false after recording the first error; look variables up with env.find(name) once. Optimizer: optimize the children first (moving each child out and back in), then simplify the node: if all operands are Numbers evaluate it with an empty Env and, when it succeeded, assign n->v = Number{value}."
+  - level: 4
+    text: |
+      // identities, after the children are optimized (bin is a Binary*, n the owning NodePtr):
+      //   '+' : rhs is the number 0 -> return std::move(bin->lhs);   lhs is 0 -> return std::move(bin->rhs)
+      //   '-' : rhs is 0 -> lhs;   lhs is 0 -> NodePtr x = std::move(bin->rhs); n->v = Unary{'-', std::move(x)}; return n;
+      //   '*' : either side is 1 -> the other side;   '/' and '^' : rhs is 1 -> lhs
+      // a Unary whose operand is itself a Unary: NodePtr x = std::move(inner->operand); return x;
+      // never touch x*0, x^0 or reassociate: they can change the error or the rounding.

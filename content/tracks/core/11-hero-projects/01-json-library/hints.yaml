@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Start with what the tests exercise first, in this order: numbers, then plain strings, then escapes, then arrays, then objects. Each grammar rule is one member function of the Parser class that moves the index i_ forward and returns true, or records an error with fail_here(...) and returns false. After a failure every caller just returns false at once."
+  - level: 2
+    text: "Positions: fail_here(kind, message) records the current index. At the end, turn the stored index into a line and column by walking the text from 0 up to that index: a '\\n' makes line+1 and column back to 1, anything else column+1. BadEscape is the exception: it records the index of the BACKSLASH, so remember where the escape started before you read past it."
+  - level: 3
+    text: "Numbers: optional '-', then a digit is REQUIRED (BadNumber otherwise); a '0' ends the integer part, otherwise read more digits; then '.' needs at least one digit; then e/E, an optional sign, and at least one digit. Convert with strtod on a std::string copy of just those characters and compare the result with +-1.797e308 for NumberOutOfRange. Strings: copy runs of ordinary characters with out.append(ptr, length), handle a backslash with a switch, reject anything below 0x20. \\u: four hex digits; a code in D800..DBFF needs a following \\uDC00..DFFF and then code = 0x10000 + ((hi-0xD800)<<10) + (lo-0xDC00); encode as 1 to 4 UTF-8 bytes."
+  - level: 4
+    text: |
+      // parse_array(out, depth): depth >= kMaxDepth -> TooDeep at this bracket; ++i_; Array items; skip_ws();
+      // ']' right away -> empty array. Otherwise loop: skip_ws(); Value element; parse_value(element, depth + 1);
+      // items.push_back(std::move(element)); skip_ws(); end -> UnexpectedEnd; ',' -> ++i_, continue; ']' -> ++i_, break;
+      // anything else -> UnexpectedCharacter.   Objects: the same loop with a string key, ':' and members.insert_or_assign(...).
+      // Writer: one std::string& out passed down the recursion; write_string / write_number / write_value append to it.

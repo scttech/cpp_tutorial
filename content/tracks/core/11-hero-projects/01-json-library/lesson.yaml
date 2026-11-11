@@ -1,0 +1,15 @@
+id: core.heroes.json
+title: "Hero Project: JSON Library"
+module: core.heroes
+type: capstone
+estimatedMinutes: 150
+concepts: [recursive-descent, std-variant, value-semantics, error-as-value, source-positions, utf8-encoding, unicode-escapes, surrogate-pairs, number-grammar, depth-limit, move-not-copy, single-buffer-output, round-trip-property]
+prerequisites: [core.performance.capstone-optimize-the-pipeline]
+files:
+  editable: [parser.hpp, writer.hpp]
+  readonly: [value.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [leading-zeros, minus-without-digits, dot-without-digits, exponent-without-digits, control-characters-in-strings, surrogate-pairs, lone-surrogates, utf8-encoding-of-escapes, trailing-commas, duplicate-keys, trailing-content, depth-limit-and-stack-overflow, line-and-column-of-the-error, copying-values-instead-of-moving, quadratic-string-building, number-output-round-trip, negative-zero]

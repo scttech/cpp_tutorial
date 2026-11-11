@@ -1,0 +1,15 @@
+id: core.heroes.text-adventure
+title: "Hero Project: Text Adventure Engine"
+module: core.heroes
+type: capstone
+estimatedMinutes: 180
+concepts: [data-driven-design, text-file-parsing, line-numbers-in-errors, std-variant-state, abstract-base-class, virtual-dispatch, open-for-extension, unique-ptr-registry, lookup-by-id, const-correctness, avoiding-copies, circular-includes]
+prerequisites: [core.heroes.mini-database]
+files:
+  editable: [loader.hpp, actions.hpp, game.hpp]
+  readonly: [model.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 12000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [ids-must-be-lower-case, quoted-descriptions, hash-inside-quotes, crlf-line-endings, line-numbers-count-blank-lines, forward-references, reading-errors-before-reference-errors, duplicate-directions, switch-and-door-conflict, darkness-and-light, light-lying-on-the-floor, articles-in-commands, aliases-expand-once, case-insensitive-input, blocked-by-a-door, unlock-needs-the-right-key, game-over, verbs-in-game-hpp, copying-the-world, copying-rooms-and-items]

@@ -1,0 +1,8 @@
+# Fast path: what's different in C++
+
+- **Virtual functions are the open set; `std::variant` is the closed set.** The *kinds of item state* (plain, switch, door) are fixed by the file format, so they are a `std::variant` and `std::visit` checks that you handled each. The *verbs* are meant to grow, so they are an abstract base class: a new `Action` subclass needs no change to existing code. Choosing between the two (the "expression problem") is one of the main design decisions in C++.
+- **`std::unique_ptr<Action>` in a `std::map`.** The table owns its objects; replacing a verb destroys the old Action, with no leak and no `delete`. `Action` needs a **virtual destructor** so that destroying a `unique_ptr<Action>` runs the derived destructor.
+- **Const-correctness documents intent.** `perform(...) const`: an Action object has no state of its own, the game's state is passed in. `locate` returns `Item*` (to modify), `describe_room` takes `const Game&` (cannot).
+- **Move the world in, hold it by reference.** `Game(World world)` takes by value and moves into the member; every helper takes `const World&` or `World&`. The types count copies so a hidden copy of a whole map shows up as a test failure instead of as a slow game.
+- **Parsing a file is a loop over `std::string_view`s.** Lines and words are views into the original text; only values that are stored (ids, descriptions) become `std::string`.
+- **Mutually dependent headers.** `Game` needs `make_default_actions()` and the actions need a complete `Game`. The usual cure: declare the function early (`model.hpp`), define the class, then include the other header at the end. Include guards (`#pragma once`) make either include order work.

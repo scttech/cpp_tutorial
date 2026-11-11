@@ -264,6 +264,50 @@
       "mutants": 27,
       "hash": "bbe1320579738bc0"
     },
+    "core.heroes.allocator": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution builds with diagnostics: test.cpp:383:127: warning: shift count >= width of type [-Wshift-count-overflow] |   383 |     for (std::size_t n : {max, max - 1, max - 8, max - 15, max - 16, max - 31, max - 47, max / 2, max / 2 + 1, std::size_t{1} << 40}) { |       |                                            ",
+        "solution fails \"allocate gives aligned memory inside the heap; blocks do not overlap and keep what is written\" [fail]: expected \"\", got \"a pointer is not 16-byte aligned\"",
+        "solution fails \"usable_size is at least what was asked and not much more; used_bytes adds them up\" [fail]: expected usable >= n to be true",
+        "solution fails \"deallocate returns the memory: the same request can be made again\" [fail]: expected 0, got 1",
+        "solution fails \"allocate(0) gives a valid, distinct, freeable block\" [fail]: blocks are still in use: 2"
+      ],
+      "hash": "8c5bf8dc8fdabd1a"
+    },
+    "core.heroes.expression-compiler": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution fails \"a long chain of + is fine (a loop, not recursion)\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"tokenizer + parser: 100000 tokens in time (nothing quadratic: no erasing from the front, no copying the rest)\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"parser: one node and (for a variable) one name per leaf: at most 3 allocations per variable (50000 variables)\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"optimize: a tree with nothing to simplify is rewritten in place (at most 50 allocations for 50000 nodes)\" [error]: crashed: stack overflow (recursion too deep?)",
+        "solution fails \"optimize: identities do not copy the Env, names or subtrees (stats and allocations stay flat)\" [error]: crashed: stack overflow (recursion too deep?)"
+      ],
+      "hash": "0aeedc2f30f3da9f"
+    },
+    "core.heroes.json": {
+      "wasm": true,
+      "mutants": 51,
+      "hash": "1c5fd6837d946111"
+    },
+    "core.heroes.mini-database": {
+      "wasm": true,
+      "mutants": 59,
+      "hash": "af0670652864de79"
+    },
+    "core.heroes.regex": {
+      "wasm": true,
+      "mutants": 68,
+      "hash": "209dda5e95aa18fc"
+    },
+    "core.heroes.text-adventure": {
+      "wasm": true,
+      "mutants": 104,
+      "hash": "4aebcd84c9158145"
+    },
     "core.inherit.alternatives": {
       "wasm": true,
       "mutants": 41,

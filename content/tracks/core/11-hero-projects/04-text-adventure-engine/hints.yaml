@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Start with load_world: go through the text line by line (find '\\n', take a string_view, ++line_no), skip blank and comment lines, split the line into words where a \"quoted text\" is one word. One branch per directive. Keep the id of the current room for the exit lines. Then write look and go, run the Works tests for them, and add one verb at a time. The sample world in main.cpp is a good test: press Run."
+  - level: 2
+    text: "References that point forward cannot be checked while reading. Collect them in a vector (kind, id, line, message) and the places of items in another (item id, room id); after the last line check every reference and report the one with the smallest line, then put each item into its Room::items or into World::inventory. Reading errors return immediately, so they always win over reference errors."
+  - level: 3
+    text: "Game::execute: finished -> 'The game is over.'; split the line into lower-case words; no words -> 'Say something.'; first word an alias -> replace it by the words it stands for (once) and keep the rest of the line; find the Action by the first word in the table (none -> \"I don't understand.\"); copy the other words except the, a, an into args; return action->perform(*this, args). Nothing in this function says 'take' or 'go'."
+  - level: 4
+    text: |
+      // helper used by most actions: the item the player means, or nullptr and the reason
+      //   Item* locate(Game& game, const std::string& noun, std::string& problem):
+      //     found = world.items.find(noun); lit = is_lit(game)
+      //     reachable = found && (world.inventory.count(noun) || (lit && room.items.count(noun)))
+      //     !reachable -> problem = lit ? "You don't see that here." : "You can't see anything."
+      // is_lit: the room is not dark, or some item in world.inventory or room.items has a Switch state that is on.
+      // Door state: if (auto* door = std::get_if<Door>(&item->state)) { switch (door->lock) {...} }
+      // make_default_actions(): table.emplace("look", std::make_unique<LookAction>()); ... one line per verb.

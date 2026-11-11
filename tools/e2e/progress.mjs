@@ -80,7 +80,7 @@ try {
   check(earned.some((t) => t.includes("Hello, World")) && earned.some((t) => t.includes("It Works!")), `earned badges are shown in colour (${earned.map((t) => t.trim()).join(", ")})`);
   const hidden = await page.locator(".badge-card.locked .bname", { hasText: "???" }).count();
   check(hidden >= 3, `hidden badges stay secret until earned (${hidden} shown as ???)`);
-  check((await page.locator("details.soon").count()) === 1, "badges for modules that do not exist yet are grouped as 'coming soon'");
+  check((await page.locator("details.soon").count()) === 0, "every badge refers to content that exists now, so none is grouped as 'coming soon' (the grouping itself is covered by the unit tests)");
   await page.locator(".badge-card.earned", { hasText: "Hello, World" }).first().click();
   check(((await page.locator(".badge-detail").textContent()) ?? "").includes("Hello, World (and what just happened)"), "badge detail lists the evidence (which lesson counted)");
   await shot(page, "p3-profile");

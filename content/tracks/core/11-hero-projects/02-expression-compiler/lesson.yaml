@@ -1,0 +1,15 @@
+id: core.heroes.expression-compiler
+title: "Hero Project: Expression Compiler"
+module: core.heroes
+type: capstone
+estimatedMinutes: 180
+concepts: [tokenizer, recursive-descent, operator-precedence, associativity, ast-with-variant, unique-ptr-trees, tree-evaluation, error-as-value, constant-folding, algebraic-simplification, in-place-tree-rewriting, preserving-semantics, depth-limit]
+prerequisites: [core.heroes.json]
+files:
+  editable: [lexer.hpp, parser.hpp, eval.hpp, optimize.hpp]
+  readonly: [types.hpp, ast.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 12000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [unary-minus-vs-power, power-is-right-associative, subtraction-is-left-associative, modulo-sign, number-grammar, errors-with-positions, unexpected-end-vs-unexpected-token, function-arity, unknown-function-vs-variable, division-by-zero-vs-not-finite, error-order-left-to-right, folding-must-not-hide-errors, x-times-zero-is-not-zero, no-reassociation, copying-the-tree-to-optimize-it, copying-the-environment, double-lookup, recursion-depth]
