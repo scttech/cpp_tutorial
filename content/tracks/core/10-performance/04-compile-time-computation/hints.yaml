@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Start with factorial and fnv1a: ordinary loops, the only new thing is the keyword. A constexpr/consteval function is normal C++ with some restrictions. Use the comments of each piece: they give the exact recipe. Then the popcount table: table[i] = table[i / 2] + (i & 1) (the bits of i/2, plus the lowest bit of i) fills it in order."
+  - level: 2
+    text: "factorial: return 0 when n > 20, else multiply 2..n. fnv1a: `hash ^= static_cast<unsigned char>(*text);` (unsigned, or a byte above 127 is sign-extended), then `hash *= 16777619u;`. make_popcount_table: start from `std::array<std::uint8_t, 256> table{};` (zeroes). popcount: add the table entries of the four bytes of v."
+  - level: 3
+    text: "The sieve: `std::array<bool, N + 1> prime{};`, set 2..N to true, then for each p while p * p <= N: if prime[p], cross out p * p, p * p + p, ... (the smaller multiples were crossed out by smaller primes). Do NOT test each number by dividing it: the compiler would give up. The constinit line is just `inline constinit unsigned g_calls = static_cast<unsigned>(factorial(5));`."
+  - level: 4
+    text: |
+      template <std::size_t N>
+      constexpr std::array<bool, N + 1> make_sieve() {
+          std::array<bool, N + 1> prime{};
+          for (std::size_t i = 2; i <= N; ++i) prime[i] = true;
+          for (std::size_t p = 2; p * p <= N; ++p) {
+              if (!prime[p]) continue;
+              for (std::size_t m = p * p; m <= N; m += p) prime[m] = false;
+          }
+          return prime;
+      }

@@ -1,0 +1,17 @@
+# A batch image program, "thumbnailer", profiled on Linux. Built with:  g++ -O2 -g -fno-omit-frame-pointer thumbnailer.cpp
+# Recorded with:                                                          perf record -g ./thumbnailer photos/
+# Shown with:                                                             perf report --stdio --children
+#
+# "Self" is the time spent in the function's OWN code. "Children" (inclusive time) is the time in the function AND everything it called.
+#
+# Children      Self  Command      Symbol
+# ........  ........  ...........  ..........................................
+#
+    99.62%     0.31%  thumbnailer  [.] main
+    98.80%     1.04%  thumbnailer  [.] run_batch
+    97.55%    12.35%  thumbnailer  [.] process_image
+    61.02%    61.02%  thumbnailer  [.] blur_row
+    14.18%    14.18%  thumbnailer  [.] decode_jpeg
+     6.41%     6.41%  thumbnailer  [.] clamp_pixel
+     2.97%     2.97%  thumbnailer  [.] std::vector<float, std::allocator<float> >::_M_default_append
+     0.62%     0.62%  thumbnailer  [.] write_png

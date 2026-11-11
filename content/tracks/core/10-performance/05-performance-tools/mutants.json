@@ -1,0 +1,134 @@
+[
+  {
+    "name": "hottest-by-inclusive-time",
+    "why": "main has the biggest Children value: but that is the whole program, not its own code.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return \"blur_row\"; }",
+        "new": "return \"main\"; }"
+      }
+    ]
+  },
+  {
+    "name": "hottest-is-the-heavy-sounding-step",
+    "why": "decode_jpeg sounds like the heavy step, but blur_row has more self time.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return \"blur_row\"; }",
+        "new": "return \"decode_jpeg\"; }"
+      }
+    ]
+  },
+  {
+    "name": "inclusive-confused-with-self",
+    "why": "the Self column (12 %) instead of the Children column.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return 98; }",
+        "new": "{ return 12; }"
+      }
+    ]
+  },
+  {
+    "name": "inclusive-truncated",
+    "why": "97.55 rounded down instead of to the nearest whole percent.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return 98; }",
+        "new": "{ return 97; }"
+      }
+    ]
+  },
+  {
+    "name": "compute-bound",
+    "why": "the program is called compute-bound although the processor mostly waits.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return Bottleneck::Memory; }",
+        "new": "return Bottleneck::Compute; }"
+      }
+    ]
+  },
+  {
+    "name": "branch-bound",
+    "why": "the branch-miss rate is only 0.8 %.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return Bottleneck::Memory; }",
+        "new": "return Bottleneck::BranchMispredictions; }"
+      }
+    ]
+  },
+  {
+    "name": "most-called-is-the-most-expensive",
+    "why": "blur_row is the most expensive, not the most called.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return \"clamp_pixel\"; }",
+        "new": "return \"blur_row\"; }"
+      }
+    ]
+  },
+  {
+    "name": "most-called-process-image",
+    "why": "process_image is called 400 times.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "return \"clamp_pixel\"; }",
+        "new": "return \"process_image\"; }"
+      }
+    ]
+  },
+  {
+    "name": "speedup-is-the-factor",
+    "why": "10 times faster for the whole program: Amdahl says no.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return 1.0 / ((1.0 - 0.6102) + 0.6102 / 10.0); }",
+        "new": "{ return 10.0; }"
+      }
+    ]
+  },
+  {
+    "name": "speedup-forgets-the-rest",
+    "why": "only the share is divided: 0.61 / 10 + ... is not the formula.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return 1.0 / ((1.0 - 0.6102) + 0.6102 / 10.0); }",
+        "new": "{ return 1.0 / (0.6102 / 10.0); }"
+      }
+    ]
+  },
+  {
+    "name": "speedup-inverted",
+    "why": "the new time instead of the speedup.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return 1.0 / ((1.0 - 0.6102) + 0.6102 / 10.0); }",
+        "new": "{ return (1.0 - 0.6102) + 0.6102 / 10.0; }"
+      }
+    ]
+  },
+  {
+    "name": "debug-profile-trusted",
+    "why": "an unoptimized build is not representative.",
+    "edits": [
+      {
+        "file": "answers.hpp",
+        "old": "{ return false; }",
+        "new": "{ return true; }"
+      }
+    ]
+  }
+]

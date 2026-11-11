@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Run it and look at the three numbers for 5000 lines. Comparisons: about a million. Copies: a thousand. Allocations: tens of thousands. Ask for each: where does it come from? Comparisons come from searching a vector of users for every line. Allocations come from parsing every line with a stream and a vector of strings. Fix the biggest first, run again, then the next."
+  - level: 2
+    text: "Users: a std::unordered_map<UserId, long long> finds a user in constant time (UserId already has a std::hash). Parsing: walk through the line with an index, skip whitespace, cut out three std::string_view fields with substr, no copies. The number: std::from_chars on the string_view. Copies: build the key as a temporary (totals[UserId(name)] += ms) so that it is moved into the map."
+  - level: 3
+    text: "Keep every rule of the original: whitespace is space, tab, newline, carriage return, vertical tab, form feed; a fourth field makes the line malformed; the number must be 1 to 9 digits, starting with a digit, and from_chars must consume ALL of it (result.ptr == end). For the top three do not sort everybody: loop over the map and keep a vector of at most 3 (pointer to the name, total) pairs in order, inserting each candidate with std::upper_bound and dropping the 4th."
+  - level: 4
+    text: |
+      // parse_line(std::string_view line): skip spaces, take a field up to the next space, three times; a fourth field -> nullopt
+      // level: compare fields[0] with kLevels[k] (exact ==), ms: size 1..9, first char a digit, std::from_chars, ptr == end
+      std::unordered_map<UserId, long long> totals;
+      ...
+      totals[UserId(parsed->user)] += parsed->ms;      // temporary key: moved in
+      // top 3: better(a, b) = bigger total first, then smaller name; keep `best` sorted, at most 3 entries

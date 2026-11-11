@@ -1,0 +1,112 @@
+[
+  {
+    "name": "every-pair-again",
+    "why": "the nested loops of the starter: correct, and quadratic.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "    if (values.size() < 2) return 0;\n    std::vector<T> sorted = values;  // sort a COPY: the caller's vector must not change\n    std::sort(sorted.begin(), sorted.end());\n\n    long long pairs = 0;\n",
+        "new": "    long long pairs = 0;\n    for (std::size_t i = 0; i < values.size(); ++i)\n        for (std::size_t j = i + 1; j < values.size(); ++j)\n            if (values[i] + values[j] == target) ++pairs;\n    if (pairs >= 0) return pairs;\n    std::vector<T> sorted = values;\n"
+      }
+    ]
+  },
+  {
+    "name": "no-sort",
+    "why": "two pointers on data that is not sorted: wrong answers.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "    std::sort(sorted.begin(), sorted.end());\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "sorts-the-callers-vector",
+    "why": "the vector is taken by value from a const_cast: the caller sees it sorted.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "    std::vector<T> sorted = values;  // sort a COPY: the caller's vector must not change\n    std::sort(sorted.begin(), sorted.end());\n",
+        "new": "    std::vector<T>& sorted = const_cast<std::vector<T>&>(values);\n    std::sort(sorted.begin(), sorted.end());\n"
+      }
+    ]
+  },
+  {
+    "name": "equal-values-counted-as-one-pair",
+    "why": "when both ends are equal the whole run counts as a single pair.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "            pairs += m * (m - 1) / 2;",
+        "new": "            pairs += 1;"
+      }
+    ]
+  },
+  {
+    "name": "equal-ends-count-m-squared",
+    "why": "m * m instead of m * (m - 1) / 2: a value is paired with itself.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "            pairs += m * (m - 1) / 2;",
+        "new": "            pairs += m * m;"
+      }
+    ]
+  },
+  {
+    "name": "runs-not-multiplied",
+    "why": "only one pair is counted for a left run and a right run (the product is ignored).",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "            pairs += static_cast<long long>(after_left - left) * static_cast<long long>(right - before_right);",
+        "new": "            pairs += 1;"
+      }
+    ]
+  },
+  {
+    "name": "one-step-on-a-match",
+    "why": "after a match only one pointer moves: pairs are counted twice or lost.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "            left = after_left;\n            right = before_right;",
+        "new": "            ++left;"
+      }
+    ]
+  },
+  {
+    "name": "sorts-in-every-step",
+    "why": "the copy is sorted again on every step of the loop: n log n per step.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "        const T sum = sorted[left] + sorted[right];",
+        "new": "        std::sort(sorted.begin(), sorted.end());\n        const T sum = sorted[left] + sorted[right];"
+      }
+    ]
+  },
+  {
+    "name": "copies-the-vector-in-the-loop",
+    "why": "a fresh copy of the vector for every step.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "        const T sum = sorted[left] + sorted[right];",
+        "new": "        const std::vector<T> again = sorted;\n        const T sum = again[left] + again[right];"
+      }
+    ]
+  },
+  {
+    "name": "empty-vector-underflows",
+    "why": "size() - 1 on an empty vector is a huge unsigned number.",
+    "edits": [
+      {
+        "file": "count_pairs.hpp",
+        "old": "    if (values.size() < 2) return 0;\n",
+        "new": ""
+      }
+    ]
+  }
+]

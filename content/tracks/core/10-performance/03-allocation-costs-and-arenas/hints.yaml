@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "Run it: without an arena there is one trip to the heap per string and per vector growth. Your Arena should ask upstream for ONE block in its constructor (capacity bytes, alignof(std::max_align_t)), give it back in the destructor, and keep a number `used_` that says how much of it has been handed out."
+  - level: 2
+    text: "do_allocate(size, align): compute the aligned address of `base + used_` with `(x + align - 1) & ~(align - 1)` (turn the pointer into a std::uintptr_t first). The offset of that address from the block start is `offset`. If `offset + size` fits in the capacity, set used_ = offset + size and return block_ + offset; otherwise count a fallback and return upstream_->allocate(size, align)."
+  - level: 3
+    text: "Write the fit test as `offset <= capacity_ && size <= capacity_ - offset`: with an addition, a huge size wraps around and looks small. In do_deallocate only forward the pointer to upstream when it is NOT inside [block_, block_ + capacity_): memory inside the block is only recovered by reset() or by the destructor. reset() is just `used_ = 0`. create<T> is `std::construct_at(static_cast<T*>(allocate(sizeof(T), alignof(T))), std::forward<Args>(args)...)`."
+  - level: 4
+    text: |
+      void* do_allocate(std::size_t size, std::size_t align) override {
+          if (size == 0) size = 1;
+          const auto base = reinterpret_cast<std::uintptr_t>(block_);
+          const std::uintptr_t aligned = (base + used_ + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1);
+          const std::size_t offset = static_cast<std::size_t>(aligned - base);
+          if (offset <= capacity_ && size <= capacity_ - offset) { used_ = offset + size; return block_ + offset; }
+          ++fallbacks_;
+          return upstream_->allocate(size, align);
+      }

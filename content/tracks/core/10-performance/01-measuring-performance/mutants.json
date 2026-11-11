@@ -1,0 +1,128 @@
+[
+  {
+    "name": "still-quadratic",
+    "why": "the linear search of the starter: correct, and n times slower than it needs to be.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "    std::set<Item> seen;  // a balanced tree: finding an id costs about log2(n) comparisons, not n\n    for (const Item& item : items) {\n        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new\n    }\n    return result;",
+        "new": "    for (const Item& item : items) {\n        bool seen = false;\n        for (const Item& kept : result) {\n            if (kept == item) {\n                seen = true;\n                break;\n            }\n        }\n        if (!seen) result.push_back(item);\n    }\n    return result;"
+      }
+    ]
+  },
+  {
+    "name": "hot-stage-is-rank",
+    "why": "guessing: rank takes its argument by value, which LOOKS expensive.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "return \"dedupe\";",
+        "new": "return \"rank\";"
+      }
+    ]
+  },
+  {
+    "name": "hot-stage-is-render",
+    "why": "guessing: building a string line by line looks wasteful.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "return \"dedupe\";",
+        "new": "return \"render\";"
+      }
+    ]
+  },
+  {
+    "name": "keeps-the-last-occurrence",
+    "why": "a later item with the same id replaces the first one.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new",
+        "new": "        if (seen.insert(item).second) {\n            result.push_back(item);\n        } else {\n            for (Item& kept : result) {\n                if (kept.id == item.id) kept = item;\n            }\n        }"
+      }
+    ]
+  },
+  {
+    "name": "sorted-by-id-instead-of-first-seen",
+    "why": "the result comes out of the set: ordered by id, not by first appearance.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "    for (const Item& item : items) {\n        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new\n    }\n    return result;",
+        "new": "    for (const Item& item : items) seen.insert(item);\n    result.assign(seen.begin(), seen.end());\n    return result;"
+      }
+    ]
+  },
+  {
+    "name": "drops-every-repeated-id",
+    "why": "ids that appear more than once vanish completely, even their first item.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "    for (const Item& item : items) {\n        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new\n    }\n    return result;",
+        "new": "    std::map<int, int> count;\n    for (const Item& item : items) ++count[item.id];\n    for (const Item& item : items) {\n        if (count[item.id] == 1) result.push_back(item);\n    }\n    return result;"
+      },
+      {
+        "file": "report.hpp",
+        "old": "#include <set>\n",
+        "new": "#include <map>\n#include <set>\n"
+      }
+    ]
+  },
+  {
+    "name": "unstable-sort",
+    "why": "std::sort does not keep equal elements in order.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.qty > b.qty; });",
+        "new": "std::sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.qty > b.qty; });"
+      }
+    ]
+  },
+  {
+    "name": "ranks-lowest-first",
+    "why": "the comparison is the wrong way round.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "return a.qty > b.qty;",
+        "new": "return a.qty < b.qty;"
+      }
+    ]
+  },
+  {
+    "name": "copies-each-item-twice",
+    "why": "a needless extra copy of every item: the fast tier counts copies.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new",
+        "new": "        const Item extra = item;\n        if (seen.insert(extra).second) result.push_back(extra);"
+      }
+    ]
+  },
+  {
+    "name": "sorts-the-whole-list-on-every-item",
+    "why": "a set rebuilt for every item: back to quadratic.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "    for (const Item& item : items) {\n        if (seen.insert(item).second) result.push_back(item);  // insert() says whether the id was new\n    }",
+        "new": "    for (const Item& item : items) {\n        seen = std::set<Item>(result.begin(), result.end());\n        if (seen.insert(item).second) result.push_back(item);\n    }"
+      }
+    ]
+  },
+  {
+    "name": "render-loses-newlines",
+    "why": "the lines run together.",
+    "edits": [
+      {
+        "file": "report.hpp",
+        "old": "+ \":\" + std::to_string(item.qty) + \"\\n\";",
+        "new": "+ \":\" + std::to_string(item.qty);"
+      }
+    ]
+  }
+]

@@ -1,0 +1,250 @@
+[
+  {
+    "name": "factorial-stops-one-early",
+    "why": "the loop stops at n - 1.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "for (unsigned i = 2; i <= n; ++i) result *= i;",
+        "new": "for (unsigned i = 2; i < n; ++i) result *= i;"
+      }
+    ]
+  },
+  {
+    "name": "factorial-wraps-around",
+    "why": "no guard: 21! silently wraps around in 64 bits.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "    if (n > 20) return 0;  // 21! does not fit in 64 bits\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "factorial-guard-one-late",
+    "why": "the guard starts at 22.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "if (n > 20) return 0;",
+        "new": "if (n > 21) return 0;"
+      }
+    ]
+  },
+  {
+    "name": "fnv-signed-characters",
+    "why": "the char is XORed as a (signed) char: bytes above 127 are sign-extended.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "hash ^= static_cast<unsigned char>(*text);  // an unsigned byte: a negative char would be sign-extended",
+        "new": "hash ^= static_cast<std::uint32_t>(*text);"
+      }
+    ]
+  },
+  {
+    "name": "fnv-wrong-start-value",
+    "why": "the offset basis is wrong.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "std::uint32_t hash = 2166136261u;",
+        "new": "std::uint32_t hash = 2166136260u;"
+      }
+    ]
+  },
+  {
+    "name": "fnv-wrong-prime",
+    "why": "the multiplier is wrong.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "hash *= 16777619u;",
+        "new": "hash *= 16777618u;"
+      }
+    ]
+  },
+  {
+    "name": "fnv-multiplies-before-xor",
+    "why": "FNV-1 (multiply, then XOR) instead of FNV-1a.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "        hash ^= static_cast<unsigned char>(*text);  // an unsigned byte: a negative char would be sign-extended\n        hash *= 16777619u;",
+        "new": "        hash *= 16777619u;\n        hash ^= static_cast<unsigned char>(*text);"
+      }
+    ]
+  },
+  {
+    "name": "fnv-only-constexpr",
+    "why": "constexpr instead of consteval: it may now run at run time, and nothing forces compile-time use.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "consteval std::uint32_t fnv1a",
+        "new": "constexpr std::uint32_t fnv1a"
+      }
+    ]
+  },
+  {
+    "name": "fnv-stops-before-the-last-character",
+    "why": "the loop ends one character early.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "for (; *text != '\\0'; ++text) {",
+        "new": "for (; *text != '\\0' && text[1] != '\\0'; ++text) {"
+      }
+    ]
+  },
+  {
+    "name": "popcount-table-forgets-the-low-bit",
+    "why": "table[i] = table[i / 2]: the lowest bit is never counted.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "table[i] = static_cast<std::uint8_t>(table[i / 2] + (i & 1));",
+        "new": "table[i] = table[i / 2];"
+      }
+    ]
+  },
+  {
+    "name": "popcount-table-starts-at-two",
+    "why": "the table starts at 2: table[1] stays 0.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "for (unsigned i = 1; i < 256; ++i) table",
+        "new": "for (unsigned i = 2; i < 256; ++i) table"
+      }
+    ]
+  },
+  {
+    "name": "popcount-only-the-low-byte",
+    "why": "three bytes of the value are ignored.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "    return popcount_table[v & 0xFF] + popcount_table[(v >> 8) & 0xFF] + popcount_table[(v >> 16) & 0xFF] + popcount_table[v >> 24];",
+        "new": "    return popcount_table[v & 0xFF];"
+      }
+    ]
+  },
+  {
+    "name": "popcount-top-byte-missing",
+    "why": "the highest byte is ignored.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": " + popcount_table[v >> 24];",
+        "new": ";"
+      }
+    ]
+  },
+  {
+    "name": "popcount-table-not-constexpr",
+    "why": "a const table: it exists, but constant expressions cannot read it.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "inline constexpr std::array<std::uint8_t, 256> popcount_table = make_popcount_table();",
+        "new": "inline const std::array<std::uint8_t, 256> popcount_table = make_popcount_table();"
+      }
+    ],
+    "extraFiles": {
+      "EXPECT_COMPILE_FAIL": "This mutant is meant not to compile: the compiler rejects it, which is the point of the lesson.\n"
+    }
+  },
+  {
+    "name": "sieve-marks-the-prime-itself",
+    "why": "the multiples start at p, so p itself is crossed out.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "size_t multiple = p * p;",
+        "new": "size_t multiple = p;"
+      }
+    ]
+  },
+  {
+    "name": "sieve-forgets-zero-and-one-are-not-prime",
+    "why": "the table starts at 0.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "for (std::size_t i = 2; i <= N; ++i) prime[i] = true;",
+        "new": "for (std::size_t i = 0; i <= N; ++i) prime[i] = true;"
+      }
+    ]
+  },
+  {
+    "name": "sieve-stops-too-early",
+    "why": "p * p < N: the square of the last prime is never crossed out.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "p * p <= N; ++p)",
+        "new": "p * p < N; ++p)"
+      }
+    ]
+  },
+  {
+    "name": "sieve-ignores-the-last-number",
+    "why": "the table is filled up to N - 1 only.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "for (std::size_t i = 2; i <= N; ++i) prime[i] = true;",
+        "new": "for (std::size_t i = 2; i < N; ++i) prime[i] = true;"
+      }
+    ]
+  },
+  {
+    "name": "sieve-by-trial-division",
+    "why": "every number is tested by dividing: correct, and far beyond the compiler's step limit.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "    for (std::size_t i = 2; i <= N; ++i) prime[i] = true;\n    for (std::size_t p = 2; p * p <= N; ++p) {\n        if (!prime[p]) continue;\n        for (std::size_t multiple = p * p; multiple <= N; multiple += p) prime[multiple] = false;\n    }\n    return prime;",
+        "new": "    for (std::size_t i = 2; i <= N; ++i) {\n        bool is_prime = true;\n        for (std::size_t d = 2; d < i; ++d) {\n            if (i % d == 0) {\n                is_prime = false;\n                break;\n            }\n        }\n        prime[i] = is_prime;\n    }\n    return prime;"
+      }
+    ],
+    "extraFiles": {
+      "EXPECT_COMPILE_FAIL": "This mutant is meant not to compile: the compiler rejects it, which is the point of the lesson.\n"
+    }
+  },
+  {
+    "name": "g-calls-wrong-start",
+    "why": "g_calls starts at factorial(4).",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "static_cast<unsigned>(factorial(5))",
+        "new": "static_cast<unsigned>(factorial(4))"
+      }
+    ]
+  },
+  {
+    "name": "g-calls-without-constinit",
+    "why": "a plain global: it may be initialised at run time, in an unspecified order.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "inline constinit unsigned g_calls",
+        "new": "inline unsigned g_calls"
+      }
+    ]
+  },
+  {
+    "name": "next-call-returns-the-old-value",
+    "why": "post-increment.",
+    "edits": [
+      {
+        "file": "tables.hpp",
+        "old": "inline unsigned next_call() { return ++g_calls; }",
+        "new": "inline unsigned next_call() { return g_calls++; }"
+      }
+    ]
+  }
+]

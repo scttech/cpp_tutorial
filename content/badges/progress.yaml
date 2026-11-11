@@ -78,7 +78,7 @@
   name: "Module Master X"
   category: progress
   icon: "⚡"
-  description: "Complete Module 10: Performance and Tooling."
+  description: "Complete Module 10: Performance."
   rule: { type: module-complete, module: core.performance }
 
 - id: test-out-artist

@@ -1,0 +1,15 @@
+id: core.performance.measuring
+title: "Measuring performance"
+module: core.performance
+type: lesson
+estimatedMinutes: 50
+concepts: [measure-first, hot-spot, big-o, constant-factors, operation-counting, instrumented-type, scaling-test, wall-clock-noise, amdahl, algorithm-before-micro-tuning, first-occurrence-dedupe, stable-sort]
+prerequisites: [core.performance.test-out]
+files:
+  editable: [report.hpp]
+  readonly: [main.cpp, meter.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [optimizing-the-wrong-stage, guessing-instead-of-measuring, by-value-parameter-looks-expensive, quadratic-membership-test, losing-first-occurrence-order, unstable-sort-reorders-ties, timing-noise]

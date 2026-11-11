@@ -1,0 +1,231 @@
+[
+  {
+    "name": "array-of-structs-again",
+    "why": "the starter layout: every loop drags the cold name through the cache.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "    // one array per field: a loop that needs only x reads only x; the cold names are never in the way\n    std::vector<float> x_, y_, vx_, vy_, mass_;\n    std::vector<std::array<char, 32>> names_;",
+        "new": "    struct P {\n        float x, y, vx, vy, mass;\n        std::array<char, 32> name;\n    };\n    std::vector<P> all_;"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        x_.push_back(x);\n        y_.push_back(y);\n        vx_.push_back(vx);\n        vy_.push_back(vy);\n        mass_.push_back(mass);\n        names_.push_back(n);",
+        "new": "        all_.push_back(P{x, y, vx, vy, mass, n});"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "    std::size_t size() const { return x_.size(); }",
+        "new": "    std::size_t size() const { return all_.size(); }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "    float& x(std::size_t i) { return x_[i]; }\n    float& y(std::size_t i) { return y_[i]; }\n    float& vx(std::size_t i) { return vx_[i]; }\n    float& vy(std::size_t i) { return vy_[i]; }\n    float& mass(std::size_t i) { return mass_[i]; }\n    const char* name(std::size_t i) const { return names_[i].data(); }",
+        "new": "    float& x(std::size_t i) { return all_[i].x; }\n    float& y(std::size_t i) { return all_[i].y; }\n    float& vx(std::size_t i) { return all_[i].vx; }\n    float& vy(std::size_t i) { return all_[i].vy; }\n    float& mass(std::size_t i) { return all_[i].mass; }\n    const char* name(std::size_t i) const { return all_[i].name.data(); }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (std::size_t i = 0; i < x_.size(); ++i) {\n            x_[i] += vx_[i] * dt;\n            y_[i] += vy_[i] * dt;\n        }",
+        "new": "        for (auto& p : all_) {\n            p.x += p.vx * dt;\n            p.y += p.vy * dt;\n        }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : x_) s += v;",
+        "new": "        for (auto& p : all_) s += p.x;"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : mass_) s += v;",
+        "new": "        for (auto& p : all_) s += p.mass;"
+      }
+    ]
+  },
+  {
+    "name": "hot-fields-together-mass-apart",
+    "why": "x, y, vx and vy in one 16-byte struct: step() is fine, but sum_x() reads every fourth float.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "    std::vector<float> x_, y_, vx_, vy_, mass_;",
+        "new": "    struct Hot {\n        float x, y, vx, vy;\n    };\n    std::vector<Hot> hot_;\n    std::vector<float> mass_;"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        x_.push_back(x);\n        y_.push_back(y);\n        vx_.push_back(vx);\n        vy_.push_back(vy);\n        mass_.push_back(mass);",
+        "new": "        hot_.push_back(Hot{x, y, vx, vy});\n        mass_.push_back(mass);"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "    std::size_t size() const { return x_.size(); }",
+        "new": "    std::size_t size() const { return hot_.size(); }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "    float& x(std::size_t i) { return x_[i]; }\n    float& y(std::size_t i) { return y_[i]; }\n    float& vx(std::size_t i) { return vx_[i]; }\n    float& vy(std::size_t i) { return vy_[i]; }",
+        "new": "    float& x(std::size_t i) { return hot_[i].x; }\n    float& y(std::size_t i) { return hot_[i].y; }\n    float& vx(std::size_t i) { return hot_[i].vx; }\n    float& vy(std::size_t i) { return hot_[i].vy; }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (std::size_t i = 0; i < x_.size(); ++i) {\n            x_[i] += vx_[i] * dt;\n            y_[i] += vy_[i] * dt;\n        }",
+        "new": "        for (auto& p : hot_) {\n            p.x += p.vx * dt;\n            p.y += p.vy * dt;\n        }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : x_) s += v;",
+        "new": "        for (auto& p : hot_) s += p.x;"
+      }
+    ]
+  },
+  {
+    "name": "every-float-on-its-own-line",
+    "why": "x padded to a cache line \"to be safe\": sum_x() touches one line per particle.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "    std::vector<float> x_, y_, vx_, vy_, mass_;",
+        "new": "    struct alignas(64) Wide {\n        float v;\n    };\n    std::vector<Wide> x_;\n    std::vector<float> y_, vx_, vy_, mass_;"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        x_.push_back(x);",
+        "new": "        x_.push_back(Wide{x});"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "    float& x(std::size_t i) { return x_[i]; }",
+        "new": "    float& x(std::size_t i) { return x_[i].v; }"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "            x_[i] += vx_[i] * dt;",
+        "new": "            x_[i].v += vx_[i] * dt;"
+      },
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : x_) s += v;",
+        "new": "        for (auto& w : x_) s += w.v;"
+      }
+    ]
+  },
+  {
+    "name": "step-forgets-y",
+    "why": "only x is advanced.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "            y_[i] += vy_[i] * dt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "step-uses-dt-twice",
+    "why": "x moves by vx * dt * dt.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "            x_[i] += vx_[i] * dt;",
+        "new": "            x_[i] += vx_[i] * dt * dt;"
+      }
+    ]
+  },
+  {
+    "name": "name-not-terminated",
+    "why": "32 characters are copied, so a long name has no terminating zero.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "i < 31 && name[i]",
+        "new": "i < 32 && name[i]"
+      }
+    ]
+  },
+  {
+    "name": "name-cut-too-short",
+    "why": "only 30 characters are kept.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "i < 31 && name[i]",
+        "new": "i < 30 && name[i]"
+      }
+    ]
+  },
+  {
+    "name": "names-lost",
+    "why": "the names are not stored at all.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "        names_.push_back(n);\n",
+        "new": "        names_.push_back(std::array<char, 32>{});\n"
+      }
+    ]
+  },
+  {
+    "name": "record-order-still-padded",
+    "why": "the members are reordered, but not well: sizeof is 24.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "    double value;\n    int count;\n    short id;\n    char tag;\n    char kind;",
+        "new": "    char tag;\n    double value;\n    int count;\n    char kind;\n    short id;"
+      }
+    ]
+  },
+  {
+    "name": "record-id-shrunk",
+    "why": "id became a char to save space: 300 does not fit.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "    short id;\n",
+        "new": "    char id;\n"
+      }
+    ]
+  },
+  {
+    "name": "counter-not-padded",
+    "why": "the counters share cache lines: false sharing.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "struct alignas(64) ShardCounter {",
+        "new": "struct ShardCounter {"
+      }
+    ]
+  },
+  {
+    "name": "counter-aligned-to-32",
+    "why": "two counters still fit in one 64-byte line.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "struct alignas(64) ShardCounter {",
+        "new": "struct alignas(32) ShardCounter {"
+      }
+    ]
+  },
+  {
+    "name": "sum-x-adds-y",
+    "why": "sum_x() reads the wrong array.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : x_) s += v;",
+        "new": "        for (float v : y_) s += v;"
+      }
+    ]
+  },
+  {
+    "name": "mass-sum-halved",
+    "why": "every second particle is skipped.",
+    "edits": [
+      {
+        "file": "layout.hpp",
+        "old": "        for (float v : mass_) s += v;",
+        "new": "        for (std::size_t i = 0; i < mass_.size(); i += 2) s += mass_[i];"
+      }
+    ]
+  }
+]

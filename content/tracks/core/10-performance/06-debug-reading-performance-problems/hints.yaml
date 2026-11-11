@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Run it and compare the numbers with the size of the input. reversed: 2000 numbers but millions of moves. weight_sum: copies in the millions. has_duplicates: comparisons in the millions. join and longest: hundreds or thousands of heap allocations. lookup_count: about twice the comparisons of one search. Fix them one at a time and run again."
+  - level: 2
+    text: "reversed: you do not need insert() at all, a vector can be built straight from a pair of (reverse) iterators. weight_sum: look at the parameter list of the helper. join: how many strings does `result + sep` create? longest: look at the loop header. lookup_count: how many times is the map searched? has_duplicates: if the data were sorted, where would equal values be?"
+  - level: 3
+    text: "reversed: `std::vector<Tracked>(v.rbegin(), v.rend())`. weight_sum: `const std::vector<Tracked>&`. join: compute the total length, `reserve` it, then `+=` for each piece. has_duplicates: copy, `std::sort`, `std::adjacent_find`. lookup_count: `const auto it = table.find(key);`. longest: `const std::string&` in the loop, and keep a pointer (or index) to the best one."
+  - level: 4
+    text: |
+      reversed:       return std::vector<Tracked>(v.rbegin(), v.rend());
+      weight_at:      inline int weight_at(const std::vector<Tracked>& all, std::size_t i)
+      join:           result.reserve(total); ... result += sep; result += words[i];
+      has_duplicates: auto sorted = v; std::sort(...); return std::adjacent_find(...) != sorted.end();
+      lookup_count:   const auto it = table.find(key); return it == table.end() ? 0 : it->second;
+      longest:        for (const std::string& word : words) { if (best == nullptr || word.size() > best->size()) best = &word; }

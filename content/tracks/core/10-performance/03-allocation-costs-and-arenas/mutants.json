@@ -1,0 +1,211 @@
+[
+  {
+    "name": "passes-everything-to-upstream",
+    "why": "the starter stub: every request is a trip to the heap.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        if (size == 0) size = 1;  // every pointer is different\n        const auto base",
+        "new": "        if (size == 0) size = 1;\n        if (size > 0) return upstream_->allocate(size, align);\n        const auto base"
+      }
+    ]
+  },
+  {
+    "name": "offset-aligned-not-address",
+    "why": "the offset is a multiple of the alignment, but the block itself starts at an odd place.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "const std::uintptr_t aligned = (base + used_ + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1);  // align the ADDRESS",
+        "new": "const std::uintptr_t aligned = base + ((used_ + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1));"
+      }
+    ]
+  },
+  {
+    "name": "alignment-ignored",
+    "why": "bump the marker by the size only.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "const std::uintptr_t aligned = (base + used_ + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1);  // align the ADDRESS",
+        "new": "const std::uintptr_t aligned = base + used_;"
+      }
+    ]
+  },
+  {
+    "name": "last-byte-unusable",
+    "why": "off by one: a request that would end exactly at the end of the block does not fit.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "size <= capacity_ - offset) {  // subtraction",
+        "new": "size < capacity_ - offset) {  // subtraction"
+      }
+    ]
+  },
+  {
+    "name": "size-plus-offset-overflows",
+    "why": "offset + size can wrap around for a huge size, and the absurd request is \"found\" inside the block.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "if (block_ != nullptr && offset <= capacity_ && size <= capacity_ - offset) {  // subtraction, so nothing can overflow",
+        "new": "if (block_ != nullptr && offset + size <= capacity_) {"
+      }
+    ]
+  },
+  {
+    "name": "no-fallback",
+    "why": "when the block is full the request fails instead of going upstream.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        ++fallbacks_;\n        return upstream_->allocate(size, align);",
+        "new": "        ++fallbacks_;\n        return nullptr;"
+      }
+    ]
+  },
+  {
+    "name": "fallbacks-not-counted",
+    "why": "fallbacks() never changes.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        ++fallbacks_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "used-without-padding",
+    "why": "used() adds up the sizes, not the offsets.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "            used_ = offset + size;",
+        "new": "            used_ += size;"
+      }
+    ]
+  },
+  {
+    "name": "reset-does-nothing",
+    "why": "the marker is never moved back.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "    void reset() { used_ = 0; }",
+        "new": "    void reset() {}"
+      }
+    ]
+  },
+  {
+    "name": "reset-takes-a-new-block",
+    "why": "reset() asks upstream for a new block (and leaks the old one).",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "    void reset() { used_ = 0; }",
+        "new": "    void reset() {\n        used_ = 0;\n        block_ = static_cast<std::byte*>(upstream_->allocate(capacity_, alignof(std::max_align_t)));\n    }"
+      }
+    ]
+  },
+  {
+    "name": "block-never-freed",
+    "why": "the destructor forgets to give the block back.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "    ~Arena() override { upstream_->deallocate(block_, capacity_, alignof(std::max_align_t)); }",
+        "new": "    ~Arena() override {}"
+      }
+    ]
+  },
+  {
+    "name": "frees-block-pointers-upstream",
+    "why": "every deallocate is forwarded, also for memory that lives inside the block.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        if (!inside_block(p)) upstream_->deallocate(p, size, align);  // memory inside the block is only given back by reset() or the destructor",
+        "new": "        upstream_->deallocate(p, size, align);"
+      }
+    ]
+  },
+  {
+    "name": "fallback-pointers-never-freed",
+    "why": "deallocate ignores everything: fallback memory leaks.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        if (!inside_block(p)) upstream_->deallocate(p, size, align);  // memory inside the block is only given back by reset() or the destructor",
+        "new": "        (void)p;\n        (void)size;\n        (void)align;"
+      }
+    ]
+  },
+  {
+    "name": "is-equal-always-true",
+    "why": "every memory_resource compares equal to every other.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "    bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override { return this == &other; }",
+        "new": "    bool do_is_equal(const std::pmr::memory_resource&) const noexcept override { return true; }"
+      }
+    ]
+  },
+  {
+    "name": "create-does-not-construct",
+    "why": "the memory is handed out, but the object is never built.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        return std::construct_at(static_cast<T*>(allocate(sizeof(T), alignof(T))), std::forward<Args>(args)...);",
+        "new": "        ((void)args, ...);\n        return static_cast<T*>(allocate(sizeof(T), alignof(T)));"
+      }
+    ]
+  },
+  {
+    "name": "create-ignores-alignment-of-t",
+    "why": "create asks for alignment 1.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "allocate(sizeof(T), alignof(T))), std::forward",
+        "new": "allocate(sizeof(T), 1)), std::forward"
+      }
+    ]
+  },
+  {
+    "name": "create-accepts-anything",
+    "why": "the requires clause is gone: a std::string in an arena would never be destroyed.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        requires std::is_trivially_destructible_v<T>\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "zero-size-shares-the-pointer",
+    "why": "a request for 0 bytes does not move the marker, so two such pointers are the same.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "        if (size == 0) size = 1;  // every pointer is different\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "block-allocated-for-every-request",
+    "why": "a new block per allocation: the arena is just a slower heap.",
+    "edits": [
+      {
+        "file": "arena.hpp",
+        "old": "            used_ = offset + size;\n            return block_ + offset;",
+        "new": "            used_ = offset + size;\n            (void)upstream_->allocate(1, 1);\n            return block_ + offset;"
+      }
+    ]
+  }
+]

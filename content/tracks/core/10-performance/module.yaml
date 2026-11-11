@@ -1,0 +1,6 @@
+id: core.performance
+title: "Performance"
+track: core
+order: 10
+summary: "Measure first: counting operations instead of timing, memory layout and caches, allocation costs and arenas (std::pmr), compile-time computation with constexpr, how to read a profile, and optimizing a whole pipeline to a budget."
+testOut: core.performance.test-out   # "Make it fast": passing it completes the module

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Run it first and read the numbers. In the array of structs, one particle is 52 bytes, so a cache line holds about one particle's x. Which layout would put 16 x values in a line? And remember that sizeof(Record) is 16 when no padding is left."
+  - level: 2
+    text: "Three small changes. (1) Record: members from the largest alignment to the smallest: double, int, short, char, char. (2) ShardCounter: `struct alignas(64) ShardCounter { ... };` makes its size a multiple of 64. (3) ParticleSystem: replace `std::vector<Particle>` by one std::vector<float> per field, plus a vector of 32-character arrays for the names."
+  - level: 3
+    text: "In ParticleSystem keep every public function with the same signature: x(i) now returns `x_[i]`, step() loops `for (std::size_t i = 0; i < x_.size(); ++i)` and updates x_[i] and y_[i], sum_x() adds up only x_. add() pushes onto every array (the name is copied into a std::array<char, 32>, at most 31 characters, the rest stay '\\0')."
+  - level: 4
+    text: |
+      private:
+          std::vector<float> x_, y_, vx_, vy_, mass_;
+          std::vector<std::array<char, 32>> names_;
+      // add():  x_.push_back(x); y_.push_back(y); ... names_.push_back(n);
+      // x(i):   return x_[i];            name(i): return names_[i].data();
+      // step(): for (i...) { x_[i] += vx_[i] * dt; y_[i] += vy_[i] * dt; }

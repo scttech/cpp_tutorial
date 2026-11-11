@@ -1,0 +1,237 @@
+[
+  {
+    "name": "linear-scan-per-line",
+    "why": "a pointless walk over all the users for every line: quadratic comparisons.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "        totals[UserId(parsed->user)] += parsed->ms;  // the temporary key is MOVED into the map when the user is new",
+        "new": "        UserId id(parsed->user);\n        for (const auto& kv : totals) {\n            if (kv.first == id) break;\n        }\n        totals[std::move(id)] += parsed->ms;"
+      }
+    ]
+  },
+  {
+    "name": "stream-in-every-line",
+    "why": "a string stream is built for every line: allocations.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "inline std::optional<Parsed> parse_line(std::string_view line) {\n",
+        "new": "inline std::optional<Parsed> parse_line(std::string_view line) {\n    std::istringstream wasted{std::string(line)};\n    (void)wasted;\n"
+      },
+      {
+        "file": "pipeline.hpp",
+        "old": "#include <optional>\n",
+        "new": "#include <optional>\n#include <sstream>\n"
+      }
+    ]
+  },
+  {
+    "name": "user-copied-into-the-map",
+    "why": "the key is an lvalue: it is copied into the map for every new user.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "        totals[UserId(parsed->user)] += parsed->ms;  // the temporary key is MOVED into the map when the user is new",
+        "new": "        const UserId id(parsed->user);\n        totals[id] += parsed->ms;"
+      }
+    ]
+  },
+  {
+    "name": "copies-the-totals-to-sort-them",
+    "why": "every total is copied into a vector which is sorted: copies, allocations and a sort.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "    // The three best, kept in a tiny sorted array: no copy of the totals, no sort of all of them.\n",
+        "new": "    {\n        std::vector<std::pair<UserId, long long>> everything(totals.begin(), totals.end());\n        std::sort(everything.begin(), everything.end(), [](const auto& a, const auto& b) { return a.second > b.second; });\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "ten-digit-numbers-accepted",
+    "why": "the limit is 10 digits instead of 9.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "ms_text.size() > 9 ||",
+        "new": "ms_text.size() > 10 ||"
+      }
+    ]
+  },
+  {
+    "name": "sign-accepted",
+    "why": "only the characters after the first are checked by from_chars: \"-5\" and \"+5\" pass.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": " || ms_text[0] < '0' || ms_text[0] > '9') return std::nullopt;  // 1 to 9 digits (and no sign)",
+        "new": ") return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "garbage-after-the-number",
+    "why": "\"12x\" is read as 12.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "    if (result.ec != std::errc() || result.ptr != ms_text.data() + ms_text.size()) return std::nullopt;  // letters after the digits",
+        "new": "    if (result.ec != std::errc()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "level-prefix-match",
+    "why": "the level only has to START with a known name.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "if (fields[0] == kLevels[k]) level = static_cast<int>(k);",
+        "new": "if (fields[0].substr(0, kLevels[k].size()) == kLevels[k]) level = static_cast<int>(k);"
+      }
+    ]
+  },
+  {
+    "name": "fourth-field-ignored",
+    "why": "extra fields after the third are dropped instead of making the line malformed.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "        if (count == 3) return std::nullopt;  // a fourth field",
+        "new": "        if (count == 3) break;"
+      }
+    ]
+  },
+  {
+    "name": "tabs-are-not-whitespace",
+    "why": "only spaces separate fields.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "return c == ' ' || c == '\\t' || c == '\\n'",
+        "new": "return c == ' ' || c == '\\n'"
+      }
+    ]
+  },
+  {
+    "name": "carriage-return-is-not-whitespace",
+    "why": "a Windows line ending makes the number invalid.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": " || c == '\\r' || c == '\\v'",
+        "new": " || c == '\\v'"
+      }
+    ]
+  },
+  {
+    "name": "ties-by-name-reversed",
+    "why": "the name that sorts LAST wins a tie.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "return *a.first < *b.first;",
+        "new": "return *b.first < *a.first;"
+      }
+    ]
+  },
+  {
+    "name": "ties-left-to-chance",
+    "why": "equal totals are not ordered: the winner depends on the hash table.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "        return *a.first < *b.first;\n",
+        "new": "        return false;\n"
+      }
+    ]
+  },
+  {
+    "name": "top-four",
+    "why": "four users are kept.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "if (best.size() == 3 && !better",
+        "new": "if (best.size() == 4 && !better"
+      },
+      {
+        "file": "pipeline.hpp",
+        "old": "if (best.size() > 3) best.pop_back();",
+        "new": "if (best.size() > 4) best.pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "top-smallest",
+    "why": "the three SMALLEST totals.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "if (a.second != b.second) return a.second > b.second;",
+        "new": "if (a.second != b.second) return a.second < b.second;"
+      }
+    ]
+  },
+  {
+    "name": "distinct-counts-lines",
+    "why": "distinct_users is the number of understood lines.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "    report.distinct_users = totals.size();",
+        "new": "    report.distinct_users = report.lines;"
+      }
+    ]
+  },
+  {
+    "name": "skipped-not-counted",
+    "why": "malformed lines vanish silently.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "            ++report.skipped;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "every-line-is-info",
+    "why": "all lines are counted as INFO.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "++report.by_level[static_cast<std::size_t>(parsed->level)];",
+        "new": "++report.by_level[0];"
+      }
+    ]
+  },
+  {
+    "name": "total-in-an-int",
+    "why": "the totals are ints: 5 times 999999999 overflows.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "std::unordered_map<UserId, long long> totals;",
+        "new": "std::unordered_map<UserId, int> totals;"
+      }
+    ]
+  },
+  {
+    "name": "skipped-lines-counted-as-understood",
+    "why": "lines is incremented before the check.",
+    "edits": [
+      {
+        "file": "pipeline.hpp",
+        "old": "        ++report.lines;\n",
+        "new": ""
+      },
+      {
+        "file": "pipeline.hpp",
+        "old": "        if (!parsed) {\n",
+        "new": "        ++report.lines;\n        if (!parsed) {\n"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Press Run and compare the three rows of the table. One number is thousands of times bigger than the rest. That stage is the hot spot: put its name in hot_stage(). Do not decide by how the code LOOKS."
+  - level: 2
+    text: "dedupe asks 'have I kept an item with this id already?' by scanning everything kept so far: n items, up to n comparisons each. Remember what you have seen in a structure that answers faster: std::set<Item> (about log2(n) comparisons), or an unordered_set of the ids."
+  - level: 3
+    text: "std::set::insert returns a pair; its .second is true when the element was NEW. So: `if (seen.insert(item).second) result.push_back(item);`. Keep pushing into `result` as before so the order of first appearance and the first occurrence are preserved. Do not build the result from the set: it is sorted by id."
+  - level: 4
+    text: |
+      std::vector<Item> result;
+      std::set<Item> seen;
+      for (const Item& item : items) {
+          if (seen.insert(item).second) result.push_back(item);
+      }
+      return result;

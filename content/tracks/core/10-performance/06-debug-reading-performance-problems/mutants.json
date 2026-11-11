@@ -1,0 +1,255 @@
+[
+  {
+    "name": "reversed-inserts-at-the-front",
+    "why": "insert(begin()) moves every element every time: quadratic.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    return std::vector<Tracked>(v.rbegin(), v.rend());  // built once, from the end to the start",
+        "new": "    std::vector<Tracked> result;\n    for (const Tracked& t : v) result.insert(result.begin(), t);\n    return result;"
+      }
+    ]
+  },
+  {
+    "name": "reversed-not-reversed",
+    "why": "the elements come back in the original order.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "v.rbegin(), v.rend()",
+        "new": "v.begin(), v.end()"
+      }
+    ]
+  },
+  {
+    "name": "reversed-loses-one",
+    "why": "the first element is dropped.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "v.rbegin(), v.rend()",
+        "new": "v.rbegin(), v.rend() - 1"
+      }
+    ]
+  },
+  {
+    "name": "reversed-copies-twice",
+    "why": "a needless second copy.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    return std::vector<Tracked>(v.rbegin(), v.rend());  // built once, from the end to the start",
+        "new": "    std::vector<Tracked> once(v.rbegin(), v.rend());\n    std::vector<Tracked> twice = once;\n    return twice;"
+      }
+    ]
+  },
+  {
+    "name": "weight-sum-copies-the-vector",
+    "why": "the helper takes the vector by value again.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "inline int weight_at(const std::vector<Tracked>& all, std::size_t i)",
+        "new": "inline int weight_at(std::vector<Tracked> all, std::size_t i)"
+      }
+    ]
+  },
+  {
+    "name": "weight-sum-skips-the-first",
+    "why": "the loop starts at 1.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "for (std::size_t i = 0; i < v.size(); ++i) sum += weight_at(v, i);",
+        "new": "for (std::size_t i = 1; i < v.size(); ++i) sum += weight_at(v, i);"
+      }
+    ]
+  },
+  {
+    "name": "weight-sum-copies-each-element",
+    "why": "a copy of each Tracked: a different way to pay copies.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "for (std::size_t i = 0; i < v.size(); ++i) sum += weight_at(v, i);",
+        "new": "for (std::size_t i = 0; i < v.size(); ++i) {\n        const Tracked t = v[i];\n        sum += t.v;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "join-builds-temporaries",
+    "why": "result = result + word creates a new string every time.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "        if (i > 0) result += sep;\n        result += words[i];",
+        "new": "        if (i > 0) result = result + sep;\n        result = result + words[i];"
+      }
+    ]
+  },
+  {
+    "name": "join-no-reserve",
+    "why": "the string grows by doubling: a handful of reallocations more than needed.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    result.reserve(total);  // one allocation\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "join-trailing-separator",
+    "why": "a separator after the last word.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "        if (i > 0) result += sep;\n        result += words[i];",
+        "new": "        result += words[i];\n        result += sep;"
+      }
+    ]
+  },
+  {
+    "name": "join-leading-separator",
+    "why": "a separator before the first word.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "        if (i > 0) result += sep;",
+        "new": "        result += sep;"
+      }
+    ]
+  },
+  {
+    "name": "join-without-separators",
+    "why": "the words run together.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "        if (i > 0) result += sep;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "duplicates-by-nested-loops",
+    "why": "every pair compared: quadratic.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    std::vector<Tracked> sorted = v;  // equal values end up next to each other\n    std::sort(sorted.begin(), sorted.end());\n    return std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end();",
+        "new": "    for (std::size_t i = 0; i < v.size(); ++i) {\n        for (std::size_t j = i + 1; j < v.size(); ++j) {\n            if (v[i] == v[j]) return true;\n        }\n    }\n    return false;"
+      }
+    ]
+  },
+  {
+    "name": "duplicates-without-sorting",
+    "why": "adjacent_find on unsorted data finds only equal NEIGHBOURS.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    std::sort(sorted.begin(), sorted.end());\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "duplicates-sorts-twice",
+    "why": "the copy is sorted again: n log n more comparisons.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    std::sort(sorted.begin(), sorted.end());\n",
+        "new": "    std::sort(sorted.begin(), sorted.end());\n    std::stable_sort(sorted.begin(), sorted.end());\n    std::stable_sort(sorted.begin(), sorted.end());\n"
+      }
+    ]
+  },
+  {
+    "name": "duplicates-copies-twice",
+    "why": "two copies of the input.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    std::vector<Tracked> sorted = v;  // equal values end up next to each other",
+        "new": "    std::vector<Tracked> first = v;\n    std::vector<Tracked> sorted = first;"
+      }
+    ]
+  },
+  {
+    "name": "lookup-searches-twice",
+    "why": "count() and then at(): two searches for every hit.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    const auto it = table.find(key);  // one search\n    return it == table.end() ? 0 : it->second;",
+        "new": "    if (table.count(key) > 0) return table.at(key);\n    return 0;"
+      }
+    ]
+  },
+  {
+    "name": "lookup-always-zero",
+    "why": "the stored value is ignored.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "return it == table.end() ? 0 : it->second;",
+        "new": "return it == table.end() ? 0 : 0;"
+      }
+    ]
+  },
+  {
+    "name": "lookup-finds-twice",
+    "why": "find() called again for the value.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "return it == table.end() ? 0 : it->second;",
+        "new": "return it == table.end() ? 0 : table.find(key)->second;"
+      }
+    ]
+  },
+  {
+    "name": "longest-copies-every-word",
+    "why": "the loop variable is a copy: one heap allocation per long word.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    for (const std::string& word : words) {\n        if (best == nullptr || word.size() > best->size()) best = &word;\n    }",
+        "new": "    for (std::size_t i = 0; i < words.size(); ++i) {\n        std::string word = words[i];\n        if (best == nullptr || word.size() > best->size()) best = &words[i];\n    }"
+      }
+    ]
+  },
+  {
+    "name": "longest-last-of-the-longest",
+    "why": ">= instead of >: the last of the equally long words wins.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "word.size() > best->size()",
+        "new": "word.size() >= best->size()"
+      }
+    ]
+  },
+  {
+    "name": "longest-shortest",
+    "why": "the comparison is the wrong way round.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "word.size() > best->size()",
+        "new": "word.size() < best->size()"
+      }
+    ]
+  },
+  {
+    "name": "longest-builds-a-copy-each-time",
+    "why": "best is a std::string that is assigned on every improvement: allocations along the way.",
+    "edits": [
+      {
+        "file": "slow.hpp",
+        "old": "    const std::string* best = nullptr;\n    for (const std::string& word : words) {\n        if (best == nullptr || word.size() > best->size()) best = &word;\n    }\n    return best == nullptr ? std::string() : *best;",
+        "new": "    std::string best;\n    for (const std::string& word : words) {\n        if (word.size() > best.size()) best = word;\n    }\n    return best;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Read the first lines of each file: they explain the columns. perf-report.txt has two percentages: 'Children' (the function plus everything it calls) and 'Self' (only its own code)."
+  - level: 2
+    text: "1: the biggest number in the SELF column. 2: the CHILDREN column of process_image, rounded. 3: perf-stat.txt says 0.44 instructions per cycle and a 52 % cache-miss rate: waiting for what? 4: the Calls column of callgrind.txt."
+  - level: 3
+    text: "5: p is blur_row's share as a fraction (0.61), s is 10: speedup = 1 / ((1 - p) + p / s). It is nowhere near 10. 6: think about what -O0 keeps that -O2 removes (inlining, register use, dead code): would the hot spots be the same?"
+  - level: 4
+    text: |
+      hottest_by_self_time()                  -> "blur_row"
+      percent_in_process_image_and_callees()  -> 98
+      bottleneck_from_perf_stat()             -> Bottleneck::Memory
+      most_called_function()                  -> "clamp_pixel"
+      best_speedup_if_blur_row_is_10x_faster() -> 1.0 / ((1.0 - 0.6102) + 0.6102 / 10.0)
+      debug_build_profile_is_reliable()       -> false

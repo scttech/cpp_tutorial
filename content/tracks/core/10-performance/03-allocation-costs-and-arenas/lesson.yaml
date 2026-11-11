@@ -1,0 +1,15 @@
+id: core.performance.allocators
+title: "Allocation costs and arenas"
+module: core.performance
+type: lesson
+estimatedMinutes: 60
+concepts: [heap-allocation-cost, bump-allocator, arena, pool-allocator, memory-resource, std-pmr, polymorphic-allocator, pmr-vector, pmr-string, uses-allocator-construction, alignment, align-up, upstream-resource, fallback, reset, arena-lifetime, trivially-destructible, construct-at]
+prerequisites: [core.performance.layout]
+files:
+  editable: [arena.hpp]
+  readonly: [main.cpp, counting.hpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 5000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: false }
+gotchas: [alignment-ignored, off-by-one-capacity, size-overflow, forgot-to-free-the-block, dangling-after-reset, destructors-never-run, fallback-pointer-freed-wrongly, offset-aligned-instead-of-address, container-outlives-arena, zero-size-request, arena-copied]

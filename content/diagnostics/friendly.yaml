@@ -228,6 +228,42 @@
     struct Account { std::mutex m; int balance = 0; };
     int main() { Account a; Account b = a; return b.balance; }
 
+# ---- compile-time computation ----------------------------------------------------------------------------------
+- id: constexpr-step-limit
+  match: 'constexpr evaluation hit maximum step limit'
+  friendly: "The compiler runs a `constexpr` computation like a small interpreter, and it gives up after about a million steps (it cannot tell a slow loop from an endless one). Use a faster algorithm (a sieve instead of trial division, a table that is filled once instead of searched again and again), or compute less at compile time. Compile-time work is real work: it is paid on every compilation."
+  lesson: core.performance.constexpr
+  trigger: |
+    constexpr unsigned slow() { unsigned s = 0; for (unsigned i = 0; i < 100000000u; ++i) s += i; return s; }
+    constexpr unsigned x = slow();
+    int main() { return static_cast<int>(x); }
+
+- id: consteval-not-constant
+  match: 'call to consteval function ''(.+?)'' is not a constant expression'
+  friendly: "`$1` is a `consteval` function: it can only be called with values the compiler knows at compile time (literals, `constexpr` variables, other constant expressions). A normal variable, a function parameter or user input is not known until the program runs. Use a literal or a `constexpr` variable, or make the function `constexpr` instead of `consteval` so it can run at run time as well."
+  lesson: core.performance.constexpr
+  trigger: |
+    consteval int square(int x) { return x * x; }
+    int main() { int n = 3; return square(n); }
+
+- id: constinit-not-constant
+  match: 'variable does not have a constant initializer'
+  friendly: "A `constinit` variable must be initialized by a constant expression, so that it is ready before `main` runs with no code executed. The initializer here calls something the compiler cannot evaluate at compile time (a function that is not `constexpr`, or a value that is only known at run time). Make the function `constexpr`, or drop `constinit` and accept a dynamic initializer."
+  lesson: core.performance.constexpr
+  trigger: |
+    int compute() { return 4; }
+    constinit int x = compute();
+    int main() { return x; }
+
+- id: constexpr-variable-not-constant
+  match: 'constexpr variable ''(\w+)'' must be initialized by a constant expression'
+  friendly: "`$1` is declared `constexpr`, so its value must be computed by the compiler, but the initializer uses something that is only known at run time: a function that is not `constexpr`, a variable that is not `constexpr`, or an operation that is not allowed in a constant expression (the note under the error says which). Mark the function `constexpr`, or use `const` if a run-time value is fine."
+  lesson: core.performance.constexpr
+  trigger: |
+    int compute() { return 4; }
+    constexpr int x = compute();
+    int main() { return x; }
+
 - id: library-internal-error
   match: '^(?!in instantiation of|candidate |because |and |expanded from|allocating an object of abstract|delete called on|.*declared here|.*marked deleted)'
   fileMatch: '^/usr/'

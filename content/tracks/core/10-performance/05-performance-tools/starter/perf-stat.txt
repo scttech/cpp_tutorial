@@ -1,0 +1,16 @@
+# The same program, counted with the processor's hardware counters:   perf stat ./thumbnailer photos/
+
+ Performance counter stats for './thumbnailer photos/':
+
+          2,413.77 msec task-clock                #    0.998 CPUs utilized
+     9,801,452,118      cycles                    #    4.060 GHz
+     4,310,220,553      instructions              #    0.44  insn per cycle
+       801,330,114      branches                  #  332.000 M/sec
+         6,410,882      branch-misses             #    0.80% of all branches
+     1,120,634,901      cache-references          #  464.200 M/sec
+       583,011,730      cache-misses              #   52.03% of all cache references
+
+       2.419338811 seconds time elapsed
+
+# Rules of thumb: a modern core can finish 2 to 4 instructions per cycle when it is not waiting. An IPC well below 1 means the processor spends
+# most cycles WAITING (for memory, usually). A cache-miss rate above 10 % to 20 % is high. A branch-miss rate above 5 % is high.

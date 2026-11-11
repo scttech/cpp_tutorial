@@ -72,7 +72,7 @@
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "06129f3a4fe74c78"
+      "hash": "19e517dba1ba1907"
     },
     "core.concurrency.condition-variables": {
       "wasm": false,
@@ -369,6 +369,49 @@
       "reason": "needs sanitizers",
       "declared": true,
       "hash": "0b11f12a6e97826d"
+    },
+    "core.performance.allocators": {
+      "wasm": true,
+      "mutants": 19,
+      "hash": "c5ce1f4c29d3b7e8"
+    },
+    "core.performance.capstone-optimize-the-pipeline": {
+      "wasm": true,
+      "mutants": 20,
+      "hash": "8e805009f2ffcf5b"
+    },
+    "core.performance.constexpr": {
+      "wasm": true,
+      "mutants": 22,
+      "hash": "2fb61f230309585f"
+    },
+    "core.performance.layout": {
+      "wasm": true,
+      "mutants": 14,
+      "hash": "0e36b2fa42e214ec"
+    },
+    "core.performance.measuring": {
+      "wasm": true,
+      "mutants": 11,
+      "hash": "10c3eedfcef8866a"
+    },
+    "core.performance.reading-slowness": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"duplicates-sorts-twice\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "3323c2ee3a610af6"
+    },
+    "core.performance.test-out": {
+      "wasm": true,
+      "mutants": 10,
+      "hash": "af5bba26c67de8b3"
+    },
+    "core.performance.tools": {
+      "wasm": true,
+      "mutants": 12,
+      "hash": "0a89d552c5b8f728"
     },
     "core.stdlib.algorithms": {
       "wasm": true,

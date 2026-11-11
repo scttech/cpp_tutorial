@@ -1,0 +1,13 @@
+# The same program under Valgrind's instruction counter (it runs about 50 times slower, but the counts are exact and repeatable):
+#   valgrind --tool=callgrind ./thumbnailer photos/      then      callgrind_annotate callgrind.out.4711
+#
+# Ir = instructions executed (self, not counting callees)
+#
+           Ir       %        Calls  Function
+--------------------------------------------------------------------------------
+2,614,300,112   61.0%       12,000  blur_row(float*, int)
+  608,100,553   14.2%          400  decode_jpeg(Image&, unsigned char const*)
+  528,000,000   12.3%          400  process_image(Image&)
+  274,700,000    6.4%   48,000,000  clamp_pixel(float)
+  127,300,000    3.0%          400  std::vector<float>::_M_default_append(unsigned long)
+   26,600,000    0.6%          400  write_png(Image const&)
