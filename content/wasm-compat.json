@@ -579,6 +579,130 @@
       "wasm": true,
       "mutants": 16,
       "hash": "08819acac5868bf4"
+    },
+    "domain.finance.event-queue": {
+      "wasm": false,
+      "reason": "needs threads, sanitizers",
+      "declared": true,
+      "hash": "d777aafff02adb3e"
+    },
+    "domain.finance.fix-parser": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"checksum-four-digits-ok\" passes every test (it is only caught on the server)",
+        "mutant \"checksum-signed-chars\" passes every test (it is only caught on the server)",
+        "mutant \"checksum-two-digits-ok\" passes every test (it is only caught on the server)",
+        "mutant \"quadratic-start-search\" passes every test (it is only caught on the server)",
+        "mutant \"starts-vector-reserved-big\" passes every test (it is only caught on the server)",
+        "mutant \"value-trimmed\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "c78ff333ef0cc498"
+    },
+    "domain.finance.money": {
+      "wasm": true,
+      "mutants": 47,
+      "hash": "6e0ea8efded5ac8d"
+    },
+    "domain.finance.moving-averages": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution builds with diagnostics: test.cpp:42:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |    42 |     ZTH_EXPECT_EQ(*sma.push(30), 20.0); |       |                    ^~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expanded from macro 'ZTH_EXPECT_E"
+      ],
+      "hash": "5d22d51dbe02e303"
+    },
+    "domain.finance.order-book": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution builds with diagnostics: test.cpp:107:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |   107 |     ZTH_EXPECT_EQ(*book.remaining(OrderId{1}), 10LL); |       |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expa"
+      ],
+      "hash": "2364cf17e66b19a9"
+    },
+    "domain.finance.risk-metrics": {
+      "wasm": true,
+      "mutants": 42,
+      "hash": "b88db7a78d5e1094"
+    },
+    "domain.games.astar": {
+      "wasm": true,
+      "mutants": 25,
+      "hash": "136c78bd5bbd86c5"
+    },
+    "domain.games.collision": {
+      "wasm": true,
+      "mutants": 30,
+      "hash": "c6b852fbdbe33817"
+    },
+    "domain.games.ecs": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"each-returns-on-missing-store-wrongly\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "b46ad6995e9d3469"
+    },
+    "domain.games.game-loop": {
+      "wasm": true,
+      "mutants": 27,
+      "hash": "064a2d8e14a6dc84"
+    },
+    "domain.games.inventory": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution builds with diagnostics: test.cpp:155:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |   155 |     ZTH_EXPECT_EQ(*bag.find(\"Sword\"), std::size_t{0}); |       |                    ^~~~~~~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expanded fro",
+        "solution fails \"the total value and find are single passes: 200000 calls on 256 slots in time\" [timeout]: test did not finish in 10s (infinite loop?)"
+      ],
+      "hash": "784dad406f1d543b"
+    },
+    "domain.games.object-pool": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"bookkeeping-before-construct\" passes every test (it is only caught on the server)",
+        "mutant \"index-range-not-checked\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "5980c33143629dc5"
+    },
+    "domain.systems.bloom-filter": {
+      "wasm": true,
+      "mutants": 31,
+      "hash": "c6ea1b51d5550347"
+    },
+    "domain.systems.consistent-hashing": {
+      "wasm": true,
+      "mutants": 21,
+      "hash": "6e8b3af2494f1813"
+    },
+    "domain.systems.lru-cache": {
+      "wasm": true,
+      "mutants": 25,
+      "hash": "0597202af9c5430f"
+    },
+    "domain.systems.ring-logger": {
+      "wasm": true,
+      "mutants": 30,
+      "hash": "12eebd26d330cbc9"
+    },
+    "domain.systems.shell-tokenizer": {
+      "wasm": true,
+      "mutants": 33,
+      "hash": "ac4cbe5561210c67"
+    },
+    "domain.systems.timer-wheel": {
+      "wasm": true,
+      "mutants": 26,
+      "hash": "9043f2fbc50fae8a"
+    },
+    "domain.systems.tracking-resource": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"record-before-upstream\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "e378b0feaa3f98a5"
     }
   }
 }

@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Members: std::vector<std::uint64_t> words_ of (bits_ + 63) / 64 zeros (build it in the constructor's initializer list, after bits_), std::size_t bits_set_ (a running count) and items_added_. Two private helpers: index(h, i) = (h.h1 + i * h.h2) % bits_ with everything in std::uint64_t (wrap-around is intended), get_bit(idx) = (words_[idx / 64] >> (idx % 64)) & 1, and set_bit(idx) which sets the bit and increments bits_set_ ONLY if it was 0."
+  - level: 2
+    text: "add: h = hash_pair(item); for i in 0..hashes_: set_bit(index(h, i)); ++items_added_. might_contain: the same loop, return false at the first clear bit. Sizing: n = max(1, expected_items); p must be inside (0, 1) else 0.01; bits = ceil(-n * ln(p) / (ln 2 * ln 2)); hashes = max(1, lround(bits / n * ln 2)). Statistics: fill_ratio = bits_set_ / bits_ (as doubles), estimated_fpr = pow(fill_ratio, hashes_), estimated_count = -(bits_ / hashes_) * log(1 - fill_ratio)."
+  - level: 3
+    text: "merge: refuse if bits_ or hashes_ differ; OR the words together and recount with std::popcount (or add up), items_added_ += other.items_added_. to_bytes: reserve 12 + (bits_ + 7) / 8, push 8 bytes of bits_ and 4 of hashes_ (byte i is (value >> (8 * i)) & 0xFF), then byte b of the body is (words_[b / 8] >> (8 * (b % 8))) & 0xFF. from_bytes, in this order: size >= 12; read bits and hashes; both non-zero; body = size - 12; reject if bits > body * 8 or (bits + 7) / 8 != body (NOW it is safe to allocate); if bits % 8 != 0 the last byte >> (bits % 8) must be 0; build the filter, OR each byte back into words_ and recount bits_set_."
+  - level: 4
+    text: |
+      // void set_bit(std::size_t idx) {
+      //     const std::uint64_t mask = 1ULL << (idx % 64);
+      //     std::uint64_t& word = words_[idx / 64];
+      //     if ((word & mask) == 0) { word |= mask; ++bits_set_; }
+      // }

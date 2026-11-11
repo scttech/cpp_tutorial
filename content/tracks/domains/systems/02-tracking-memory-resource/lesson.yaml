@@ -1,0 +1,15 @@
+id: domain.systems.tracking-resource
+title: "Memory Tracker with Leak Reports"
+module: domain.systems
+type: challenge
+estimatedMinutes: 75
+concepts: [std-pmr, memory-resource, polymorphic-allocator, leak-detection, allocation-tracking, peak-memory, double-free, allocator-aware-containers, unordered-map, raii]
+prerequisites: []
+files:
+  editable: [tracking_resource.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [forward-exactly-what-was-asked, record-after-upstream-succeeds, never-forward-a-bad-free, ids-are-never-reused, sort-the-leaks, peak-is-a-maximum, is-equal-is-identity, bookkeeping-is-not-the-upstream]

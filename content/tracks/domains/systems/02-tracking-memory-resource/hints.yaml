@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Members: std::unordered_map<void*, Allocation> live_ (one record per live block, keyed by the pointer) and the counters live_bytes_, peak_bytes_, total_allocations_, total_deallocations_, bad_frees_, mismatched_frees_ (all size_t, starting at 0). The getters just return them; live_count() is live_.size(). do_is_equal returns this == &other."
+  - level: 2
+    text: "do_allocate: void* p = upstream_->allocate(bytes, alignment) FIRST (if it throws, nothing is recorded), then live_[p] = Allocation{p, bytes, alignment, ++total_allocations_}; live_bytes_ += bytes; peak_bytes_ = max(peak_bytes_, live_bytes_); return p. do_deallocate: it = live_.find(p); if not found: ++bad_frees_ and return (do NOT forward). If bytes or alignment differ from the record: ++mismatched_frees_. Then upstream_->deallocate(p, it->second.bytes, it->second.alignment) (the RECORDED values), live_bytes_ -= it->second.bytes, ++total_deallocations_, live_.erase(it)."
+  - level: 3
+    text: "leaks(): copy the map's values into a vector and std::sort it by id (hash map order is arbitrary). report(): build a std::string with std::to_string; empty books -> 'no leaks (N allocations, peak P bytes)\\n'; otherwise 'LEAK: n allocation(s), b byte(s) not freed\\n' and one '  #id: bytes bytes, alignment a\\n' per leak; then the BAD FREE and MISMATCH lines only when their counters are non-zero."
+  - level: 4
+    text: |
+      // void* do_allocate(std::size_t bytes, std::size_t alignment) override {
+      //     void* p = upstream_->allocate(bytes, alignment);
+      //     live_[p] = Allocation{p, bytes, alignment, ++total_allocations_};
+      //     live_bytes_ += bytes;
+      //     if (live_bytes_ > peak_bytes_) peak_bytes_ = live_bytes_;
+      //     return p;
+      // }

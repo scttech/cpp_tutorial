@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Start with the narrow phase. Boxes overlap when a.min.x <= b.max.x && b.min.x <= a.max.x on x and the same on y (use <=, touching counts). Circles: length_squared(a.center - b.center) <= (a.radius + b.radius)^2. Circle vs box: clamp the centre into the box with std::clamp(c.x, box.min.x, box.max.x) (and y), then compare the squared distance from the centre to that closest point with radius^2."
+  - level: 2
+    text: "Grid: cell_of(v) = (int64)floor(v / cell). insert: for cy in cell_of(min.y)..cell_of(max.y), for cx in cell_of(min.x)..cell_of(max.x): cells_[key(cx, cy)].push_back(id). key packs two signed 32-bit values into a uint64: (uint64(cx) << 32) ^ (uint64(cy) & 0xFFFFFFFF)."
+  - level: 3
+    text: "candidate_pairs: for every cell, for every i < j in its id list, emplace_back(min(a, b), max(a, b)); then sort the vector and erase duplicates with std::unique, because two boxes that share two cells appear twice. find_collisions: insert every box, then keep the candidates for which overlaps(boxes[a], boxes[b]) is true (the order stays sorted)."
+  - level: 4
+    text: |
+      // floor, not truncation:   static_cast<std::int64_t>(std::floor(v / cell_))
+      // a box ending exactly on a border:   floor(max / cell) is the NEXT cell, which is right: the box touches it.
+      // narrow phase for circle vs box:
+      //   Vec2 closest{std::clamp(c.center.x, box.min.x, box.max.x), std::clamp(c.center.y, box.min.y, box.max.y)};
+      //   return length_squared(c.center - closest) <= c.radius * c.radius;

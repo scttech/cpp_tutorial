@@ -1,0 +1,277 @@
+[
+  {
+    "name": "heuristic-overestimates",
+    "why": "h is twice the Manhattan distance: fast but not always the cheapest path",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "return static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)); };",
+        "new": "return 3LL * static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)); };"
+      }
+    ]
+  },
+  {
+    "name": "heuristic-zero",
+    "why": "h is 0: plain Dijkstra, explores everything",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "return static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)); };",
+        "new": "return 0LL * static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)); };"
+      }
+    ]
+  },
+  {
+    "name": "heuristic-chebyshev-times-cost",
+    "why": "h uses the largest cost on the map (inadmissible on cheap ground)",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "return static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)); };",
+        "new": "return 5LL * static_cast<long long>(std::abs(p.x - goal.x) + std::abs(p.y - goal.y)) / 2; };"
+      }
+    ]
+  },
+  {
+    "name": "ignores-costs",
+    "why": "every step costs 1 whatever the ground",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            const long long g = e.g + cost;",
+        "new": "            const long long g = e.g + 1;"
+      }
+    ]
+  },
+  {
+    "name": "walls-cost-one",
+    "why": "cost 0 is treated as walkable ground",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            if (cost == 0) continue;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "no-wall-check-for-start",
+    "why": "a start inside a wall still finds a path",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "if (!inside(start) || !inside(goal) || grid.cost(start.x, start.y) == 0 || grid.cost(goal.x, goal.y) == 0) return {};",
+        "new": "if (!inside(start) || !inside(goal) || grid.cost(goal.x, goal.y) == 0) return {};"
+      }
+    ]
+  },
+  {
+    "name": "start-equals-goal-empty",
+    "why": "start == goal gives an empty path",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "    if (start == goal) return {start};",
+        "new": "    if (start == goal) return {};"
+      }
+    ]
+  },
+  {
+    "name": "start-equals-goal-two-cells",
+    "why": "start == goal repeats the cell",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "    if (start == goal) return {start};",
+        "new": "    if (start == goal) return {start, start};"
+      }
+    ]
+  },
+  {
+    "name": "no-settled-set",
+    "why": "cells are expanded every time they are popped",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "        if (settled[e.cell]) continue;  // a stale entry: the cell was reached more cheaply since\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "neighbours-not-checked-settled",
+    "why": "settled neighbours are looked at again",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "if (!inside(q) || settled[index(q)]) continue;",
+        "new": "if (!inside(q)) continue;"
+      }
+    ]
+  },
+  {
+    "name": "keeps-first-cost",
+    "why": "a cheaper route to a known cell is ignored",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            if (g < best[index(q)]) {",
+        "new": "            if (best[index(q)] == std::numeric_limits<long long>::max()) {"
+      }
+    ]
+  },
+  {
+    "name": "no-tie-break",
+    "why": "equal f is broken arbitrarily",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f > b.f : a.g < b.g; };",
+        "new": "auto later = [](const Entry& a, const Entry& b) { return a.f > b.f; };"
+      }
+    ]
+  },
+  {
+    "name": "tie-break-wrong-way",
+    "why": "equal f prefers the smaller g (explores the diamond)",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f > b.f : a.g < b.g; };",
+        "new": "auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f > b.f : a.g > b.g; };"
+      }
+    ]
+  },
+  {
+    "name": "largest-f-first",
+    "why": "the queue pops the largest f",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f > b.f : a.g < b.g; };",
+        "new": "auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f < b.f : a.g < b.g; };"
+      }
+    ]
+  },
+  {
+    "name": "path-not-reversed",
+    "why": "the path comes out goal to start",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            std::reverse(path.begin(), path.end());\n            return path;",
+        "new": "            return path;"
+      }
+    ]
+  },
+  {
+    "name": "path-without-start",
+    "why": "the start cell is missing from the path",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "for (std::size_t c = e.cell; c != cells; c = parent[c]) path.push_back",
+        "new": "for (std::size_t c = e.cell; parent[c] != cells; c = parent[c]) path.push_back"
+      }
+    ]
+  },
+  {
+    "name": "diagonal-moves",
+    "why": "diagonal steps are allowed",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};",
+        "new": "static const int dx[4] = {1, -1, 1, -1}, dy[4] = {1, -1, -1, 1};"
+      }
+    ]
+  },
+  {
+    "name": "only-three-directions",
+    "why": "one direction is never tried",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};",
+        "new": "static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, 1};"
+      }
+    ]
+  },
+  {
+    "name": "right-edge-off-by-one",
+    "why": "the last column cannot be entered",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto inside = [&](Point p) { return p.x >= 0 && p.y >= 0 && p.x < w && p.y < h; };",
+        "new": "auto inside = [&](Point p) { return p.x >= 0 && p.y >= 0 && p.x < w - 1 && p.y < h; };"
+      }
+    ]
+  },
+  {
+    "name": "bottom-edge-off-by-one",
+    "why": "the last row cannot be entered",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto inside = [&](Point p) { return p.x >= 0 && p.y >= 0 && p.x < w && p.y < h; };",
+        "new": "auto inside = [&](Point p) { return p.x >= 0 && p.y >= 0 && p.x < w && p.y < h - 1; };"
+      }
+    ]
+  },
+  {
+    "name": "index-uses-height",
+    "why": "cells are indexed with the height as row length",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "auto index = [&](Point p) { return static_cast<std::size_t>(p.y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(p.x); };",
+        "new": "auto index = [&](Point p) { return static_cast<std::size_t>(p.y) * static_cast<std::size_t>(h) + static_cast<std::size_t>(p.x); };"
+      }
+    ]
+  },
+  {
+    "name": "looks-up-cost-twice",
+    "why": "every neighbour is looked up twice",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            const int cost = grid.cost(q.x, q.y);",
+        "new": "            (void)grid.cost(q.x, q.y);\n            const int cost = grid.cost(q.x, q.y);"
+      }
+    ]
+  },
+  {
+    "name": "looks-up-the-whole-map-first",
+    "why": "the map is scanned before the search",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "    const std::size_t cells = static_cast<std::size_t>(w) * static_cast<std::size_t>(h);",
+        "new": "    for (int yy = 0; yy < h; ++yy) {\n        for (int xx = 0; xx < w; ++xx) (void)grid.cost(xx, yy);\n    }\n    const std::size_t cells = static_cast<std::size_t>(w) * static_cast<std::size_t>(h);"
+      }
+    ]
+  },
+  {
+    "name": "node-per-cell-allocation",
+    "why": "a std::vector is allocated per expanded cell",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "        settled[e.cell] = 1;",
+        "new": "        settled[e.cell] = 1;\n        std::vector<int> scratch(4);\n        (void)scratch;"
+      }
+    ]
+  },
+  {
+    "name": "recursive-reconstruction",
+    "why": "the path is rebuilt recursively (overflows on long paths)",
+    "edits": [
+      {
+        "file": "astar.hpp",
+        "old": "            std::vector<Point> path;\n            for (std::size_t c = e.cell; c != cells; c = parent[c]) path.push_back({static_cast<int>(c % static_cast<std::size_t>(w)), static_cast<int>(c / static_cast<std::size_t>(w))});\n            std::reverse(path.begin(), path.end());\n            return path;",
+        "new": "            std::vector<Point> path;\n            struct Walk {\n                static void up(const std::vector<std::size_t>& parent, std::size_t cells, std::size_t c, int w, std::vector<Point>& out) {\n                    char padding[1024];\n                    padding[0] = static_cast<char>(c);\n                    if (parent[c] != cells) up(parent, cells, parent[c], w, out);\n                    out.push_back({static_cast<int>(c % static_cast<std::size_t>(w)), static_cast<int>(c / static_cast<std::size_t>(w))});\n                    if (padding[0] == 77 && padding[1] == 77) out.clear();\n                }\n            };\n            Walk::up(parent, cells, e.cell, w, path);\n            return path;"
+      }
+    ]
+  }
+]

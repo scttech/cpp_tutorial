@@ -1,0 +1,424 @@
+[
+  {
+    "name": "checksum-signed-chars",
+    "why": "bytes above 127 are added as negative numbers",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    for (const char c : text) sum += static_cast<unsigned char>(c);\n    return static_cast<int>(sum % 256);",
+        "new": "    int signed_sum = 0;\n    for (const char c : text) signed_sum += c;\n    return ((signed_sum % 256) + 256) % 256;"
+      }
+    ]
+  },
+  {
+    "name": "checksum-mod-255",
+    "why": "modulo 255 instead of 256",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "return static_cast<int>(sum % 256);",
+        "new": "return static_cast<int>(sum % 255);"
+      }
+    ]
+  },
+  {
+    "name": "checksum-uint8-overflow",
+    "why": "the sum is kept in a byte (same result) but the final value is shifted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "return static_cast<int>(sum % 256);",
+        "new": "return static_cast<int>((sum + 1) % 256);"
+      }
+    ]
+  },
+  {
+    "name": "checksum-skips-first-byte",
+    "why": "the first byte is not summed",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    for (const char c : text) sum += static_cast<unsigned char>(c);",
+        "new": "    for (std::size_t i = 1; i < text.size(); ++i) sum += static_cast<unsigned char>(text[i]);"
+      }
+    ]
+  },
+  {
+    "name": "checksum-includes-the-10-field",
+    "why": "the checksum covers the 10= field too",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "checksum_of(text.substr(0, body_end))",
+        "new": "checksum_of(text)"
+      }
+    ]
+  },
+  {
+    "name": "checksum-stops-before-last-separator",
+    "why": "the separator before 10= is not summed",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "checksum_of(text.substr(0, body_end))",
+        "new": "checksum_of(text.substr(0, body_end - 1))"
+      }
+    ]
+  },
+  {
+    "name": "checksum-not-compared",
+    "why": "the checksum value is not checked",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (declared_sum != checksum_of(text.substr(0, body_end))) return fail(Error::BadChecksum, starts[last]);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "checksum-two-digits-ok",
+    "why": "a checksum of 1 or 2 digits is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "if (r.fields[last].value.size() != 3 || !detail::to_int(r.fields[last].value, declared_sum))",
+        "new": "if (r.fields[last].value.size() > 3 || !detail::to_int(r.fields[last].value, declared_sum))"
+      }
+    ]
+  },
+  {
+    "name": "checksum-four-digits-ok",
+    "why": "a checksum of more than 3 digits is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "if (r.fields[last].value.size() != 3 || !detail::to_int(r.fields[last].value, declared_sum))",
+        "new": "if (r.fields[last].value.size() < 3 || !detail::to_int(r.fields[last].value, declared_sum))"
+      }
+    ]
+  },
+  {
+    "name": "checksum-position-wrong",
+    "why": "BadChecksum points at the end of the text",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (declared_sum != checksum_of(text.substr(0, body_end))) return fail(Error::BadChecksum, starts[last]);",
+        "new": "    if (declared_sum != checksum_of(text.substr(0, body_end))) return fail(Error::BadChecksum, text.size());"
+      }
+    ]
+  },
+  {
+    "name": "body-length-includes-checksum-field",
+    "why": "the body length is compared with the whole text after field 9",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (body_end - body_start != static_cast<std::size_t>(declared)) return fail(Error::BadBodyLength, body_start);",
+        "new": "    if (text.size() - body_start != static_cast<std::size_t>(declared)) return fail(Error::BadBodyLength, body_start);"
+      }
+    ]
+  },
+  {
+    "name": "body-length-not-checked",
+    "why": "the body length is read but not compared",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (body_end - body_start != static_cast<std::size_t>(declared)) return fail(Error::BadBodyLength, body_start);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "body-length-counts-fields",
+    "why": "the body length is compared with the number of fields",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "if (body_end - body_start != static_cast<std::size_t>(declared))",
+        "new": "if (r.fields.size() - 3 != static_cast<std::size_t>(declared))"
+      }
+    ]
+  },
+  {
+    "name": "body-length-position-at-nine",
+    "why": "a wrong length points at the 9 field",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (body_end - body_start != static_cast<std::size_t>(declared)) return fail(Error::BadBodyLength, body_start);",
+        "new": "    if (body_end - body_start != static_cast<std::size_t>(declared)) return fail(Error::BadBodyLength, starts[1]);"
+      }
+    ]
+  },
+  {
+    "name": "body-length-signed-negative-ok",
+    "why": "a negative length is accepted by from_chars",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (s.empty()) return false;\n    for (const char c : s) {\n        if (!is_digit(c)) return false;\n    }",
+        "new": "    if (s.empty()) return false;"
+      }
+    ]
+  },
+  {
+    "name": "body-length-garbage-ok",
+    "why": "a length like 12abc is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "return result.ec == std::errc() && result.ptr == s.data() + s.size();",
+        "new": "return result.ec == std::errc();"
+      },
+      {
+        "file": "fix.hpp",
+        "old": "    for (const char c : s) {\n        if (!is_digit(c)) return false;\n    }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "begin-string-not-checked",
+    "why": "any first field is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (r.fields[0].tag != 8 || r.fields[0].value.empty()) return fail(Error::BadBeginString, 0);",
+        "new": "    if (r.fields[0].tag != 8) return fail(Error::BadBeginString, 0);"
+      }
+    ]
+  },
+  {
+    "name": "begin-string-tag-not-checked",
+    "why": "the tag of the first field is not checked",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (r.fields[0].tag != 8 || r.fields[0].value.empty()) return fail(Error::BadBeginString, 0);",
+        "new": "    if (r.fields[0].value.empty()) return fail(Error::BadBeginString, 0);"
+      }
+    ]
+  },
+  {
+    "name": "begin-string-position",
+    "why": "BadBeginString points past the field",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (r.fields[0].tag != 8 || r.fields[0].value.empty()) return fail(Error::BadBeginString, 0);",
+        "new": "    if (r.fields[0].tag != 8 || r.fields[0].value.empty()) return fail(Error::BadBeginString, starts[0] + 1);"
+      }
+    ]
+  },
+  {
+    "name": "tag-letters-ok",
+    "why": "tags may contain letters",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    for (const char c : s) {\n        if (!is_digit(c)) return false;\n    }\n    const auto result",
+        "new": "    const auto result"
+      }
+    ]
+  },
+  {
+    "name": "tag-zero-ok",
+    "why": "tag 0 is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "if (!detail::to_int(field.substr(0, eq), tag) || tag <= 0) return fail(Error::BadTag, at);",
+        "new": "if (!detail::to_int(field.substr(0, eq), tag)) return fail(Error::BadTag, at);"
+      }
+    ]
+  },
+  {
+    "name": "tag-empty-ok",
+    "why": "an empty tag is tag 0 and accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (s.empty()) return false;\n    for (const char c : s) {",
+        "new": "    if (s.empty()) {\n        out = 0;\n        return true;\n    }\n    for (const char c : s) {"
+      }
+    ]
+  },
+  {
+    "name": "tag-position-at-equals",
+    "why": "BadTag points at the equals sign",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "tag <= 0) return fail(Error::BadTag, at);",
+        "new": "tag <= 0) return fail(Error::BadTag, at + eq);"
+      }
+    ]
+  },
+  {
+    "name": "tag-overflow-wraps",
+    "why": "a huge tag is read into an int without checking",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    return result.ec == std::errc() && result.ptr == s.data() + s.size();",
+        "new": "    return result.ptr == s.data() + s.size() || result.ec == std::errc::result_out_of_range;"
+      }
+    ]
+  },
+  {
+    "name": "first-equals-not-used",
+    "why": "the field is split at the last equals sign",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        const std::size_t eq = field.find('=');",
+        "new": "        const std::size_t eq = field.rfind('=');"
+      }
+    ]
+  },
+  {
+    "name": "value-trimmed",
+    "why": "spaces around a value are removed",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        r.fields.push_back(Field{tag, field.substr(eq + 1)});",
+        "new": "        std::string_view v = field.substr(eq + 1);\n        while (!v.empty() && v.front() == ' ') v.remove_prefix(1);\n        while (!v.empty() && v.back() == ' ') v.remove_suffix(1);\n        r.fields.push_back(Field{tag, v});"
+      }
+    ]
+  },
+  {
+    "name": "empty-value-rejected",
+    "why": "an empty value is an error",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        r.fields.push_back(Field{tag, field.substr(eq + 1)});",
+        "new": "        if (eq + 1 == field.size()) return fail(Error::MissingDelimiter, at);\n        r.fields.push_back(Field{tag, field.substr(eq + 1)});"
+      }
+    ]
+  },
+  {
+    "name": "no-equals-ignored",
+    "why": "a field without = is skipped",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        if (eq == std::string_view::npos) return fail(Error::MissingDelimiter, at);",
+        "new": "        if (eq == std::string_view::npos) {\n            at = end + 1;\n            continue;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "last-field-without-soh-ok",
+    "why": "a last field without separator is accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        if (end == std::string_view::npos) return fail(Error::MissingDelimiter, at);  // the last field has no separator",
+        "new": "        const std::size_t end2 = end == std::string_view::npos ? text.size() : end;\n        (void)end2;\n        if (false) return fail(Error::MissingDelimiter, at);"
+      }
+    ]
+  },
+  {
+    "name": "missing-delimiter-position-end",
+    "why": "MissingDelimiter points at the end of the text",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        if (end == std::string_view::npos) return fail(Error::MissingDelimiter, at);  // the last field has no separator",
+        "new": "        if (end == std::string_view::npos) return fail(Error::MissingDelimiter, text.size());"
+      }
+    ]
+  },
+  {
+    "name": "empty-text-not-checked",
+    "why": "empty text is a different error",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    if (text.empty()) return fail(Error::Empty, 0);",
+        "new": "    if (text.empty()) return fail(Error::BadBeginString, 0);"
+      }
+    ]
+  },
+  {
+    "name": "trailing-data-accepted",
+    "why": "fields after the 10 field are accepted",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    for (std::size_t i = 2; i < last; ++i) {\n        if (r.fields[i].tag == 10) return fail(Error::TrailingData, starts[i + 1]);\n    }\n    const std::size_t body_start",
+        "new": "    const std::size_t body_start"
+      }
+    ]
+  },
+  {
+    "name": "trailing-data-wrong-position",
+    "why": "TrailingData points at the 10 field",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    for (std::size_t i = 2; i < last; ++i) {\n        if (r.fields[i].tag == 10) return fail(Error::TrailingData, starts[i + 1]);\n    }\n    const std::size_t body_start",
+        "new": "    for (std::size_t i = 2; i < last; ++i) {\n        if (r.fields[i].tag == 10) return fail(Error::TrailingData, starts[i]);\n    }\n    const std::size_t body_start"
+      }
+    ]
+  },
+  {
+    "name": "failed-parse-keeps-fields",
+    "why": "a failed parse still returns the fields found so far",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        r.fields.clear();\n        r.error = e;",
+        "new": "        r.error = e;"
+      }
+    ]
+  },
+  {
+    "name": "value-copied-into-string",
+    "why": "values are copied into a pool of strings (and viewed from there)",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        r.fields.push_back(Field{tag, field.substr(eq + 1)});",
+        "new": "        pool_.emplace_back(field.substr(eq + 1));\n        r.fields.push_back(Field{tag, pool_.back()});"
+      },
+      {
+        "file": "fix.hpp",
+        "old": "inline ParseResult parse(std::string_view text) {\n    ParseResult r;",
+        "new": "inline ParseResult parse(std::string_view text) {\n    static std::vector<std::string> pool_;\n    pool_.clear();\n    ParseResult r;"
+      },
+      {
+        "file": "fix.hpp",
+        "old": "#include <string_view>\n",
+        "new": "#include <string>\n#include <string_view>\n"
+      }
+    ]
+  },
+  {
+    "name": "starts-vector-reserved-big",
+    "why": "a large vector is allocated for every message",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "    std::vector<std::size_t> starts;  // where each field starts",
+        "new": "    std::vector<std::size_t> starts;  // where each field starts\n    starts.reserve(64);\n    r.fields.reserve(64);"
+      }
+    ]
+  },
+  {
+    "name": "quadratic-start-search",
+    "why": "the field start is found by searching from the beginning every time",
+    "edits": [
+      {
+        "file": "fix.hpp",
+        "old": "        const std::size_t end = text.find(kSoh, at);",
+        "new": "        const std::size_t end = text.find(kSoh, text.size() > 0 && at > 0 ? text.rfind(kSoh, at - 1) + 1 : at);"
+      }
+    ]
+  }
+]

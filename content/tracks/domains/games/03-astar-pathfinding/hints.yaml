@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Check the easy cases first: start or goal outside the map or in a wall (grid.cost == 0) -> {}; start == goal -> {start}. Then three flat vectors indexed by cell = y * width + x: best (cheapest known cost, start at 'infinity'), parent (the cell we came from) and settled (taken from the queue). The queue holds entries {f, g, cell}."
+  - level: 2
+    text: "Main loop: pop the entry with the smallest f; if its cell is already settled, skip it (stale); mark it settled; if it is the goal, rebuild the path by following parent[] back to the start and reverse it. Otherwise for each of the 4 neighbours: skip it if it is outside the map or settled; cost = grid.cost(x, y), skip it if 0; g = current g + cost; if g < best[neighbour], store best, parent and push {g + h, g, neighbour}."
+  - level: 3
+    text: "std::priority_queue pops the LARGEST element. Make the comparator say 'a goes after b': a.f > b.f, and for equal f prefer the larger g (so a.g < b.g goes after). h(p) = |p.x - goal.x| + |p.y - goal.y|, never an overestimate when every cell costs at least 1. The goal is final when it is POPPED, not when it is pushed."
+  - level: 4
+    text: |
+      // struct Entry { long long f, g; std::size_t cell; };
+      // auto later = [](const Entry& a, const Entry& b) { return a.f != b.f ? a.f > b.f : a.g < b.g; };
+      // std::priority_queue<Entry, std::vector<Entry>, decltype(later)> open(later);
+      // path rebuild:  for (c = goal_cell; c != none; c = parent[c]) path.push_back(point(c));  std::reverse(path.begin(), path.end());

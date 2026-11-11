@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Storage: struct alignas(T) Storage { unsigned char bytes[sizeof(T)]; }; Storage storage_[N]; plus std::uint32_t generation_[N] and next_free_[N], a free_head_ and a size_. In the constructor chain the free slots: next_free_[i] = i + 1 (the last one: a 'none' marker) and free_head_ = 0. A slot in use gets a special next_free_ value, say kUsed, so no separate flag is needed."
+  - level: 2
+    text: "create: if free_head_ is none, return kInvalidHandle. Otherwise i = free_head_; std::construct_at(slot(i), std::forward<Args>(args)...) FIRST (so that a throwing constructor changes nothing); then free_head_ = next_free_[i]; next_free_[i] = kUsed; ++size_; return Handle{i, generation_[i]}. destroy: alive(h)? std::destroy_at; ++generation_[i]; next_free_[i] = free_head_; free_head_ = i; --size_."
+  - level: 3
+    text: "alive(h): h.index < N && generation_[h.index] == h.generation && next_free_[h.index] == kUsed. slot(i) is std::launder(reinterpret_cast<T*>(storage_[i].bytes)). The destructor loops over the slots and destroy_at's every one whose next_free_ is kUsed. for_each does the same loop and calls f(Handle{i, generation_[i]}, *slot(i)). Delete the copy constructor and the copy assignment."
+  - level: 4
+    text: |
+      // template <class... Args> Handle create(Args&&... args) {
+      //     if (free_head_ == kNone) return kInvalidHandle;
+      //     const std::uint32_t i = free_head_;
+      //     std::construct_at(slot(i), std::forward<Args>(args)...);   // may throw: nothing has changed yet
+      //     free_head_ = next_free_[i];
+      //     next_free_[i] = kUsed; ++size_;
+      //     return Handle{i, generation_[i]};
+      // }

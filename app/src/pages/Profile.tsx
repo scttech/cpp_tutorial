@@ -12,6 +12,7 @@ const CATEGORIES: { id: BadgeDef["category"]; title: string }[] = [
   { id: "mastery", title: "Mastery" },
   { id: "habits", title: "Learning habits" },
   { id: "consistency", title: "Consistency" },
+  { id: "domain", title: "Domain tracks" },
   { id: "fun", title: "Fun & hidden" },
 ];
 

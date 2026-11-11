@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "State: std::string word (the word under construction), bool in_word (is there a word at all? an empty quoted string makes a word with no characters, so 'word.empty()' is NOT enough), std::size_t start (its first offset). Two tiny lambdas: begin_word(at) (sets in_word and start the first time) and flush() (if in_word: push Token{Word, std::move(word), start}, clear, in_word = false). Then loop i over the line with one branch per character: blank, #, operator, backslash, single quote, double quote, dollar, other."
+  - level: 2
+    text: "Blank: flush(). '#' while !in_word: break (a comment). Operator char (| & ; < >): flush(); length 2 if it is && or || or >> else 1; push an Operator token with pos i. Backslash: if it is the last character, error DanglingBackslash at i; else begin_word(i), append line[i+1], i += 2. Single quote: begin_word(i); close = line.find('\\'', i + 1); npos means error UnterminatedSingleQuote at i; append the text between; i = close + 1. At the end of the loop call flush() once more."
+  - level: 3
+    text: "Double quote: begin_word(i); loop j from i+1: '\"' ends it; a backslash followed by '\"', '\\\\' or '$' appends the escaped character; '$' calls the expansion helper; anything else is appended. No closing quote: UnterminatedDoubleQuote at the OPENING quote. Expansion helper expand(line, i, env, out, error) for line[i] == '$': '${': find '}' (npos -> UnterminatedBrace, empty or invalid identifier -> BadSubstitution, error_pos is the $); '$' + letter/underscore: read letters, digits, underscores; otherwise append a literal '$'. Look the name up with env.find (an undefined name appends nothing). Unquoted: only begin_word(i) if the word is now non-empty (an empty expansion adds nothing)."
+  - level: 4
+    text: |
+      // } else if (c == '$') {
+      //     ErrorKind error = ErrorKind::None;
+      //     const std::size_t next = detail::expand(line, i, env, word, error);
+      //     if (error != ErrorKind::None) { fail(error, i); return r; }
+      //     if (!word.empty()) begin_word(i);   // an empty expansion adds nothing
+      //     i = next;
+      // }

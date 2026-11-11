@@ -1,0 +1,287 @@
+[
+  {
+    "name": "no-generation-check",
+    "why": "get and destroy accept stale handles",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "bool alive(Handle h) const { return h.index < N && generation_[h.index] == h.generation && next_free_[h.index] == kUsed; }",
+        "new": "bool alive(Handle h) const { return h.index < N && next_free_[h.index] == kUsed; }"
+      }
+    ]
+  },
+  {
+    "name": "generation-not-bumped",
+    "why": "destroy does not change the generation",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        ++generation_[h.index];  // every handle to the destroyed object is stale from now on\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "used-flag-not-checked",
+    "why": "alive ignores whether the slot is free",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "generation_[h.index] == h.generation && next_free_[h.index] == kUsed; }",
+        "new": "generation_[h.index] == h.generation; }"
+      }
+    ]
+  },
+  {
+    "name": "index-range-not-checked",
+    "why": "alive does not check the index at all",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "bool alive(Handle h) const { return h.index < N && generation_[h.index] == h.generation && next_free_[h.index] == kUsed; }",
+        "new": "bool alive(Handle h) const { return generation_[h.index] == h.generation && next_free_[h.index] == kUsed; }"
+      }
+    ]
+  },
+  {
+    "name": "destroy-skips-destructor",
+    "why": "destroy does not run the destructor",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        std::destroy_at(slot(h.index));\n        ++generation_",
+        "new": "        ++generation_"
+      }
+    ]
+  },
+  {
+    "name": "pool-destructor-leaks",
+    "why": "the destructor does not destroy live objects",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            if (next_free_[i] == kUsed) std::destroy_at(slot(i));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pool-destructor-destroys-all",
+    "why": "the destructor destroys free slots too",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            if (next_free_[i] == kUsed) std::destroy_at(slot(i));",
+        "new": "            std::destroy_at(slot(i));"
+      }
+    ]
+  },
+  {
+    "name": "construct-through-temporary",
+    "why": "create builds a temporary and moves it into the slot",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        std::construct_at(slot(i), std::forward<Args>(args)...);",
+        "new": "        std::construct_at(slot(i), T(std::forward<Args>(args)...));"
+      }
+    ]
+  },
+  {
+    "name": "bookkeeping-before-construct",
+    "why": "the slot is taken before the constructor runs (a throwing constructor loses it)",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        const std::uint32_t i = free_head_;\n        // construct FIRST: if the constructor throws, the free list has not been touched\n        std::construct_at(slot(i), std::forward<Args>(args)...);\n        free_head_ = next_free_[i];\n        next_free_[i] = kUsed;\n        ++size_;",
+        "new": "        const std::uint32_t i = free_head_;\n        free_head_ = next_free_[i];\n        next_free_[i] = kUsed;\n        ++size_;\n        std::construct_at(slot(i), std::forward<Args>(args)...);"
+      }
+    ]
+  },
+  {
+    "name": "full-not-detected",
+    "why": "create on a full pool writes past the end",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        if (free_head_ == kNone) return kInvalidHandle;\n",
+        "new": "        if (free_head_ == kNone) free_head_ = 0;\n"
+      }
+    ]
+  },
+  {
+    "name": "fifo-reuse",
+    "why": "freed slots are reused in the order they were freed",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        next_free_[h.index] = free_head_;\n        free_head_ = h.index;\n        --size_;",
+        "new": "        next_free_[h.index] = kNone;\n        if (free_head_ == kNone) {\n            free_head_ = h.index;\n        } else {\n            std::uint32_t tail = free_head_;\n            while (next_free_[tail] != kNone) tail = next_free_[tail];\n            next_free_[tail] = h.index;\n        }\n        --size_;"
+      }
+    ]
+  },
+  {
+    "name": "scan-for-free-slot",
+    "why": "create searches the slots for a free one (linear time)",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        const std::uint32_t i = free_head_;\n        // construct FIRST",
+        "new": "        std::uint32_t i = free_head_;\n        for (std::uint32_t k = 0; k < N; ++k) {\n            if (next_free_[k] != kUsed) {\n                i = k;\n                break;\n            }\n        }\n        // construct FIRST"
+      },
+      {
+        "file": "pool.hpp",
+        "old": "        free_head_ = next_free_[i];\n        next_free_[i] = kUsed;",
+        "new": "        free_head_ = next_free_[free_head_];\n        next_free_[i] = kUsed;"
+      }
+    ]
+  },
+  {
+    "name": "storage-not-aligned",
+    "why": "the storage is not aligned for T",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "    struct alignas(T) Storage {",
+        "new": "    struct Storage {"
+      }
+    ]
+  },
+  {
+    "name": "size-not-updated-on-destroy",
+    "why": "size() never decreases",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        --size_;\n        return true;",
+        "new": "        return true;"
+      }
+    ]
+  },
+  {
+    "name": "size-not-updated-on-create",
+    "why": "size() never increases",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        next_free_[i] = kUsed;\n        ++size_;",
+        "new": "        next_free_[i] = kUsed;"
+      }
+    ]
+  },
+  {
+    "name": "full-wrong",
+    "why": "full() is true one object too early",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "bool full() const { return size_ == N; }",
+        "new": "bool full() const { return size_ + 1 >= N; }"
+      }
+    ]
+  },
+  {
+    "name": "handle-has-wrong-generation",
+    "why": "create returns the generation of the previous occupant",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        return Handle{i, generation_[i]};",
+        "new": "        return Handle{i, generation_[i] == 0 ? 0 : generation_[i] - 1};"
+      }
+    ]
+  },
+  {
+    "name": "handle-index-off-by-one",
+    "why": "create returns the next slot as the index",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        return Handle{i, generation_[i]};",
+        "new": "        return Handle{i + 1 < N ? i + 1 : 0, generation_[i]};"
+      }
+    ]
+  },
+  {
+    "name": "for-each-visits-free-slots",
+    "why": "for_each also visits free slots",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            if (next_free_[i] == kUsed) f(Handle{i, generation_[i]}, *slot(i));",
+        "new": "            f(Handle{i, generation_[i]}, *slot(i));"
+      }
+    ]
+  },
+  {
+    "name": "for-each-wrong-generation",
+    "why": "for_each hands out handles with generation 0",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "if (next_free_[i] == kUsed) f(Handle{i, generation_[i]}, *slot(i));",
+        "new": "if (next_free_[i] == kUsed) f(Handle{i, 0}, *slot(i));"
+      }
+    ]
+  },
+  {
+    "name": "for-each-reverse",
+    "why": "for_each goes through the slots backwards",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        for (std::uint32_t i = 0; i < N; ++i) {\n            if (next_free_[i] == kUsed) f(Handle{i, generation_[i]}, *slot(i));\n        }",
+        "new": "        for (std::uint32_t i = N; i-- > 0;) {\n            if (next_free_[i] == kUsed) f(Handle{i, generation_[i]}, *slot(i));\n        }"
+      }
+    ]
+  },
+  {
+    "name": "get-ignores-staleness",
+    "why": "get returns the slot whatever the handle says",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "    T* get(Handle h) { return alive(h) ? slot(h.index) : nullptr; }",
+        "new": "    T* get(Handle h) { return h.index < N ? slot(h.index) : nullptr; }"
+      }
+    ]
+  },
+  {
+    "name": "copyable",
+    "why": "the pool can be copied (and then double-destroys)",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "    Pool(const Pool&) = delete;\n    Pool& operator=(const Pool&) = delete;\n    ~Pool() {",
+        "new": "    Pool(const Pool&) = default;\n    Pool& operator=(const Pool&) = default;\n    ~Pool() {"
+      }
+    ]
+  },
+  {
+    "name": "heap-allocation",
+    "why": "every create allocates a little",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        if (free_head_ == kNone) return kInvalidHandle;\n        const std::uint32_t i = free_head_;",
+        "new": "        if (free_head_ == kNone) return kInvalidHandle;\n        std::vector<int> tmp(1);\n        (void)tmp;\n        const std::uint32_t i = free_head_;"
+      },
+      {
+        "file": "pool.hpp",
+        "old": "#include <utility>\n",
+        "new": "#include <utility>\n#include <vector>\n"
+      }
+    ]
+  },
+  {
+    "name": "generation-array-too-wide",
+    "why": "the bookkeeping uses 64-bit counters and a bool per slot",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "    std::uint32_t generation_[N];\n    std::uint32_t next_free_[N];",
+        "new": "    std::uint32_t generation_[N];\n    std::uint32_t next_free_[N];\n    unsigned long long wasted_[N][2];"
+      }
+    ]
+  }
+]

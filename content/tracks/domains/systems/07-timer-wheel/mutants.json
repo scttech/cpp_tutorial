@@ -1,0 +1,288 @@
+[
+  {
+    "name": "delay-zero-never-fires",
+    "why": "a delay of 0 is scheduled in the past",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        if (delay == 0) delay = 1;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "delay-off-by-one",
+    "why": "timers fire one tick early",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": ": now_ + delay;",
+        "new": ": now_ + delay - 1;"
+      }
+    ]
+  },
+  {
+    "name": "deadline-wraps-around",
+    "why": "now + delay overflows for huge delays",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "delay > kForever - now_ ? kForever : now_ + delay;",
+        "new": "now_ + delay;"
+      }
+    ]
+  },
+  {
+    "name": "slot-from-delay",
+    "why": "the slot is chosen from the delay, not the deadline",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "slots_[static_cast<std::size_t>(deadline % slots_.size())]",
+        "new": "slots_[static_cast<std::size_t>(delay % slots_.size())]"
+      }
+    ]
+  },
+  {
+    "name": "fires-every-lap",
+    "why": "every timer in the slot fires, whatever its deadline",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            else if (it->deadline == now_) due.splice",
+        "new": "            else due.splice"
+      }
+    ]
+  },
+  {
+    "name": "newest-first",
+    "why": "timers with the same deadline fire newest first",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        slot.push_back(Timer{id, deadline, std::move(callback), true});\n        index_[id] = &slot.back();",
+        "new": "        slot.push_front(Timer{id, deadline, std::move(callback), true});\n        index_[id] = &slot.front();"
+      }
+    ]
+  },
+  {
+    "name": "cancel-does-not-stop-it",
+    "why": "cancel only forgets the index entry",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        timer->live = false;           // swept when its slot is next visited\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cancel-keeps-callback",
+    "why": "cancel does not release the callback",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        timer->callback = nullptr;     // but whatever the callback captured is released now\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cancel-keeps-index",
+    "why": "cancel leaves the id in the index",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        index_.erase(it);\n        return true;\n    }\n\n    std::size_t advance",
+        "new": "        return true;\n    }\n\n    std::size_t advance"
+      }
+    ]
+  },
+  {
+    "name": "cancel-always-true",
+    "why": "cancel of an unknown id says true",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        if (it == index_.end()) return false;\n        Timer* timer = it->second;",
+        "new": "        if (it == index_.end()) return true;\n        Timer* timer = it->second;"
+      }
+    ]
+  },
+  {
+    "name": "fired-stays-indexed",
+    "why": "a fired timer stays in the index",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            index_.erase(timer.id);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cancelled-in-tick-still-runs",
+    "why": "a timer cancelled earlier in the same tick still runs",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            if (!timer.live) continue;  // cancelled by a callback that ran earlier in this tick\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "erased-after-callback",
+    "why": "the timer is removed from the books only after its callback returns",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            timer.live = false;\n            index_.erase(timer.id);\n            Callback callback = std::move(timer.callback);\n            callback();",
+        "new": "            Callback callback = std::move(timer.callback);\n            callback();\n            timer.live = false;\n            index_.erase(timer.id);"
+      }
+    ]
+  },
+  {
+    "name": "advance-is-reentrant",
+    "why": "advance() inside a callback runs",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        if (advancing_) return 0;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "tick-after-the-slot",
+    "why": "the slot of the previous tick is processed",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            ++now_;\n            fired += run_tick();",
+        "new": "            fired += run_tick();\n            ++now_;"
+      }
+    ]
+  },
+  {
+    "name": "dead-nodes-stay",
+    "why": "dead nodes are never thrown away",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            if (!it->live) slot.erase(it);\n            else if",
+        "new": "            if (!it->live) {}\n            else if"
+      }
+    ]
+  },
+  {
+    "name": "scans-all-slots",
+    "why": "every tick looks at all the slots",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        auto& slot = slots_[static_cast<std::size_t>(now_ % slots_.size())];\n        for (auto it = slot.begin(); it != slot.end();) {",
+        "new": "        for (auto& slot : slots_)\n        for (auto it = slot.begin(); it != slot.end();) {"
+      }
+    ]
+  },
+  {
+    "name": "cancel-by-scanning",
+    "why": "cancel searches all the slots for the id",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        const auto it = index_.find(id);\n        if (it == index_.end()) return false;\n        Timer* timer = it->second;",
+        "new": "        const auto it = index_.find(id);\n        if (it == index_.end()) return false;\n        Timer* timer = nullptr;\n        for (auto& slot : slots_)\n            for (Timer& t : slot)\n                if (t.id == id) timer = &t;"
+      }
+    ]
+  },
+  {
+    "name": "fired-not-counted",
+    "why": "advance returns 0",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            ++fired;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pending-counts-dead-nodes",
+    "why": "pending counts the nodes held, dead ones included",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "std::size_t pending() const { return index_.size(); }",
+        "new": "std::size_t pending() const { return stored_nodes(); }"
+      }
+    ]
+  },
+  {
+    "name": "next-deadline-is-latest",
+    "why": "next_deadline returns the latest deadline",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "entry.second->deadline < *best",
+        "new": "entry.second->deadline > *best"
+      }
+    ]
+  },
+  {
+    "name": "clear-keeps-index",
+    "why": "clear forgets the lists but not the index",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        index_.clear();\n        for (auto& slot : slots_) slot.clear();",
+        "new": "        for (auto& slot : slots_) slot.clear();"
+      }
+    ]
+  },
+  {
+    "name": "clear-misses-current-tick",
+    "why": "clear does not stop timers waiting in the current tick",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "            entry.second->live = false;  // also reaches timers that are waiting to run in the current tick\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "empty-callback-accepted",
+    "why": "an empty callback is scheduled",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "        if (!callback) return 0;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "ids-start-at-zero",
+    "why": "the first id is 0",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "Id next_id_ = 1;",
+        "new": "Id next_id_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "zero-slots-allowed",
+    "why": "a wheel of 0 slots divides by zero",
+    "edits": [
+      {
+        "file": "timer_wheel.hpp",
+        "old": "slots_(slots == 0 ? 1 : slots)",
+        "new": "slots_(slots)"
+      }
+    ]
+  }
+]

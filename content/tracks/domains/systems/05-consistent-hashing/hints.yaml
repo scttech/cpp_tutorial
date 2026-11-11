@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Two members: struct Point { std::uint64_t hash; const std::string* node; } with a std::vector<Point> points_ kept SORTED by (hash, node name), and std::unordered_map<std::string, std::size_t> nodes_ (name -> weight). Its keys never move when it rehashes, so Point can hold a pointer to the key and lookup() can return that pointer. contains / node_count / point_count / nodes() (sort the names!) are one-liners."
+  - level: 2
+    text: "lookup: if points_ is empty return nullptr; h = hash64(key); it = std::lower_bound(points_.begin(), points_.end(), h, [](const Point& p, std::uint64_t v) { return p.hash < v; }); if (it == points_.end()) it = points_.begin(); return it->node. No copy of the key, no allocation."
+  - level: 3
+    text: "add_node: reject weight == 0 or an existing name; emplace the node; build count = vnodes_ * weight Points with hash64(vnode_label(name, i)); sort THOSE (they are few); remember old_size, append them to points_ and std::inplace_merge(points_.begin(), points_.begin() + old_size, points_.end(), before). remove_node: erase-remove with std::remove_if on p.node == &it->first (stable, keeps the order), then nodes_.erase(it). lookup_n: start at the lookup position and walk clockwise (index % points_.size()) collecting node names not yet in the result, until n distinct or all points visited."
+  - level: 4
+    text: |
+      // static bool before(const Point& a, const Point& b) { return a.hash < b.hash || (a.hash == b.hash && *a.node < *b.node); }
+      // std::sort(fresh.begin(), fresh.end(), before);
+      // const std::size_t old_size = points_.size();
+      // points_.insert(points_.end(), fresh.begin(), fresh.end());
+      // std::inplace_merge(points_.begin(), points_.begin() + static_cast<std::ptrdiff_t>(old_size), points_.end(), before);

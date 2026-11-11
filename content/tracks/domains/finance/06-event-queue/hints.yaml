@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Storage: std::array<T, N + 1> buffer_ and two indices as std::atomic<std::size_t>: head_ (next slot to read, written by the consumer only) and tail_ (next slot to write, written by the producer only), both starting at 0. The queue is EMPTY when head == tail and FULL when advance(tail) == head: that is why there are N + 1 slots. advance(i) = (i + 1 == N + 1) ? 0 : i + 1."
+  - level: 2
+    text: "try_push(item): tail = tail_.load(relaxed) (it is your own index); next = advance(tail); if next == head_.load(acquire) return false (full); buffer_[tail] = std::move(item); tail_.store(next, release) (this publishes the slot); return true. try_pop(out): head = head_.load(relaxed); if head == tail_.load(acquire) return false (empty); out = std::move(buffer_[head]); head_.store(advance(head), release); return true."
+  - level: 3
+    text: "size_approx: load both indices (acquire) and return tail >= head ? tail - head : tail + (N + 1) - head. alignas(64) on head_, on tail_ and on buffer_ puts them on separate cache lines (sizeof is then at least 128 even for N = 1 and char items). The order of the two statements in push (write the slot, THEN store the index with release) is the whole point: swap them or use relaxed and ThreadSanitizer reports a data race."
+  - level: 4
+    text: |
+      // alignas(64) std::atomic<std::size_t> head_{0};   // written by the consumer
+      // alignas(64) std::atomic<std::size_t> tail_{0};   // written by the producer
+      // alignas(64) std::array<T, N + 1> buffer_{};
+      // a thread loads ITS OWN index with relaxed and the OTHER thread's with acquire; it stores its own with release.

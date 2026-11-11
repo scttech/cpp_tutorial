@@ -1,0 +1,15 @@
+id: domain.finance.event-queue
+title: "Low-Latency Event Queue (SPSC)"
+module: domain.finance
+type: challenge
+estimatedMinutes: 90
+concepts: [lock-free, single-producer-single-consumer, ring-buffer, std-atomic, acquire-release, false-sharing, cache-line-alignment, memory-ordering, wait-free, thread-sanitizer]
+prerequisites: []
+files:
+  editable: [spsc_queue.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 12000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [full-versus-empty, one-slot-kept-free, release-after-writing-the-slot, acquire-before-reading-the-slot, relaxed-is-enough-for-your-own-index, false-sharing, wraparound, move-only-items, no-mutex-allowed, index-modulo]

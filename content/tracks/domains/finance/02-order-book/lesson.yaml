@@ -1,0 +1,15 @@
+id: domain.finance.order-book
+title: "Order Book Matching Engine"
+module: domain.finance
+type: challenge
+estimatedMinutes: 120
+concepts: [limit-order-book, price-time-priority, std-map-of-lists, iterators-stay-valid, secondary-index, partial-fills, invariants, differential-testing, operation-counting, amortised-constant-cancel]
+prerequisites: []
+files:
+  editable: [order_book.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [price-priority-then-time-priority, trade-price-is-the-resting-orders-price, equal-prices-cross, partial-fills, remove-empty-levels, cancel-must-not-search, duplicate-ids, invalid-orders, list-iterators-survive-insertion, never-leave-a-crossed-book, ids-reusable-after-fill]

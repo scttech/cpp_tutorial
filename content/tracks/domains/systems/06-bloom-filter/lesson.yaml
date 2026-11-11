@@ -1,0 +1,15 @@
+id: domain.systems.bloom-filter
+title: "Bloom Filter"
+module: domain.systems
+type: challenge
+estimatedMinutes: 75
+concepts: [bloom-filter, probabilistic-data-structure, bit-array, double-hashing, false-positive-rate, popcount, serialization, set-union, cardinality-estimation, untrusted-input]
+prerequisites: []
+files:
+  editable: [bloom.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [no-false-negatives, size-from-capacity-and-rate, ceil-and-round, count-bits-incrementally, only-same-shape-merges, validate-before-allocating, padding-bits-must-be-zero, bit-order-in-bytes, estimate-the-count-from-the-bits]

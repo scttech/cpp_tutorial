@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "One loop to split the text into fields: at = 0; while (at < text.size()) { end = text.find(kSoh, at); if (end == npos) -> MissingDelimiter at `at`; field = text.substr(at, end - at); eq = field.find('='); if (eq == npos) -> MissingDelimiter at `at`; tag = digits of field.substr(0, eq) (to_int helper with std::from_chars: reject empty, any non-digit, overflow; tag must be > 0) else BadTag at `at`; fields.push_back({tag, field.substr(eq + 1)}); starts.push_back(at); at = end + 1; }. The value is a substr of the INPUT: a view, not a copy."
+  - level: 2
+    text: "Then the frame, with the start offsets you kept: fields[0] must be tag 8 with a non-empty value (BadBeginString at 0). fields[1] must be tag 9 with all digits (BadBodyLength at starts[1]). The LAST field must be tag 10 (BadChecksum at its start); a tag-10 field anywhere before the last one means data follows it (TrailingData at the start of the next field). body_start = starts[2] (the field after 9; for an empty body that is the 10 field itself), body_end = starts[last]; if body_end - body_start != declared -> BadBodyLength at body_start."
+  - level: 3
+    text: "Checksum: the value of field 10 must be exactly 3 digits (BadChecksum at starts[last] otherwise) and equal checksum_of(text.substr(0, body_end)) where checksum_of sums static_cast<unsigned char>(c) for every byte, modulo 256. On any error clear the fields vector before returning (a failed parse returns no fields)."
+  - level: 4
+    text: |
+      // to_int(std::string_view s, int& out): if s.empty() return false; for each c: if not '0'..'9' return false;
+      //   auto r = std::from_chars(s.data(), s.data() + s.size(), out); return r.ec == std::errc() && r.ptr == s.data() + s.size();
+      // for the "message ends without SOH" case, text.find(kSoh, at) returns npos for the last field: that is the MissingDelimiter at the start of that field

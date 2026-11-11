@@ -1,0 +1,319 @@
+[
+  {
+    "name": "ids-start-at-zero",
+    "why": "the first id is 0",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "Allocation{p, bytes, alignment, ++total_allocations_}",
+        "new": "Allocation{p, bytes, alignment, total_allocations_++}"
+      }
+    ]
+  },
+  {
+    "name": "ids-reused",
+    "why": "the id is derived from the number of live blocks",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "Allocation{p, bytes, alignment, ++total_allocations_}",
+        "new": "Allocation{p, bytes, alignment, live_.size() + 1}"
+      },
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        live_[p] = ",
+        "new": "        ++total_allocations_;\n        live_[p] = "
+      }
+    ]
+  },
+  {
+    "name": "peak-is-current",
+    "why": "the \"peak\" always equals the current bytes",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (live_bytes_ > peak_bytes_) peak_bytes_ = live_bytes_;",
+        "new": "        peak_bytes_ = live_bytes_;"
+      }
+    ]
+  },
+  {
+    "name": "peak-never-set",
+    "why": "the peak is never updated",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (live_bytes_ > peak_bytes_) peak_bytes_ = live_bytes_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "live-bytes-not-reduced",
+    "why": "freeing does not reduce the live bytes",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        live_bytes_ -= it->second.bytes;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "live-bytes-adds-alignment",
+    "why": "the alignment is added to the byte count",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        live_bytes_ += bytes;",
+        "new": "        live_bytes_ += bytes + alignment;"
+      },
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        live_bytes_ -= it->second.bytes;",
+        "new": "        live_bytes_ -= it->second.bytes + it->second.alignment;"
+      }
+    ]
+  },
+  {
+    "name": "frees-forward-callers-size",
+    "why": "the upstream is told the size the caller passed, not the recorded one",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        upstream_->deallocate(p, it->second.bytes, it->second.alignment);",
+        "new": "        upstream_->deallocate(p, bytes, alignment);"
+      }
+    ]
+  },
+  {
+    "name": "mismatch-not-counted",
+    "why": "a mismatched free is not counted",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (it->second.bytes != bytes || it->second.alignment != alignment) ++mismatched_frees_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "mismatch-ignores-alignment",
+    "why": "only the size is compared",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (it->second.bytes != bytes || it->second.alignment != alignment) ++mismatched_frees_;",
+        "new": "        if (it->second.bytes != bytes) ++mismatched_frees_;"
+      }
+    ]
+  },
+  {
+    "name": "bad-free-forwarded",
+    "why": "a free of an unknown pointer is passed on to the upstream",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "            ++bad_frees_;  // unknown or already freed: forwarding it would corrupt the heap\n            return;",
+        "new": "            ++bad_frees_;\n            upstream_->deallocate(p, bytes, alignment);\n            return;"
+      }
+    ]
+  },
+  {
+    "name": "bad-free-not-counted",
+    "why": "a free of an unknown pointer is silently ignored",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "            ++bad_frees_;  // unknown or already freed: forwarding it would corrupt the heap\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "bad-free-counts-as-dealloc",
+    "why": "a bad free also counts as a deallocation",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "            ++bad_frees_;  // unknown or already freed: forwarding it would corrupt the heap\n",
+        "new": "            ++bad_frees_;\n            ++total_deallocations_;\n"
+      }
+    ]
+  },
+  {
+    "name": "dealloc-not-counted",
+    "why": "total_deallocations never grows",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        ++total_deallocations_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "record-before-upstream",
+    "why": "the counter is bumped before the upstream is asked (an exception leaves a hole)",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        void* p = upstream_->allocate(bytes, alignment);  // may throw: then nothing has been recorded\n        live_[p] = Allocation{p, bytes, alignment, ++total_allocations_};",
+        "new": "        const std::size_t id = ++total_allocations_;\n        void* p = upstream_->allocate(bytes, alignment);\n        live_[p] = Allocation{p, bytes, alignment, id};"
+      }
+    ]
+  },
+  {
+    "name": "header-added",
+    "why": "the tracker asks the upstream for 8 extra bytes",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        void* p = upstream_->allocate(bytes, alignment);  // may throw: then nothing has been recorded",
+        "new": "        void* p = upstream_->allocate(bytes + 8, alignment);"
+      },
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        upstream_->deallocate(p, it->second.bytes, it->second.alignment);",
+        "new": "        upstream_->deallocate(p, it->second.bytes + 8, it->second.alignment);"
+      }
+    ]
+  },
+  {
+    "name": "alignment-dropped",
+    "why": "the alignment is replaced by the default alignment",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        void* p = upstream_->allocate(bytes, alignment);  // may throw: then nothing has been recorded",
+        "new": "        void* p = upstream_->allocate(bytes, alignof(std::max_align_t));"
+      }
+    ]
+  },
+  {
+    "name": "leaks-unsorted",
+    "why": "leaks() comes in hash-map order",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        std::sort(out.begin(), out.end(), [](const Allocation& a, const Allocation& b) { return a.id < b.id; });\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "leaks-newest-first",
+    "why": "leaks() is sorted in descending id order",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "return a.id < b.id; });",
+        "new": "return a.id > b.id; });"
+      }
+    ]
+  },
+  {
+    "name": "report-leak-count-is-bytes",
+    "why": "the first report line shows the bytes where the count belongs",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "\"LEAK: \" + std::to_string(live_.size()) + \" allocation(s), \"",
+        "new": "\"LEAK: \" + std::to_string(live_bytes_) + \" allocation(s), \""
+      }
+    ]
+  },
+  {
+    "name": "report-no-newline",
+    "why": "the last report line has no newline",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "                out += \"  #\" + std::to_string(a.id) + \": \" + std::to_string(a.bytes) + \" bytes, alignment \" + std::to_string(a.alignment) + \"\\n\";",
+        "new": "                out += \"  #\" + std::to_string(a.id) + \": \" + std::to_string(a.bytes) + \" bytes, alignment \" + std::to_string(a.alignment) + (a.id == live_.size() ? \"\" : \"\\n\");"
+      }
+    ]
+  },
+  {
+    "name": "report-hides-bad-frees",
+    "why": "the BAD FREE line is missing from the report",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (bad_frees_ > 0) out += \"BAD FREE: \" + std::to_string(bad_frees_) + \" deallocation(s) of unknown pointers\\n\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "report-hides-mismatches",
+    "why": "the MISMATCH line is missing from the report",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        if (mismatched_frees_ > 0) out += \"MISMATCH: \" + std::to_string(mismatched_frees_) + \" deallocation(s) with the wrong size or alignment\\n\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "report-shows-live-peak",
+    "why": "the \"no leaks\" line shows the live bytes where the peak belongs",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "std::to_string(peak_bytes_) + \" bytes)\\n\"",
+        "new": "std::to_string(live_bytes_) + \" bytes)\\n\""
+      }
+    ]
+  },
+  {
+    "name": "equal-always",
+    "why": "every resource is \"equal\" to every other",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "return this == &other; }",
+        "new": "return true; }"
+      }
+    ]
+  },
+  {
+    "name": "equal-by-upstream",
+    "why": "two trackers on the same upstream are \"equal\"",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "return this == &other; }",
+        "new": "return this == &other || upstream_->is_equal(other); }"
+      }
+    ]
+  },
+  {
+    "name": "lookup-by-scan",
+    "why": "finding a block walks the whole map",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        const auto it = live_.find(p);",
+        "new": "        auto it = live_.begin();\n        while (it != live_.end() && it->first != p) ++it;"
+      }
+    ]
+  },
+  {
+    "name": "allocates-bookkeeping-junk",
+    "why": "every allocation makes an extra heap allocation",
+    "edits": [
+      {
+        "file": "tracking_resource.hpp",
+        "old": "        live_bytes_ += bytes;\n        if",
+        "new": "        live_bytes_ += bytes;\n        auto spare = std::make_unique<int>(1);\n        (void)spare;\n        if"
+      },
+      {
+        "file": "tracking_resource.hpp",
+        "old": "#include <memory_resource>\n",
+        "new": "#include <memory>\n#include <memory_resource>\n"
+      }
+    ]
+  }
+]

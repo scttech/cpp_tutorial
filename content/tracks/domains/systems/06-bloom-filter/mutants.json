@@ -1,0 +1,348 @@
+[
+  {
+    "name": "index-uses-only-h1",
+    "why": "all k bits of an item are the same bit",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "return static_cast<std::size_t>((h.h1 + static_cast<std::uint64_t>(i) * h.h2) % bits_); }",
+        "new": "return static_cast<std::size_t>((h.h1 + static_cast<std::uint64_t>(i) * 0) % bits_); }"
+      }
+    ]
+  },
+  {
+    "name": "index-starts-at-one",
+    "why": "bit numbers count from 1 instead of 0",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "static_cast<std::uint64_t>(i) * h.h2) % bits_); }",
+        "new": "static_cast<std::uint64_t>(i + 1) * h.h2) % bits_); }"
+      }
+    ]
+  },
+  {
+    "name": "index-modulo-word-size",
+    "why": "positions are taken modulo the allocated words, not the bits",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "% bits_); }",
+        "new": "% (words_.size() * 64)); }"
+      }
+    ]
+  },
+  {
+    "name": "query-checks-first-bit-only",
+    "why": "might_contain looks at the first bit only",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "for (std::size_t i = 0; i < hashes_; ++i) {\n            if (!get_bit",
+        "new": "for (std::size_t i = 0; i < 1; ++i) {\n            if (!get_bit"
+      }
+    ]
+  },
+  {
+    "name": "add-sets-one-bit-too-few",
+    "why": "add leaves the last bit unset",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "for (std::size_t i = 0; i < hashes_; ++i) set_bit(index(h, i));",
+        "new": "for (std::size_t i = 0; i + 1 < hashes_; ++i) set_bit(index(h, i));"
+      }
+    ]
+  },
+  {
+    "name": "mask-uses-modulo-63",
+    "why": "the bit within the word is chosen modulo 63",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "const std::uint64_t mask = 1ULL << (idx % 64);",
+        "new": "const std::uint64_t mask = 1ULL << (idx % 63);"
+      }
+    ]
+  },
+  {
+    "name": "bits-set-counts-every-write",
+    "why": "a bit that is already set is counted again",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        if ((word & mask) == 0) {\n            word |= mask;\n            ++bits_set_;\n        }",
+        "new": "        word |= mask;\n        ++bits_set_;"
+      }
+    ]
+  },
+  {
+    "name": "bits-set-is-recounted",
+    "why": "bits_set() counts the words every time",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "std::size_t bits_set() const { return bits_set_; }",
+        "new": "std::size_t bits_set() const {\n        std::size_t n = 0;\n        for (std::uint64_t w : words_) n += static_cast<std::size_t>(std::popcount(w));\n        return n;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "optimal-bits-floor",
+    "why": "the bit count is rounded down",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "std::ceil(-n * std::log(p) / (ln2 * ln2))",
+        "new": "std::floor(-n * std::log(p) / (ln2 * ln2))"
+      }
+    ]
+  },
+  {
+    "name": "optimal-bits-log10",
+    "why": "log10 instead of the natural logarithm",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "std::ceil(-n * std::log(p) / (ln2 * ln2))",
+        "new": "std::ceil(-n * std::log10(p) / (ln2 * ln2))"
+      }
+    ]
+  },
+  {
+    "name": "optimal-bits-zero-items",
+    "why": "zero items are not treated as one",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        const double n = expected_items == 0 ? 1.0 : static_cast<double>(expected_items);\n        const double p",
+        "new": "        const double n = static_cast<double>(expected_items);\n        const double p"
+      }
+    ]
+  },
+  {
+    "name": "optimal-bits-bad-rate",
+    "why": "a rate of 1 or more is used as it is",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "const double p = (false_positive_rate > 0.0 && false_positive_rate < 1.0) ? false_positive_rate : 0.01;",
+        "new": "const double p = false_positive_rate > 0.0 ? false_positive_rate : 0.01;"
+      }
+    ]
+  },
+  {
+    "name": "optimal-hashes-floor",
+    "why": "the hash count is rounded down",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "static_cast<std::size_t>(std::lround(k))",
+        "new": "static_cast<std::size_t>(k)"
+      }
+    ]
+  },
+  {
+    "name": "optimal-hashes-no-minimum",
+    "why": "the hash count can be 0",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "return std::max<std::size_t>(1, static_cast<std::size_t>(std::lround(k)));",
+        "new": "return static_cast<std::size_t>(std::lround(k));"
+      }
+    ]
+  },
+  {
+    "name": "estimated-fpr-ignores-hashes",
+    "why": "estimated_fpr is the fill ratio",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "return std::pow(fill_ratio(), static_cast<double>(hashes_));",
+        "new": "return fill_ratio();"
+      }
+    ]
+  },
+  {
+    "name": "estimated-count-wrong-formula",
+    "why": "estimated_count takes the log of the fill ratio",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "std::log(1.0 - ratio)",
+        "new": "std::log(ratio)"
+      }
+    ]
+  },
+  {
+    "name": "fill-ratio-integer-division",
+    "why": "fill_ratio divides integers",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "return static_cast<double>(bits_set_) / static_cast<double>(bits_); }",
+        "new": "return static_cast<double>(bits_set_ / bits_); }"
+      }
+    ]
+  },
+  {
+    "name": "merge-intersects",
+    "why": "merge ANDs the filters",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "words_[i] |= other.words_[i];",
+        "new": "words_[i] &= other.words_[i];"
+      }
+    ]
+  },
+  {
+    "name": "merge-ignores-hash-count",
+    "why": "filters with different k can be merged",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "if (bits_ != other.bits_ || hashes_ != other.hashes_) return false;",
+        "new": "if (bits_ != other.bits_) return false;"
+      }
+    ]
+  },
+  {
+    "name": "merge-keeps-old-count",
+    "why": "bits_set is not updated by merge",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        bits_set_ = set;\n",
+        "new": "        (void)set;\n"
+      }
+    ]
+  },
+  {
+    "name": "merge-items-not-added",
+    "why": "items_added is not summed by merge",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        items_added_ += other.items_added_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "clear-keeps-count",
+    "why": "clear zeroes the bits but not the count",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        bits_set_ = 0;\n        items_added_ = 0;\n    }",
+        "new": "        items_added_ = 0;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "to-bytes-header-big-endian",
+    "why": "the bit count is written big endian",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "for (std::size_t i = 0; i < 8; ++i) out.push_back(static_cast<std::uint8_t>((static_cast<std::uint64_t>(bits_) >> (8 * i)) & 0xFF));",
+        "new": "for (std::size_t i = 0; i < 8; ++i) out.push_back(static_cast<std::uint8_t>((static_cast<std::uint64_t>(bits_) >> (8 * (7 - i))) & 0xFF));"
+      }
+    ]
+  },
+  {
+    "name": "to-bytes-body-short",
+    "why": "the body has bits/8 bytes instead of rounding up",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "const std::size_t body = (bits_ + 7) / 8;\n        std::vector<std::uint8_t> out;",
+        "new": "const std::size_t body = bits_ / 8;\n        std::vector<std::uint8_t> out;"
+      }
+    ]
+  },
+  {
+    "name": "to-bytes-no-reserve",
+    "why": "to_bytes grows its vector step by step",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        out.reserve(12 + body);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "from-bytes-length-not-exact",
+    "why": "extra bytes after the bits are accepted",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "if (bits > body * 8 || (bits + 7) / 8 != body) return std::nullopt;",
+        "new": "if (bits > body * 8) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "from-bytes-overflow",
+    "why": "the claimed size is not compared with the data (bits + 7 overflows)",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "if (bits > body * 8 || (bits + 7) / 8 != body) return std::nullopt;",
+        "new": "if ((bits + 7) / 8 != body) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "from-bytes-padding-ignored",
+    "why": "set padding bits are accepted",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        if (bits % 8 != 0 && (data.back() >> (bits % 8)) != 0) return std::nullopt;  // the unused bits of the last byte must be 0\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "from-bytes-zero-hashes",
+    "why": "a filter with 0 hashes is accepted",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "if (bits == 0 || hashes == 0) return std::nullopt;",
+        "new": "if (bits == 0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "from-bytes-forgets-count",
+    "why": "a loaded filter reports 0 set bits",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        f.bits_set_ = set;\n        return f;",
+        "new": "        (void)set;\n        return f;"
+      }
+    ]
+  },
+  {
+    "name": "add-copies-the-item",
+    "why": "add copies the item into a std::string",
+    "edits": [
+      {
+        "file": "bloom.hpp",
+        "old": "        const HashPair h = hash_pair(item);\n        for (std::size_t i = 0; i < hashes_; ++i) set_bit",
+        "new": "        const std::string copy(item);\n        const HashPair h = hash_pair(copy);\n        for (std::size_t i = 0; i < hashes_; ++i) set_bit"
+      },
+      {
+        "file": "bloom.hpp",
+        "old": "#include <string_view>\n",
+        "new": "#include <string>\n#include <string_view>\n"
+      }
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+id: domain.systems
+title: "Systems and Infrastructure"
+track: systems
+order: 103
+summary: "An LRU cache, a memory pool that reports leaks, a shell tokenizer, a bounded ring-buffer logger, consistent hashing, a Bloom filter and a timer wheel."
+recommends: "Modules 1 to 7 (up to Inheritance and Polymorphism)"

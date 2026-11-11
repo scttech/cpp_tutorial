@@ -1,0 +1,6 @@
+id: domain.games
+title: "Games"
+track: games
+order: 101
+summary: "Engine building blocks for games: an entity-component system, collision detection, A* pathfinding, an object pool with checked handles, a fixed-timestep game loop and a variant-based inventory."
+recommends: "Modules 1 to 5 (Foundations to Generic Programming)"

@@ -1,0 +1,11 @@
+ladder:
+  - level: 1
+    text: "Sma: a std::vector<double> buffer_ of `window` values allocated ONCE in the constructor, head_ (where the next price goes), count_ and a running sum. push: if the buffer is full (count_ == window), the price at buffer_[head_] is the oldest: subtract it. Store the new price at buffer_[head_], advance head_ = (head_ + 1) % window, add the new price. value(): nullopt while count_ < window, else sum / window."
+  - level: 2
+    text: "Drift: replace 'sum += v' by Neumaier's compensated addition: t = sum + v; if (|sum| >= |v|) c += (sum - t) + v; else c += (v - t) + sum; sum = t; and read the sum as sum + c. Use it for the addition AND the subtraction (add(-old)). Ignore non-finite prices at the very top of push (if (!std::isfinite(x)) return value();). Window 0 -> 1 in the constructor."
+  - level: 3
+    text: "Ema: alpha_ = 2 / (period + 1) (period 0 counts as 1), a value_ and a bool seeded_. push: ignore non-finite; first price: value_ = x; later: value_ = alpha_ * x + (1 - alpha_) * value_. Crossover: two Sma members; push both, return None unless both have a value; diff = fast - slow; with a previous diff: Buy if previous <= 0 && diff > 0, Sell if previous >= 0 && diff < 0; then remember the diff."
+  - level: 4
+    text: |
+      // the first diff only sets previous_diff_ (have_previous_ = true), no signal.  -1, 0, +1: the 0 sets prev = 0; at +1: 0 <= 0 && +1 > 0 -> Buy.
+      // reset(): count_ = 0; head_ = 0; sum_ = compensation_ = 0;  (the buffer contents need not be cleared)

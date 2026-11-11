@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Two sides, each std::map<Price, std::list<Order>>: asks with the default ordering (lowest first), bids with std::greater<Price> (highest first), so begin() is always the best level. A std::unordered_map<OrderId, Where> maps an id to {side, price, list iterator}. submit: reject qty <= 0, price <= 0 or a resting id; match against the opposite book; rest what is left."
+  - level: 2
+    text: "match(incoming, book): while incoming.qty > 0 and the book is not empty: level = book.begin(); stop if its price does not cross (for a buy: level price <= incoming price; for a sell: level price >= incoming price); then walk the level's list from the front: qty = min(incoming.qty, maker.qty); push Trade{incoming.id, maker.id, level price, qty}; subtract from both; if the maker is empty erase it from the index and pop it from the list. When the list is empty erase the level from the map."
+  - level: 3
+    text: "Resting the remainder: auto& level = book[price]; level.push_back(std::move(order)); index.emplace(id, Where{side, price, std::prev(level.end())}). cancel(id): find in the index (no search of the book!), erase the list element through the stored iterator, erase the level if its list became empty, erase the index entry. Remember to save id/side/price BEFORE you move the order."
+  - level: 4
+    text: |
+      // template <class Book> void match(Order& incoming, Book& book, Result& r) { ... }   // Book = Asks or Bids
+      // const bool crosses = incoming.side == Side::Buy ? level_price.ticks <= incoming.price.ticks : level_price.ticks >= incoming.price.ticks;
+      // depth_at: sum the quantities of the list at find(price); remaining(id): index.find(id)->second.pos->qty

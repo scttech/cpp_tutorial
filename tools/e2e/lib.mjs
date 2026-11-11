@@ -17,7 +17,7 @@ import { chromium } from "playwright";
 export function createSuite({ app = "http://localhost:5173", track, timeoutMs = 90000 } = {}) {
   const APP = process.env.APP_URL ?? app;
   const SHOTS = process.env.SHOTS;
-  const trackBase = track !== undefined ? new URL(`../../content/tracks/core/${track}`, import.meta.url) : null;
+  const trackBase = track !== undefined ? new URL(`../../content/tracks/${track.startsWith("domains/") ? "" : "core/"}${track}`, import.meta.url) : null;
   const consoleErrors = [];
   let failures = 0;
   let browser;

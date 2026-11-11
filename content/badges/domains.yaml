@@ -1,0 +1,75 @@
+# Domain badges: finish every challenge of a domain track at the Works tier. Badges for domains that are not written yet are
+# shown as "coming soon" automatically, so adding a domain needs no badge work.
+
+- id: game-dev
+  name: "Game Dev"
+  category: domain
+  icon: "🎮"
+  description: "Reach the Works tier on every Games challenge."
+  rule: { type: track-complete, module: domain.games, tier: works }
+
+- id: quant
+  name: "Quant"
+  category: domain
+  icon: "📈"
+  description: "Reach the Works tier on every Finance challenge."
+  rule: { type: track-complete, module: domain.finance, tier: works }
+
+- id: embedded-engineer
+  name: "Embedded Engineer"
+  category: domain
+  icon: "🔌"
+  description: "Reach the Works tier on every Embedded challenge."
+  rule: { type: track-complete, module: domain.embedded, tier: works }
+
+- id: systems-hacker
+  name: "Systems Hacker"
+  category: domain
+  icon: "🖥️"
+  description: "Reach the Works tier on every Systems challenge."
+  rule: { type: track-complete, module: domain.systems, tier: works }
+
+- id: data-wrangler
+  name: "Data Wrangler"
+  category: domain
+  icon: "📊"
+  description: "Reach the Works tier on every Data and Scientific Computing challenge."
+  rule: { type: track-complete, module: domain.data, tier: works }
+
+- id: protocol-wizard
+  name: "Protocol Wizard"
+  category: domain
+  icon: "📡"
+  description: "Reach the Works tier on every Networking and Parsing challenge."
+  rule: { type: track-complete, module: domain.networking, tier: works }
+
+- id: graphics-guru
+  name: "Graphics Guru"
+  category: domain
+  icon: "🎨"
+  description: "Reach the Works tier on every Graphics and Robotics challenge."
+  rule: { type: track-complete, module: domain.graphics, tier: works }
+
+- id: toolsmith
+  name: "Toolsmith"
+  category: domain
+  icon: "🛠️"
+  description: "Reach the Works tier on every Developer Tooling challenge."
+  rule: { type: track-complete, module: domain.tooling, tier: works }
+
+- id: domain-polyglot
+  name: "Domain Polyglot"
+  category: domain
+  icon: "🌍"
+  description: "Complete at least one challenge in every domain track."
+  rule:
+    type: all
+    rules:
+      - { type: lesson-count, where: { module: domain.games, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.finance, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.systems, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.embedded, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.data, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.networking, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.graphics, status: complete }, atLeast: 1 }
+      - { type: lesson-count, where: { module: domain.tooling, status: complete }, atLeast: 1 }

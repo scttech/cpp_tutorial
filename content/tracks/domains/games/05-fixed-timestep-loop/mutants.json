@@ -1,0 +1,314 @@
+[
+  {
+    "name": "first-frame-runs-updates",
+    "why": "the first frame counts the time since the clock started",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        if (!started_) {  // the first frame only sets the reference\n            started_ = true;\n            last_ = now;\n            return 0;\n        }",
+        "new": "        if (!started_) {\n            started_ = true;\n            last_ = Duration{0};\n        }"
+      }
+    ]
+  },
+  {
+    "name": "first-frame-not-recorded",
+    "why": "the reference time is never set on the first frame",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            started_ = true;\n            last_ = now;\n            return 0;",
+        "new": "            started_ = true;\n            return 0;"
+      }
+    ]
+  },
+  {
+    "name": "double-accumulator",
+    "why": "the accumulator goes through a float of seconds (drifts)",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        if (dt > Duration{0}) acc_ += dt;  // a clock that went backwards adds nothing",
+        "new": "        if (dt > Duration{0}) acc_ = std::chrono::duration_cast<Duration>(std::chrono::duration<float>(std::chrono::duration<float>(acc_).count() + std::chrono::duration<float>(dt).count()));"
+      }
+    ]
+  },
+  {
+    "name": "no-step-cap",
+    "why": "there is no limit on the updates per frame",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "while (acc_ >= step_ && run < max_steps_) {",
+        "new": "while (acc_ >= step_) {"
+      }
+    ]
+  },
+  {
+    "name": "cap-keeps-the-excess",
+    "why": "the steps beyond the cap are postponed, not dropped",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        if (acc_ >= step_) {  // a hitch: the whole steps we could not run are dropped, only the fraction is kept\n            const std::int64_t whole = acc_ / step_;\n            dropped_ += whole;\n            acc_ -= step_ * whole;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cap-drops-everything",
+    "why": "a hitch also throws away the fraction",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            acc_ -= step_ * whole;",
+        "new": "            acc_ = Duration{0};"
+      }
+    ]
+  },
+  {
+    "name": "dropped-not-counted",
+    "why": "dropped steps are not counted",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            dropped_ += whole;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "dropped-off-by-one",
+    "why": "dropped steps are counted one too many",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            dropped_ += whole;",
+        "new": "            dropped_ += whole + 1;"
+      }
+    ]
+  },
+  {
+    "name": "strict-comparison",
+    "why": "a whole step needs MORE than a step",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "while (acc_ >= step_ && run < max_steps_) {",
+        "new": "while (acc_ > step_ && run < max_steps_) {"
+      }
+    ]
+  },
+  {
+    "name": "update-gets-frame-time",
+    "why": "update receives the frame time instead of the step",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            update(step_);",
+        "new": "            update(dt > Duration{0} ? dt : step_);"
+      }
+    ]
+  },
+  {
+    "name": "accumulator-not-reduced",
+    "why": "the accumulator keeps the time of a step it ran",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "            acc_ -= step_;\n            ++run;",
+        "new": "            ++run;\n            if (run == max_steps_) acc_ -= step_ * run;"
+      }
+    ]
+  },
+  {
+    "name": "negative-dt-added",
+    "why": "a clock that goes backwards subtracts time",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        if (dt > Duration{0}) acc_ += dt;  // a clock that went backwards adds nothing",
+        "new": "        acc_ += dt;"
+      }
+    ]
+  },
+  {
+    "name": "backwards-clock-keeps-old-reference",
+    "why": "the reference time is not updated when the clock goes backwards",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        const Duration dt = now - last_;\n        last_ = now;",
+        "new": "        const Duration dt = now - last_;\n        if (dt > Duration{0}) last_ = now;"
+      }
+    ]
+  },
+  {
+    "name": "reference-not-updated",
+    "why": "last_ is never updated: every frame adds the total time again",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        const Duration dt = now - last_;\n        last_ = now;",
+        "new": "        const Duration dt = now - last_;"
+      }
+    ]
+  },
+  {
+    "name": "zero-step-loops-forever",
+    "why": "a non-positive step is not guarded",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        if (step_ <= Duration{0}) return 0;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "max-steps-not-clamped",
+    "why": "max_steps below 1 stops all updates",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "max_steps_(max_steps_per_frame < 1 ? 1 : max_steps_per_frame)",
+        "new": "max_steps_(max_steps_per_frame)"
+      }
+    ]
+  },
+  {
+    "name": "alpha-is-the-accumulator",
+    "why": "alpha returns the accumulator in milliseconds",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "return step_ > Duration{0} ? static_cast<double>(acc_.count()) / static_cast<double>(step_.count()) : 0.0; }",
+        "new": "return static_cast<double>(acc_.count()) / 1000000.0; }"
+      }
+    ]
+  },
+  {
+    "name": "alpha-inverted",
+    "why": "alpha is the part of the step that is MISSING",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "return step_ > Duration{0} ? static_cast<double>(acc_.count()) / static_cast<double>(step_.count()) : 0.0; }",
+        "new": "return step_ > Duration{0} ? 1.0 - static_cast<double>(acc_.count()) / static_cast<double>(step_.count()) : 0.0; }"
+      }
+    ]
+  },
+  {
+    "name": "alpha-divides-by-zero",
+    "why": "alpha with a zero step divides by zero",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "return step_ > Duration{0} ? static_cast<double>(acc_.count()) / static_cast<double>(step_.count()) : 0.0; }",
+        "new": "return static_cast<double>(acc_.count()) / static_cast<double>(step_.count() == 0 ? 1 : step_.count()) - (step_ <= Duration{0} ? 1.0 : 0.0); }"
+      }
+    ]
+  },
+  {
+    "name": "steps-total-not-counted",
+    "why": "steps_total stays 0",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        steps_ += run;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "simulated-time-wrong",
+    "why": "simulated_time counts the dropped steps too",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "Duration simulated_time() const { return step_ * steps_; }",
+        "new": "Duration simulated_time() const { return step_ * (steps_ + dropped_); }"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-the-accumulator",
+    "why": "reset leaves the accumulator",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        started_ = true;\n        acc_ = Duration{0};",
+        "new": "        started_ = true;"
+      }
+    ]
+  },
+  {
+    "name": "reset-forgets-counters",
+    "why": "reset zeroes the counters",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        started_ = true;\n        acc_ = Duration{0};",
+        "new": "        started_ = true;\n        acc_ = Duration{0};\n        steps_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-reference",
+    "why": "reset does not move the reference time",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        last_ = clock.now();\n        started_ = true;",
+        "new": "        started_ = true;"
+      }
+    ]
+  },
+  {
+    "name": "uses-real-clock",
+    "why": "the loop reads the real clock",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        const Duration now = clock.now();",
+        "new": "        (void)clock;\n        const Duration now = std::chrono::duration_cast<Duration>(std::chrono::steady_clock::now().time_since_epoch());"
+      },
+      {
+        "file": "game_loop.hpp",
+        "old": "#include <cstdint>\n",
+        "new": "#include <chrono>\n#include <cstdint>\n"
+      }
+    ]
+  },
+  {
+    "name": "std-function-callback",
+    "why": "the callback is a std::function",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "    template <class Update>\n    int frame(const Clock& clock, Update&& update) {",
+        "new": "    template <class Update>\n    int frame(const Clock& clock, Update&& callback) {\n        std::function<void(Duration)> update = callback;"
+      },
+      {
+        "file": "game_loop.hpp",
+        "old": "#include <cstdint>\n",
+        "new": "#include <cstdint>\n#include <functional>\n"
+      }
+    ]
+  },
+  {
+    "name": "allocates-per-frame",
+    "why": "a vector is built every frame",
+    "edits": [
+      {
+        "file": "game_loop.hpp",
+        "old": "        const Duration now = clock.now();",
+        "new": "        std::vector<int> scratch(2);\n        (void)scratch;\n        const Duration now = clock.now();"
+      },
+      {
+        "file": "game_loop.hpp",
+        "old": "#include <cstdint>\n",
+        "new": "#include <cstdint>\n#include <vector>\n"
+      }
+    ]
+  }
+]

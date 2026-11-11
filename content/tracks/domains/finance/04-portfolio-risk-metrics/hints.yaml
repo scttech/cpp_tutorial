@@ -1,0 +1,11 @@
+ladder:
+  - level: 1
+    text: "Start with a small struct Welford { size_t n; double mean; double m2; void add(double x) { ++n; double delta = x - mean; mean += delta / n; m2 += delta * (x - mean); } } and sample variance m2 / (n - 1). mean() and stdev() = loop add() over the values; refuse an empty vector (mean), fewer than 2 values (stdev), and any non-finite value (std::isfinite)."
+  - level: 2
+    text: "summarize: refuse fewer than 2 prices; read prices[0] and check it is finite and > 0. Loop i = 1..n-1: p = prices[i] (read it ONCE and keep it in a local), check p > 0 && isfinite, r = p / previous - 1, feed r to Welford, update best and worst (from the first return, not from 0), peak = max(peak, p), drawdown = (peak - p) / peak, max_drawdown = max(...), previous = p. At the end mean/stdev from Welford, total_return = previous / first - 1."
+  - level: 3
+    text: "historical_var: validate (non-empty, finite, 1 <= c <= 99). tail = 100 - c; k = (n * tail + 99) / 100 - 1 with size_t arithmetic = ceil(n*tail/100) - 1. std::nth_element(v.begin(), v.begin() + k, v.end()); q = v[k]; return q < 0 ? -q : 0. The vector parameter is taken BY VALUE so the caller's data is untouched. sharpe_ratio: nullopt if stdev <= 0 or periods <= 0, else (mean - rf) / stdev * sqrt(periods)."
+  - level: 4
+    text: |
+      // best/worst: if (i == 1 || r > s.best) s.best = r;  if (i == 1 || r < s.worst) s.worst = r;
+      // 100 returns, 95 %: tail 5, k = (100*5 + 99)/100 - 1 = 5 - 1 = 4 (the 5th smallest).  (1 - 0.95) * 100 in double is 5.000000000000004 -> ceil gives 6: wrong.

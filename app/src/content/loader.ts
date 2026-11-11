@@ -37,8 +37,17 @@ function build(): Module[] {
 
   for (const [p, text] of Object.entries(eager)) {
     if (!p.endsWith("/module.yaml")) continue;
-    const m = parse(text) as { id: string; title: string; summary?: string; order?: number; inProgress?: boolean };
-    modules.set(m.id, { id: m.id, title: m.title, summary: m.summary, order: m.order ?? 99, inProgress: m.inProgress === true, lessons: [] });
+    const m = parse(text) as { id: string; title: string; summary?: string; order?: number; track?: string; recommends?: string; inProgress?: boolean };
+    modules.set(m.id, {
+      id: m.id,
+      title: m.title,
+      summary: m.summary,
+      order: m.order ?? 99,
+      track: m.track ?? "core",
+      recommends: m.recommends,
+      inProgress: m.inProgress === true,
+      lessons: [],
+    });
   }
 
   for (const dir of lessonDirs) {

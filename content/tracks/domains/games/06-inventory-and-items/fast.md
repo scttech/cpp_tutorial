@@ -1,0 +1,7 @@
+# Fast path: what's different in C++
+
+- **`std::variant` instead of a class hierarchy** (when the set of types is closed). The object lives inline, sized for the largest alternative; there is no allocation, no vtable pointer, and copying is a value copy. Rust's `enum`, Haskell's algebraic data types and TypeScript's discriminated unions are the same idea. `std::visit` + overloaded lambdas is C++'s pattern match, and unlike a `virtual` call it is *checked for completeness* at compile time.
+- **The `Overloaded` trick** (`template<class... Fs> struct Overloaded : Fs... { using Fs::operator()...; };` + a deduction guide) turns a bag of lambdas into one visitor. It is boilerplate you will see in every modern C++ codebase until C++26 gets pattern matching.
+- **`std::optional<T>`** is a `T` plus a flag, with no heap. A slot that is "empty or an item" is exactly `std::optional<Item>`; `reset()` empties it and `std::move` out of it leaves a moved-from value *inside* the optional, which you must still `reset()` (the Robust tests check this).
+- **All-or-nothing operations** (strong exception guarantee, even without exceptions): compute whether it will fit **first**, then mutate. Doing it the other way round leaves a half-added stack when you discover there is no room.
+- **Open vs closed.** The ECS challenge and the adventure engine's `Action` classes choose the *open* extension point (anyone can add a type); this challenge chooses the *closed* one (a fixed list, exhaustive checking). C++ gives you both; the right choice depends on who adds new cases.

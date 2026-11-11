@@ -1,0 +1,519 @@
+[
+  {
+    "name": "add-wraps",
+    "why": "checked_add wraps around instead of reporting overflow",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "constexpr std::optional<Money> checked_add(Money a, Money b) { return Money::wrap(static_cast<detail::Wide>(a.cents_) + b.cents_); }",
+        "new": "constexpr std::optional<Money> checked_add(Money a, Money b) { return Money::from_cents(static_cast<std::int64_t>(static_cast<std::uint64_t>(a.cents_) + static_cast<std::uint64_t>(b.cents_))); }"
+      }
+    ]
+  },
+  {
+    "name": "sub-wraps",
+    "why": "checked_sub wraps around",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "constexpr std::optional<Money> checked_sub(Money a, Money b) { return Money::wrap(static_cast<detail::Wide>(a.cents_) - b.cents_); }",
+        "new": "constexpr std::optional<Money> checked_sub(Money a, Money b) { return Money::from_cents(static_cast<std::int64_t>(static_cast<std::uint64_t>(a.cents_) - static_cast<std::uint64_t>(b.cents_))); }"
+      }
+    ]
+  },
+  {
+    "name": "mul-wraps",
+    "why": "checked_mul wraps around",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "constexpr std::optional<Money> checked_mul(Money a, std::int64_t n) { return Money::wrap(static_cast<detail::Wide>(a.cents_) * n); }",
+        "new": "constexpr std::optional<Money> checked_mul(Money a, std::int64_t n) { return Money::from_cents(static_cast<std::int64_t>(static_cast<std::uint64_t>(a.cents_) * static_cast<std::uint64_t>(n))); }"
+      }
+    ]
+  },
+  {
+    "name": "narrow-off-by-one-max",
+    "why": "INT64_MAX itself is refused",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    if (v > kMax || v < kMin) return std::nullopt;",
+        "new": "    if (v >= kMax || v < kMin) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "narrow-off-by-one-min",
+    "why": "INT64_MIN itself is refused",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    if (v > kMax || v < kMin) return std::nullopt;",
+        "new": "    if (v > kMax || v <= kMin) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "narrow-only-checks-max",
+    "why": "a too-small result is not noticed",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    if (v > kMax || v < kMin) return std::nullopt;",
+        "new": "    if (v > kMax) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "negated-min",
+    "why": "negating INT64_MIN gives INT64_MIN",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (cents_ == detail::kMin) return std::nullopt;\n        return from_cents(-cents_);",
+        "new": "        return from_cents(static_cast<std::int64_t>(0 - static_cast<std::uint64_t>(cents_)));"
+      }
+    ]
+  },
+  {
+    "name": "abs-negative-wrong",
+    "why": "abs of a positive amount negates it",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "constexpr std::optional<Money> abs() const { return cents_ < 0 ? negated() : std::optional<Money>(*this); }",
+        "new": "constexpr std::optional<Money> abs() const { return cents_ <= 0 ? negated() : negated(); }"
+      }
+    ]
+  },
+  {
+    "name": "divide-by-zero-returns-zero",
+    "why": "dividing by zero gives zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (n == 0) return std::nullopt;\n        return wrap(detail::divide_rounded(cents_, n, mode));",
+        "new": "        if (n == 0) return from_cents(0);\n        return wrap(detail::divide_rounded(cents_, n, mode));"
+      }
+    ]
+  },
+  {
+    "name": "divide-64-bit",
+    "why": "division is done in 64 bits (INT64_MIN / -1 traps)",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        return wrap(detail::divide_rounded(cents_, n, mode));  // done in 128 bits: INT64_MIN / -1 does not trap",
+        "new": "        if (mode == Rounding::Down) return from_cents(cents_ / n);\n        return wrap(detail::divide_rounded(cents_, n, mode));"
+      }
+    ]
+  },
+  {
+    "name": "round-half-up-towards-positive",
+    "why": "ties go up (toward +infinity) instead of away from zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    if (away) q += ((num < 0) != (den < 0)) ? -1 : 1;  // one step away from zero",
+        "new": "    if (away) q += 1;"
+      }
+    ]
+  },
+  {
+    "name": "round-always-away",
+    "why": "any remainder rounds away from zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    const bool away = twice > mag || (twice == mag && (mode == Rounding::HalfUp || (q % 2 != 0)));",
+        "new": "    const bool away = true;"
+      }
+    ]
+  },
+  {
+    "name": "half-even-is-half-up",
+    "why": "HalfEven behaves like HalfUp",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "(twice == mag && (mode == Rounding::HalfUp || (q % 2 != 0)))",
+        "new": "(twice == mag)"
+      }
+    ]
+  },
+  {
+    "name": "half-even-is-half-down",
+    "why": "HalfEven rounds ties toward zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "(twice == mag && (mode == Rounding::HalfUp || (q % 2 != 0)))",
+        "new": "(twice == mag && mode == Rounding::HalfUp)"
+      }
+    ]
+  },
+  {
+    "name": "half-even-wrong-parity",
+    "why": "HalfEven goes to the odd neighbour",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "(twice == mag && (mode == Rounding::HalfUp || (q % 2 != 0)))",
+        "new": "(twice == mag && (mode == Rounding::HalfUp || (q % 2 == 0)))"
+      }
+    ]
+  },
+  {
+    "name": "half-up-greater-equal",
+    "why": "a remainder just under a half rounds up",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "const bool away = twice > mag ||",
+        "new": "const bool away = twice + 1 > mag ||"
+      }
+    ]
+  },
+  {
+    "name": "half-compare-uses-division",
+    "why": "the half test uses the truncated half of the divisor (wrong for odd divisors)",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    const Wide twice = (r < 0 ? -r : r) * 2;  // |remainder| compared with half the divisor\n    const Wide mag = den < 0 ? -den : den;",
+        "new": "    const Wide twice = (r < 0 ? -r : r);\n    const Wide mag = (den < 0 ? -den : den) / 2;"
+      }
+    ]
+  },
+  {
+    "name": "down-rounds-away",
+    "why": "Down rounds away from zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "    if (r == 0 || mode == Rounding::Down) return q;",
+        "new": "    if (r == 0) return q;\n    if (mode == Rounding::Down) return q + (((num < 0) != (den < 0)) ? -1 : 1);"
+      }
+    ]
+  },
+  {
+    "name": "percent-in-64-bits",
+    "why": "amount * basis points is computed in 64 bits",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) * basis_points, 10000, mode));",
+        "new": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(static_cast<std::int64_t>(static_cast<std::uint64_t>(cents_) * static_cast<std::uint64_t>(basis_points))), 10000, mode));"
+      }
+    ]
+  },
+  {
+    "name": "percent-divisor-100",
+    "why": "basis points are treated as percent",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "basis_points, 10000, mode));",
+        "new": "basis_points, 100, mode));"
+      }
+    ]
+  },
+  {
+    "name": "percent-truncates-first",
+    "why": "the amount is divided before multiplying",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) * basis_points, 10000, mode));",
+        "new": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) / 10000, 1, mode) * basis_points);"
+      }
+    ]
+  },
+  {
+    "name": "percent-ignores-mode",
+    "why": "percent always truncates",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) * basis_points, 10000, mode));",
+        "new": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) * basis_points, 10000, Rounding::Down));"
+      }
+    ]
+  },
+  {
+    "name": "allocate-remainder-to-last",
+    "why": "the left-over cents go to the last shares",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        for (int i = 0; i < parts; ++i) {\n            detail::Wide share = base;\n            if (left != 0) {\n                share += step;\n                left -= step;\n            }\n            shares.push_back(from_cents(static_cast<std::int64_t>(share)));\n        }\n        return shares;",
+        "new": "        for (int i = 0; i < parts; ++i) shares.push_back(from_cents(static_cast<std::int64_t>(base)));\n        for (int i = parts - 1; left != 0 && i >= 0; --i) {\n            shares[static_cast<std::size_t>(i)] = from_cents(shares[static_cast<std::size_t>(i)].cents_ + static_cast<std::int64_t>(step));\n            left -= step;\n        }\n        return shares;"
+      }
+    ]
+  },
+  {
+    "name": "allocate-loses-cents",
+    "why": "the remainder is dropped",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (left != 0) {\n                share += step;\n                left -= step;\n            }\n            shares.push_back(from_cents(static_cast<std::int64_t>(share)));",
+        "new": "            shares.push_back(from_cents(static_cast<std::int64_t>(share)));"
+      }
+    ]
+  },
+  {
+    "name": "allocate-gives-everything-to-first",
+    "why": "the first share gets all the left-over cents",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (left != 0) {\n                share += step;\n                left -= step;\n            }",
+        "new": "            if (i == 0) share += left;"
+      }
+    ]
+  },
+  {
+    "name": "allocate-negative-wrong-direction",
+    "why": "for negative amounts the left-over cents are added instead of subtracted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        const detail::Wide step = cents_ < 0 ? -1 : 1;\n        for (int i = 0; i < parts; ++i) {",
+        "new": "        const detail::Wide step = 1;\n        for (int i = 0; i < parts; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "allocate-zero-parts-crash",
+    "why": "zero parts divides by zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (parts < 1) return {};\n        std::vector<Money> shares;\n        shares.reserve",
+        "new": "        std::vector<Money> shares;\n        shares.reserve"
+      }
+    ]
+  },
+  {
+    "name": "allocate-ratio-total-zero",
+    "why": "a zero total is not rejected",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (ratios.empty() || total == 0) return {};",
+        "new": "        if (ratios.empty()) return {};\n        if (total == 0) total = 1;"
+      }
+    ]
+  },
+  {
+    "name": "allocate-ratio-negative-ok",
+    "why": "negative ratios are accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (r < 0) return {};\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "allocate-ratio-rounds-each",
+    "why": "each share is rounded instead of truncated, then the remainder fixed",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "const detail::Wide share = static_cast<detail::Wide>(cents_) * r / total;",
+        "new": "const detail::Wide share = detail::divide_rounded(static_cast<detail::Wide>(cents_) * r, total, Rounding::HalfUp);"
+      }
+    ]
+  },
+  {
+    "name": "allocate-ratio-64-bit",
+    "why": "the product amount * ratio is computed in 64 bits",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "const detail::Wide share = static_cast<detail::Wide>(cents_) * r / total;",
+        "new": "const detail::Wide share = static_cast<detail::Wide>(static_cast<std::int64_t>(static_cast<std::uint64_t>(cents_) * static_cast<std::uint64_t>(r))) / total;"
+      }
+    ]
+  },
+  {
+    "name": "allocate-ratio-remainder-reverse",
+    "why": "left-over cents go to the last shares",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        for (std::size_t i = 0; left != 0 && i < shares.size(); ++i) {\n            shares[i] = from_cents(shares[i].cents_ + step);\n            left -= step;\n        }",
+        "new": "        for (std::size_t i = shares.size(); left != 0 && i-- > 0;) {\n            shares[i] = from_cents(shares[i].cents_ + step);\n            left -= step;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "to-string-no-zero-pad",
+    "why": "cents below 10 lose their leading zero",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        out += static_cast<char>('0' + cents / 10);\n        out += static_cast<char>('0' + cents % 10);",
+        "new": "        if (cents >= 10) out += static_cast<char>('0' + cents / 10);\n        out += static_cast<char>('0' + cents % 10);"
+      }
+    ]
+  },
+  {
+    "name": "to-string-sign-after-dollar",
+    "why": "the minus sign comes after the dollar sign",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (cents_ < 0) out += '-';\n        out += '$';",
+        "new": "        out += '$';\n        if (cents_ < 0) out += '-';"
+      }
+    ]
+  },
+  {
+    "name": "to-string-cents-from-signed-mod",
+    "why": "cents are taken with a signed modulo",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        const std::uint64_t units = mag / 100, cents = mag % 100;",
+        "new": "        const std::uint64_t units = mag / 100, cents = static_cast<std::uint64_t>((cents_ % 100 + 100) % 100);"
+      }
+    ]
+  },
+  {
+    "name": "parse-allows-plus",
+    "why": "a leading + is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (i < text.size() && text[i] == '-') {\n            negative = true;\n            ++i;\n        }",
+        "new": "        if (i < text.size() && (text[i] == '-' || text[i] == '+')) {\n            negative = text[i] == '-';\n            ++i;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "parse-allows-trailing-point",
+    "why": "5. is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (frac_len < 1 || frac_len > 2 || i != text.size()) return std::nullopt;",
+        "new": "            if (frac_len > 2 || i != text.size()) return std::nullopt;\n            if (frac_len == 0) return wrap(negative ? -static_cast<detail::Wide>(units) * 100 : static_cast<detail::Wide>(units) * 100);"
+      }
+    ]
+  },
+  {
+    "name": "parse-allows-three-decimals",
+    "why": "5.123 is accepted (truncated)",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (frac_len < 1 || frac_len > 2 || i != text.size()) return std::nullopt;",
+        "new": "            if (frac_len < 1 || i != text.size()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "parse-allows-trailing-garbage",
+    "why": "5.5x is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (frac_len < 1 || frac_len > 2 || i != text.size()) return std::nullopt;",
+        "new": "            if (frac_len < 1 || frac_len > 2) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "parse-trailing-garbage-without-point",
+    "why": "5x is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (text[i] != '.') return std::nullopt;\n            ++i;",
+        "new": "            if (text[i] != '.') return wrap(negative ? -static_cast<detail::Wide>(units) * 100 : static_cast<detail::Wide>(units) * 100);\n            ++i;"
+      }
+    ]
+  },
+  {
+    "name": "parse-one-decimal-wrong",
+    "why": "12.3 means 12.03",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "static_cast<std::uint64_t>(text[frac_at] - '0') * 10;\n        }",
+        "new": "static_cast<std::uint64_t>(text[frac_at] - '0');\n        }"
+      }
+    ]
+  },
+  {
+    "name": "parse-dollar-before-minus",
+    "why": "$-5 is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        if (i < text.size() && text[i] == '$') ++i;\n        const std::size_t digits_at = i;",
+        "new": "        if (i < text.size() && text[i] == '$') ++i;\n        if (i < text.size() && text[i] == '-' && !negative) {\n            negative = true;\n            ++i;\n        }\n        const std::size_t digits_at = i;"
+      }
+    ]
+  },
+  {
+    "name": "parse-overflow-wraps",
+    "why": "a too large value wraps around",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        const detail::Wide total = static_cast<detail::Wide>(units) * 100 + cents;\n        const detail::Wide signed_total = negative ? -total : total;\n        return wrap(signed_total);",
+        "new": "        const std::uint64_t total = units * 100 + cents;\n        return from_cents(negative ? static_cast<std::int64_t>(0 - total) : static_cast<std::int64_t>(total));"
+      }
+    ]
+  },
+  {
+    "name": "parse-positive-limit-too-high",
+    "why": "one cent beyond INT64_MAX is accepted",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        const detail::Wide signed_total = negative ? -total : total;\n        return wrap(signed_total);",
+        "new": "        const detail::Wide signed_total = negative ? -total : total;\n        if (signed_total == static_cast<detail::Wide>(detail::kMax) + 1) return from_cents(detail::kMax);\n        return wrap(signed_total);"
+      }
+    ]
+  },
+  {
+    "name": "parse-too-many-digits-accepted",
+    "why": "digits beyond 64 bits are ignored",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "            if (result.ec != std::errc()) return std::nullopt;  // too many digits for 64 bits",
+        "new": "            if (result.ec != std::errc() && result.ec != std::errc::result_out_of_range) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "uses-double-for-percent",
+    "why": "percent goes through double",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "return wrap(detail::divide_rounded(static_cast<detail::Wide>(cents_) * basis_points, 10000, mode));",
+        "new": "return wrap(static_cast<detail::Wide>(static_cast<double>(cents_) * static_cast<double>(basis_points) / 10000.0 + 0.5));"
+      }
+    ]
+  },
+  {
+    "name": "allocation-in-parse",
+    "why": "parse builds a std::string",
+    "edits": [
+      {
+        "file": "money.hpp",
+        "old": "        std::size_t i = 0;\n        bool negative = false;",
+        "new": "        const std::string copy(text);\n        (void)copy;\n        std::size_t i = 0;\n        bool negative = false;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "State: std::vector<char> buf_ sized ONCE in the constructor (buf_(capacity_bytes)), head_ (offset of the oldest record), used_ (bytes occupied), count_ (records), min_level_ (default Debug) and the counters total_logged_, evicted_, truncated_, filtered_, lost_. capacity() is buf_.size(). Everything else uses two helpers that copy n bytes in at most two pieces: write(pos, data, n) and read(pos, out, n): first = min(n, buf_.size() - pos) bytes at pos, the rest (n - first) from offset 0."
+  - level: 2
+    text: "log(): filter first (level < min_level_ -> ++filtered_, return false); seq = ++total_logged_; if buf_.size() <= kHeaderBytes -> ++lost_, return false; length = message.size(), and if kHeaderBytes + length > buf_.size() then length = buf_.size() - kHeaderBytes and ++truncated_; needed = kHeaderBytes + length; while (buf_.size() - used_ < needed) drop_oldest(); then build a 13-byte header (level, seq as 8 bytes, length as 4 bytes, using shifts), pos = (head_ + used_) % buf_.size(), pos = write(pos, header, 13), write(pos, message.data(), length), used_ += needed, ++count_."
+  - level: 3
+    text: "drop_oldest(): read the 13 header bytes at head_ (with read(): the header can wrap too), decode the length (4 bytes, little endian), size = 13 + length; head_ = (head_ + size) % buf_.size(); used_ -= size; --count_; ++evicted_. snapshot(): start at pos = head_, for each of count_ records: read the header, decode level / seq (8 bytes) / length, read the message from (pos + 13) % buf_.size(), then pos = (pos + 13 + length) % buf_.size(). dump(): '#' + seq + ' ' + level_name + ' ' + message + '\\n' per record. clear(): head_ = used_ = count_ = 0 (counters stay)."
+  - level: 4
+    text: |
+      // std::size_t write(std::size_t pos, const char* data, std::size_t n) {
+      //     const std::size_t first = std::min(n, buf_.size() - pos);
+      //     std::copy(data, data + first, buf_.begin() + pos);
+      //     std::copy(data + first, data + n, buf_.begin());
+      //     return (pos + n) % buf_.size();
+      // }

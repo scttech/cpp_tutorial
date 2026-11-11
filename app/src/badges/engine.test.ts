@@ -167,3 +167,36 @@ describe("checkRule", () => {
     expect(checkRule({ type: "all", rules: [{ type: "tier-complete", tier: "works" }] })[0]).toMatch(/atLeast/);
   });
 });
+
+describe("track-complete (domain tracks)", () => {
+  const domain: Catalog = {
+    lessons: [
+      { id: "d.a", module: "domain.games", type: "challenge", tiers: T(true, true, true, true) },
+      { id: "d.b", module: "domain.games", type: "challenge", tiers: T(true, true, true, true) },
+      { id: "e.a", module: "domain.finance", type: "challenge", tiers: T(true, true, true, true) },
+    ],
+  };
+  const works = { works: true, robust: false, fast: false, clean: false };
+  const rule: Rule = { type: "track-complete", module: "domain.games", tier: "works" };
+  it("needs the named tier on EVERY challenge of the track, and nothing from other tracks", () => {
+    const one = withLessons({ "d.a": complete({ bestTiers: works }) });
+    expect(evaluate(rule, one, domain)).toMatchObject({ met: false, current: 1, target: 2 });
+    const both = withLessons({ "d.a": complete({ bestTiers: works }), "d.b": complete({ bestTiers: works }) });
+    const r = evaluate(rule, both, domain);
+    expect(r.met).toBe(true);
+    expect(r.lessons.sort()).toEqual(["d.a", "d.b"]);
+    expect(evaluate({ type: "track-complete", module: "domain.finance", tier: "works" }, both, domain).met).toBe(false);
+  });
+  it("without a tier it needs every challenge complete", () => {
+    const s = withLessons({ "d.a": complete(), "d.b": { ...emptyLesson(), status: "in_progress" } });
+    expect(evaluate({ type: "track-complete", module: "domain.games" }, s, domain).met).toBe(false);
+    expect(evaluate({ type: "track-complete", module: "domain.games" }, withLessons({ "d.a": complete(), "d.b": complete() }), domain).met).toBe(true);
+  });
+  it("is 'coming soon' for a track that has no challenges yet, and structurally checked", () => {
+    expect(isAvailable({ type: "track-complete", module: "domain.embedded", tier: "works" }, domain)).toBe(false);
+    expect(isAvailable(rule, domain)).toBe(true);
+    expect(checkRule(rule)).toEqual([]);
+    expect(checkRule({ type: "track-complete" })).not.toEqual([]);
+    expect(evaluate({ type: "track-complete", module: "nope", tier: "works" }, emptyProgress(), domain).met).toBe(false);
+  });
+});

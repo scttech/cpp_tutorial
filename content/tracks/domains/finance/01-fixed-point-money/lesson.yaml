@@ -1,0 +1,15 @@
+id: domain.finance.money
+title: "Fixed-Point Money"
+module: domain.finance
+type: challenge
+estimatedMinutes: 90
+concepts: [fixed-point, integer-money, checked-arithmetic, overflow-detection, rounding-modes, bankers-rounding, allocation-without-losing-cents, int128-intermediates, strict-parsing, from-chars]
+prerequisites: []
+files:
+  editable: [money.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [floating-point-money, negative-numbers-and-truncating-division, half-even-ties, overflow-in-add-and-multiply, int64-min, divide-by-zero, percent-needs-a-wider-intermediate, remainder-cents-in-allocate, strict-parse, two-decimal-places, to-string-of-int64-min]

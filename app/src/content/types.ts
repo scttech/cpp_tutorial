@@ -47,6 +47,10 @@ export interface Module {
   title: string;
   summary?: string;
   order: number;
+  /** "core" for the course itself; a domain challenge track has its own value (games, finance, ...). */
+  track?: string;
+  /** For a domain track: which core modules to finish first (shown as a recommendation, never enforced). */
+  recommends?: string;
   /** Content is still being written: finishing the lessons that exist does not complete the module. */
   inProgress?: boolean;
   lessons: Lesson[];

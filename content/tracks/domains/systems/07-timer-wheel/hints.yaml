@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Members: now_ (uint64, starts at 0), next_id_ (starts at 1), advancing_ (bool), std::vector<std::list<Timer>> slots_ (slot_count slots), std::unordered_map<Id, Timer*> index_. A Timer is { Id id; std::uint64_t deadline; Callback callback; bool live; }. schedule: reject an empty callback (return 0), delay 0 -> 1, deadline = now_ + delay but saturate at UINT64_MAX (delay > max - now_), push_back the Timer into slots_[deadline % slots_.size()], index_[id] = &slot.back(). std::list nodes never move, so that pointer stays valid."
+  - level: 2
+    text: "cancel(id): look it up in index_ (missing -> false); mark the node dead (timer->live = false), RELEASE its callback now (timer->callback = nullptr), erase it from index_, return true. The node stays in its list until its slot is next visited. pending() is index_.size(). advance(ticks): if advancing_ return 0; set advancing_; repeat ticks times: ++now_ then run_tick(); clear advancing_; return the number fired."
+  - level: 3
+    text: "run_tick(): slot = slots_[now_ % slots_.size()]. Pass 1 (no callbacks yet): for each node (take std::next(it) first!): a dead node is erased; a live node with deadline == now_ is moved with due.splice(due.end(), slot, it) into a LOCAL std::list<Timer> due; other nodes (later laps) stay. Pass 2: for each timer in due: skip it if it is no longer live (an earlier callback of this tick cancelled it); otherwise live = false, index_.erase(id), move the callback out and CALL it, count it. Because the callbacks run after the sweep, they may schedule, cancel or clear freely. clear(): mark every indexed timer dead and drop its callback (this also reaches nodes waiting in `due`), then index_.clear() and clear all slots."
+  - level: 4
+    text: |
+      // std::list<Timer> due;
+      // auto& slot = slots_[static_cast<std::size_t>(now_ % slots_.size())];
+      // for (auto it = slot.begin(); it != slot.end();) {
+      //     const auto next = std::next(it);
+      //     if (!it->live) slot.erase(it);
+      //     else if (it->deadline == now_) due.splice(due.end(), slot, it);
+      //     it = next;
+      // }

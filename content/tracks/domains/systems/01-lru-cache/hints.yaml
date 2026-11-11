@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Two members: List items_ (a std::list<std::pair<K, V>>, front = most recently used) and std::unordered_map<K, typename List::iterator, Hash> index_ that maps a key to its node. Every operation starts with ONE lookup: auto it = index_.find(key). A hit is it->second (a list iterator), the value is it->second->second."
+  - level: 2
+    text: "get: find; on a miss ++misses_ and return nullptr; on a hit ++hits_, items_.splice(items_.begin(), items_, it->second) (relinks the node to the front, nothing is copied and pointers stay valid) and return &it->second->second. put: capacity 0 returns false. If the key exists: assign the value, splice it to the front, return false (an update never evicts). Otherwise, if items_.size() == capacity_: index_.erase(items_.back().first); items_.pop_back(); and remember evicted = true. Then items_.emplace_front(std::move(key), std::move(value)); index_.emplace(items_.front().first, items_.begin()); return evicted."
+  - level: 3
+    text: "peek and contains are const and must not touch the order or the counters: find and look. erase: find, then items_.erase(it->second) AND index_.erase(it) (both, in this order, because it->second is gone after the first erase unless you hold the iterator). clear: clear both containers but not the counters. size/empty come from items_. for_each walks items_ from begin() (the most recent) and calls f(entry.first, entry.second)."
+  - level: 4
+    text: |
+      // bool put(K key, V value) {
+      //     if (capacity_ == 0) return false;
+      //     const auto it = index_.find(key);
+      //     if (it != index_.end()) { it->second->second = std::move(value); items_.splice(items_.begin(), items_, it->second); return false; }
+      //     bool evicted = false;
+      //     if (items_.size() == capacity_) { index_.erase(items_.back().first); items_.pop_back(); evicted = true; }
+      //     items_.emplace_front(std::move(key), std::move(value));
+      //     index_.emplace(items_.front().first, items_.begin());
+      //     return evicted;
+      // }

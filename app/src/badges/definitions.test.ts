@@ -19,7 +19,7 @@ describe("content/badges/*.yaml", () => {
       expect(b.name?.length, b.id).toBeGreaterThan(1);
       expect(b.description?.length, b.id).toBeGreaterThan(10);
       expect(b.icon, b.id).toBeTruthy();
-      expect(["progress", "mastery", "habits", "consistency", "fun"], b.id).toContain(b.category);
+      expect(["progress", "mastery", "habits", "consistency", "fun", "domain"], b.id).toContain(b.category);
     }
   });
   it("every rule is structurally valid", () => {

@@ -1,0 +1,386 @@
+[
+  {
+    "name": "erase-shifts-instead-of-swap",
+    "why": "erase moves every later component down one place (O(n) moves)",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "        if (slot != last) {  // the last component moves into the hole\n            dense_[slot] = dense_[last];\n            components_[slot] = std::move(components_[last]);\n            sparse_[dense_[slot]] = slot;\n        }\n        dense_.pop_back();\n        components_.pop_back();\n        return true;",
+        "new": "        for (std::size_t i = slot; i < last; ++i) {\n            dense_[i] = dense_[i + 1];\n            components_[i] = std::move(components_[i + 1]);\n            sparse_[dense_[i]] = i;\n        }\n        dense_.pop_back();\n        components_.pop_back();\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "erase-forgets-the-moved-sparse-entry",
+    "why": "the moved component is not re-indexed",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "            sparse_[dense_[slot]] = slot;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "contains-ignores-the-dense-back-pointer",
+    "why": "contains trusts a stale sparse entry",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "return id < sparse_.size() && sparse_[id] < dense_.size() && dense_[sparse_[id]] == id; }",
+        "new": "return id < sparse_.size() && sparse_[id] < dense_.size(); }"
+      }
+    ]
+  },
+  {
+    "name": "contains-ignores-the-slot-range",
+    "why": "contains reads past the dense array",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "return id < sparse_.size() && sparse_[id] < dense_.size() && dense_[sparse_[id]] == id; }",
+        "new": "return id < sparse_.size() && sparse_[id] != kAbsent && dense_[sparse_[id] % (dense_.empty() ? 1 : dense_.size())] == id; }"
+      }
+    ]
+  },
+  {
+    "name": "emplace-duplicates",
+    "why": "emplace on an existing entity appends a second component",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "        if (T* existing = find(id)) {\n            *existing = std::move(value);\n            return *existing;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "emplace-keeps-the-old-value",
+    "why": "emplace on an existing entity ignores the new value",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "            *existing = std::move(value);\n            return *existing;",
+        "new": "            return *existing;"
+      }
+    ]
+  },
+  {
+    "name": "sparse-too-small-by-one",
+    "why": "the sparse array is one slot too short for the highest id",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "sparse_.resize(static_cast<std::size_t>(id) + 1, kAbsent);",
+        "new": "sparse_.resize(static_cast<std::size_t>(id), kAbsent);"
+      }
+    ]
+  },
+  {
+    "name": "sparse-grows-by-one",
+    "why": "the sparse array grows only to the needed size each time via a copy",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "sparse_.resize(static_cast<std::size_t>(id) + 1, kAbsent);",
+        "new": "{\n            std::vector<std::size_t> bigger(static_cast<std::size_t>(id) + 1, kAbsent);\n            for (std::size_t i = 0; i < sparse_.size(); ++i) bigger[i] = sparse_[i];\n            sparse_ = bigger;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "find-wrong-component",
+    "why": "find returns the component of the previous slot",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "T* find(EntityId id) { return contains(id) ? &components_[sparse_[id]] : nullptr; }",
+        "new": "T* find(EntityId id) { return contains(id) ? &components_[sparse_[id] == 0 ? 0 : sparse_[id] - 1] : nullptr; }"
+      }
+    ]
+  },
+  {
+    "name": "erase-reports-true-when-absent",
+    "why": "erase of a missing entity returns true",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "        if (!contains(id)) return false;",
+        "new": "        if (!contains(id)) return true;"
+      }
+    ]
+  },
+  {
+    "name": "erase-missing-corrupts",
+    "why": "erase of a missing entity removes the last element",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "        if (!contains(id)) return false;\n        const std::size_t slot = sparse_[id];",
+        "new": "        if (!contains(id)) {\n            if (!dense_.empty()) {\n                sparse_[dense_.back()] = kAbsent;\n                dense_.pop_back();\n                components_.pop_back();\n            }\n            return false;\n        }\n        const std::size_t slot = sparse_[id];"
+      }
+    ]
+  },
+  {
+    "name": "component-copied-on-emplace",
+    "why": "emplace copies the value instead of moving it",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "        components_.push_back(std::move(value));\n        return components_.back();",
+        "new": "        components_.push_back(value);\n        return components_.back();"
+      }
+    ]
+  },
+  {
+    "name": "erase-copies-last",
+    "why": "erase copies the last component into the hole",
+    "edits": [
+      {
+        "file": "sparse_set.hpp",
+        "old": "components_[slot] = std::move(components_[last]);",
+        "new": "components_[slot] = components_[last];"
+      }
+    ]
+  },
+  {
+    "name": "generation-not-bumped",
+    "why": "destroy does not bump the generation: handles never go stale",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        ++generations_[e.index];  // every old handle to this slot is now stale\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "slots-never-reused",
+    "why": "destroyed slots are never reused",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        if (!free_.empty()) {",
+        "new": "        if (false && !free_.empty()) {"
+      }
+    ]
+  },
+  {
+    "name": "alive-ignores-generation",
+    "why": "alive only checks the slot number",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "return e.index < generations_.size() && generations_[e.index] == e.generation; }",
+        "new": "return e.index < generations_.size(); }"
+      }
+    ]
+  },
+  {
+    "name": "destroy-keeps-components",
+    "why": "destroy leaves the components in their stores",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        for (auto& entry : stores_) entry.second->erase(e.index);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "destroy-clears-only-first-store",
+    "why": "destroy removes the components from just one store",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        for (auto& entry : stores_) entry.second->erase(e.index);\n",
+        "new": "        if (!stores_.empty()) stores_.begin()->second->erase(e.index);\n"
+      }
+    ]
+  },
+  {
+    "name": "destroy-dead-entity-frees-twice",
+    "why": "destroying a stale handle frees the slot again",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        if (!alive(e)) return;\n        for (auto& entry : stores_)",
+        "new": "        if (e.index >= generations_.size()) return;\n        for (auto& entry : stores_)"
+      }
+    ]
+  },
+  {
+    "name": "add-on-dead-entity",
+    "why": "add works on dead entities",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        if (!alive(e)) return nullptr;\n        return &store<T>().set.emplace",
+        "new": "        if (e.index == 0xFFFFFFFFu) return nullptr;\n        return &store<T>().set.emplace"
+      }
+    ]
+  },
+  {
+    "name": "get-ignores-alive",
+    "why": "get answers for stale handles",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "return (s && alive(e)) ? s->set.find(e.index) : nullptr;",
+        "new": "return s ? s->set.find(e.index) : nullptr;"
+      }
+    ]
+  },
+  {
+    "name": "has-ignores-alive",
+    "why": "has answers for stale handles",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "return s && alive(e) && s->set.contains(e.index);",
+        "new": "return s && s->set.contains(e.index);"
+      }
+    ]
+  },
+  {
+    "name": "remove-ignores-alive",
+    "why": "remove works through stale handles",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "return s && alive(e) && s->set.erase(e.index);",
+        "new": "return s && s->set.erase(e.index);"
+      }
+    ]
+  },
+  {
+    "name": "count-wrong",
+    "why": "count returns the dense capacity-ish size plus one",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "return s ? s->set.size() : 0;",
+        "new": "return s ? s->set.size() + (s->set.size() > 1 ? 1 : 0) : 0;"
+      }
+    ]
+  },
+  {
+    "name": "each-uses-the-first-store",
+    "why": "each always walks the first store, whatever its size",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "            if (smallest == nullptr || s->size() < smallest->size()) smallest = s;",
+        "new": "            if (smallest == nullptr) smallest = s;"
+      }
+    ]
+  },
+  {
+    "name": "each-walks-the-largest-store",
+    "why": "each walks the largest store",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "            if (smallest == nullptr || s->size() < smallest->size()) smallest = s;",
+        "new": "            if (smallest == nullptr || s->size() > smallest->size()) smallest = s;"
+      }
+    ]
+  },
+  {
+    "name": "each-skips-the-membership-test",
+    "why": "each does not check the other stores",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "            if (!(find_store<Cs>()->set.contains(id) && ...)) continue;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "each-wrong-generation",
+    "why": "each passes generation 0 in the entity",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "f(Entity{id, generations_[id]}, *find_store<Cs>()->set.find(id)...);",
+        "new": "f(Entity{id, 0}, *find_store<Cs>()->set.find(id)...);"
+      }
+    ]
+  },
+  {
+    "name": "each-copies-components",
+    "why": "each passes copies of the components",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "f(Entity{id, generations_[id]}, *find_store<Cs>()->set.find(id)...);",
+        "new": "auto copies = std::make_tuple(*find_store<Cs>()->set.find(id)...);\n            f(Entity{id, generations_[id]}, std::get<Cs>(copies)...);"
+      },
+      {
+        "file": "registry.hpp",
+        "old": "#include <array>\n",
+        "new": "#include <array>\n#include <tuple>\n"
+      }
+    ]
+  },
+  {
+    "name": "each-returns-on-missing-store-wrongly",
+    "why": "each runs even when a store is missing (crashes)",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "            if (s == nullptr) return;  // nobody has this component\n",
+        "new": "            if (s == nullptr) continue;\n"
+      }
+    ]
+  },
+  {
+    "name": "one-store-per-call",
+    "why": "add creates a new store every time (components are lost)",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        std::unique_ptr<detail::StoreBase>& slot = stores_[std::type_index(typeid(T))];\n        if (!slot) slot = std::make_unique<detail::Store<T>>();",
+        "new": "        std::unique_ptr<detail::StoreBase>& slot = stores_[std::type_index(typeid(T))];\n        slot = std::make_unique<detail::Store<T>>();"
+      }
+    ]
+  },
+  {
+    "name": "find-store-creates-stores",
+    "why": "queries create empty stores",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "    template <class T>\n    detail::Store<T>* find_store() {\n        const auto it = stores_.find(std::type_index(typeid(T)));\n        return it == stores_.end() ? nullptr : static_cast<detail::Store<T>*>(it->second.get());\n    }",
+        "new": "    template <class T>\n    detail::Store<T>* find_store() {\n        return &store<T>();\n    }"
+      }
+    ]
+  },
+  {
+    "name": "allocation-per-entity",
+    "why": "a vector is allocated for every created entity",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        generations_.push_back(0);\n        return Entity{static_cast<EntityId>(generations_.size() - 1), 0};\n    }",
+        "new": "        generations_.push_back(0);\n        extra_.push_back(std::vector<int>(4));\n        return Entity{static_cast<EntityId>(generations_.size() - 1), 0};\n    }"
+      },
+      {
+        "file": "registry.hpp",
+        "old": "    std::vector<EntityId> free_;\n",
+        "new": "    std::vector<EntityId> free_;\n    std::vector<std::vector<int>> extra_;\n"
+      }
+    ]
+  },
+  {
+    "name": "destroy-allocates",
+    "why": "destroy builds a temporary vector",
+    "edits": [
+      {
+        "file": "registry.hpp",
+        "old": "        ++generations_[e.index];  // every old handle to this slot is now stale",
+        "new": "        std::vector<int> scratch(8);\n        (void)scratch;\n        ++generations_[e.index];  // every old handle to this slot is now stale"
+      }
+    ]
+  }
+]

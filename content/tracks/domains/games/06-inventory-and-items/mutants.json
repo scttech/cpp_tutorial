@@ -1,0 +1,442 @@
+[
+  {
+    "name": "stack-limit-100",
+    "why": "a stack holds 100",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "else if (detail::same_kind(*s, item)) room += kMaxStack - *detail::count_of(*s);",
+        "new": "else if (detail::same_kind(*s, item)) room += kMaxStack + 1 - *detail::count_of(*s);"
+      }
+    ]
+  },
+  {
+    "name": "stack-limit-ignored-when-filling",
+    "why": "existing stacks are filled without respecting the limit",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "const int take = std::min(remaining, kMaxStack - *detail::count_of(*s));",
+        "new": "const int take = remaining;"
+      }
+    ]
+  },
+  {
+    "name": "part-too-big",
+    "why": "new slots receive more than the limit",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "const int part = std::min(remaining, kMaxStack);",
+        "new": "const int part = std::min(remaining, kMaxStack + 1);"
+      }
+    ]
+  },
+  {
+    "name": "not-all-or-nothing",
+    "why": "the fit check is missing: part of the item is added before Full is found",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (*count > room + free_slots * kMaxStack) return AddResult::Full;\n",
+        "new": "        if (*count > room + free_slots * kMaxStack + 1000000) return AddResult::Full;\n"
+      }
+    ]
+  },
+  {
+    "name": "fit-check-ignores-existing-room",
+    "why": "only free slots are counted as room",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (*count > room + free_slots * kMaxStack) return AddResult::Full;",
+        "new": "        if (*count > free_slots * kMaxStack) return AddResult::Full;"
+      }
+    ]
+  },
+  {
+    "name": "fit-check-ignores-free-slots",
+    "why": "only the room in existing stacks is counted",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (*count > room + free_slots * kMaxStack) return AddResult::Full;",
+        "new": "        if (*count > room) return AddResult::Full;"
+      }
+    ]
+  },
+  {
+    "name": "fit-check-off-by-one",
+    "why": "one item too many is accepted",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (*count > room + free_slots * kMaxStack) return AddResult::Full;",
+        "new": "        if (*count > room + free_slots * kMaxStack + 1) return AddResult::Full;"
+      }
+    ]
+  },
+  {
+    "name": "count-below-one-accepted",
+    "why": "a zero count is added as an empty stack",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (*count < 1) return AddResult::Full;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "stacks-by-name-only",
+    "why": "potions with the same name but another heal stack",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "return y && x->name == y->name && x->heal == y->heal;",
+        "new": "return y && x->name == y->name;"
+      }
+    ]
+  },
+  {
+    "name": "stacks-by-heal-only",
+    "why": "potions with the same heal but another name stack",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "return y && x->name == y->name && x->heal == y->heal;",
+        "new": "return y && x->heal == y->heal;"
+      }
+    ]
+  },
+  {
+    "name": "gems-stack-by-name-only",
+    "why": "gems of different value stack",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "return y && x->name == y->name && x->value == y->value;",
+        "new": "return y && x->name == y->name;"
+      }
+    ]
+  },
+  {
+    "name": "weapons-stack",
+    "why": "identical weapons stack (count lost)",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return y && x->name == y->name && x->value == y->value;\n    }\n    return false;",
+        "new": "        return y && x->name == y->name && x->value == y->value;\n    }\n    if (const auto* x = std::get_if<Weapon>(&a)) {\n        const auto* y = std::get_if<Weapon>(&b);\n        return y && x->name == y->name;\n    }\n    return false;"
+      }
+    ]
+  },
+  {
+    "name": "add-uses-last-free-slot",
+    "why": "new items go into the highest free slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        for (std::size_t i = 0; i < slots_.size(); ++i) {\n            if (!slots_[i]) return i;\n        }\n        return std::nullopt;\n    }",
+        "new": "        for (std::size_t i = slots_.size(); i-- > 0;) {\n            if (!slots_[i]) return i;\n        }\n        return std::nullopt;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "stacked-result-wrong",
+    "why": "a merged item reports Added",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "return used_new_slot ? AddResult::Added : AddResult::Stacked;",
+        "new": "return AddResult::Added;"
+      }
+    ]
+  },
+  {
+    "name": "added-result-wrong",
+    "why": "overflow into a new slot reports Stacked",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "return used_new_slot ? AddResult::Added : AddResult::Stacked;",
+        "new": "return AddResult::Stacked;"
+      }
+    ]
+  },
+  {
+    "name": "full-when-no-free-slot-even-for-stacking",
+    "why": "a stackable is refused when no slot is free even if it would merge",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        int* count = detail::count_of(item);\n",
+        "new": "        int* count = detail::count_of(item);\n        if (!first_free()) return AddResult::Full;\n"
+      }
+    ]
+  },
+  {
+    "name": "at-out-of-range",
+    "why": "at reads past the end",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "const Item* at(std::size_t slot) const { return slot < slots_.size() && slots_[slot] ? &*slots_[slot] : nullptr; }",
+        "new": "const Item* at(std::size_t slot) const { return slots_[slot] ? &*slots_[slot] : nullptr; }"
+      }
+    ]
+  },
+  {
+    "name": "take-keeps-the-item",
+    "why": "take returns the item but leaves it in the slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        slots_[slot].reset();\n        return out;",
+        "new": "        slots_[slot] = out;\n        return out;"
+      }
+    ]
+  },
+  {
+    "name": "take-out-of-range",
+    "why": "take does not check the slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (slot >= slots_.size() || !slots_[slot]) return std::nullopt;\n        std::optional<Item> out",
+        "new": "        if (!slots_[slot]) return std::nullopt;\n        std::optional<Item> out"
+      }
+    ]
+  },
+  {
+    "name": "used-slots-counts-capacity",
+    "why": "used_slots returns the capacity",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        return static_cast<std::size_t>(std::count_if(slots_.begin(), slots_.end(), [](const std::optional<Item>& s) { return s.has_value(); }));",
+        "new": "        return slots_.size();"
+      }
+    ]
+  },
+  {
+    "name": "potion-heal-unclamped",
+    "why": "healing can exceed max_hp",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "player.hp = std::min(player.max_hp, player.hp + p.heal);",
+        "new": "player.hp = player.hp + p.heal;"
+      }
+    ]
+  },
+  {
+    "name": "potion-heal-to-max",
+    "why": "a potion always heals to full",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "player.hp = std::min(player.max_hp, player.hp + p.heal);",
+        "new": "player.hp = player.max_hp;"
+      }
+    ]
+  },
+  {
+    "name": "potion-wasted-at-full-health",
+    "why": "a potion is consumed even at full health",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (player.hp >= player.max_hp) return UseResult::CannotUse;  // nothing to heal: keep the potion\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "potion-wasted-above-max",
+    "why": "at full health the potion is used up while reporting CannotUse",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (player.hp >= player.max_hp) return UseResult::CannotUse;  // nothing to heal: keep the potion\n",
+        "new": "                                  if (player.hp >= player.max_hp) {\n                                      --p.count;\n                                      return UseResult::CannotUse;\n                                  }\n"
+      }
+    ]
+  },
+  {
+    "name": "potion-not-consumed",
+    "why": "using a potion does not use one up",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (--p.count == 0) s.reset();",
+        "new": "                                  if (p.count == 0) s.reset();"
+      }
+    ]
+  },
+  {
+    "name": "potion-slot-not-emptied",
+    "why": "the slot keeps a stack of 0 potions",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (--p.count == 0) s.reset();",
+        "new": "                                  --p.count;"
+      }
+    ]
+  },
+  {
+    "name": "potion-consumes-all",
+    "why": "using a potion uses up the whole stack",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (--p.count == 0) s.reset();",
+        "new": "                                  s.reset();"
+      }
+    ]
+  },
+  {
+    "name": "equip-loses-the-old-weapon",
+    "why": "the old weapon is discarded on equipping",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (previous) s = Item(std::move(*previous));\n                                  else s.reset();\n                                  return UseResult::Used;\n                              },\n                              [&](Armor& a) {",
+        "new": "                                  s.reset();\n                                  return UseResult::Used;\n                              },\n                              [&](Armor& a) {"
+      }
+    ]
+  },
+  {
+    "name": "equip-keeps-the-new-one-in-the-bag",
+    "why": "the weapon is equipped but also stays in the slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  if (previous) s = Item(std::move(*previous));\n                                  else s.reset();\n                                  return UseResult::Used;\n                              },\n                              [&](Armor& a) {",
+        "new": "                                  (void)previous;\n                                  return UseResult::Used;\n                              },\n                              [&](Armor& a) {"
+      }
+    ]
+  },
+  {
+    "name": "equip-armor-loses-the-old-one",
+    "why": "the old armor is discarded",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  std::optional<Armor> previous = std::move(player.armor);\n                                  player.armor = std::move(a);\n                                  if (previous) s = Item(std::move(*previous));\n                                  else s.reset();",
+        "new": "                                  player.armor = std::move(a);\n                                  s.reset();"
+      }
+    ]
+  },
+  {
+    "name": "equip-armor-as-weapon",
+    "why": "armor is equipped into the weapon hand",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  std::optional<Armor> previous = std::move(player.armor);\n                                  player.armor = std::move(a);",
+        "new": "                                  std::optional<Armor> previous = std::move(player.armor);\n                                  player.armor = std::move(a);\n                                  player.base_attack += 0;"
+      }
+    ]
+  },
+  {
+    "name": "equip-copies",
+    "why": "equipping copies the item",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "                                  player.weapon = std::move(w);",
+        "new": "                                  player.weapon = w;"
+      }
+    ]
+  },
+  {
+    "name": "key-can-be-used",
+    "why": "a key can be used",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "[](Key&) { return UseResult::CannotUse; },",
+        "new": "[&](Key&) { s.reset(); return UseResult::Used; },"
+      }
+    ]
+  },
+  {
+    "name": "gem-can-be-used",
+    "why": "a gem can be used",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "[](Gem&) { return UseResult::CannotUse; },",
+        "new": "[&](Gem&) { s.reset(); return UseResult::Used; },"
+      }
+    ]
+  },
+  {
+    "name": "use-out-of-range",
+    "why": "use does not check the slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        if (slot >= slots_.size() || !slots_[slot]) return UseResult::NothingThere;\n        std::optional<Item>& s",
+        "new": "        if (!slots_[slot]) return UseResult::NothingThere;\n        std::optional<Item>& s"
+      }
+    ]
+  },
+  {
+    "name": "find-last-match",
+    "why": "find returns the highest slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "        for (std::size_t i = 0; i < slots_.size(); ++i) {\n            if (slots_[i] && detail::name_of(*slots_[i]) == name) return i;\n        }",
+        "new": "        std::optional<std::size_t> last;\n        for (std::size_t i = 0; i < slots_.size(); ++i) {\n            if (slots_[i] && detail::name_of(*slots_[i]) == name) last = i;\n        }\n        if (last) return last;"
+      }
+    ]
+  },
+  {
+    "name": "total-value-ignores-count",
+    "why": "the value of a stack counts once",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "total += static_cast<long long>(g->value) * g->count;",
+        "new": "total += static_cast<long long>(g->value);"
+      }
+    ]
+  },
+  {
+    "name": "total-value-int-overflow",
+    "why": "the value is computed in int",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "total += static_cast<long long>(g->value) * g->count;",
+        "new": "total += static_cast<long long>(static_cast<int>(g->value * g->count));"
+      }
+    ]
+  },
+  {
+    "name": "add-copies-the-item",
+    "why": "a non-stackable item is copied into its slot",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "            slots_[*free_slot] = std::move(item);\n            return AddResult::Added;",
+        "new": "            const Item copy = item;\n            slots_[*free_slot] = copy;\n            return AddResult::Added;"
+      }
+    ]
+  },
+  {
+    "name": "overflow-copies-always",
+    "why": "the last overflow part is copied too",
+    "edits": [
+      {
+        "file": "inventory.hpp",
+        "old": "            if (remaining == 0) {  // the last part can take the item itself\n                *detail::count_of(item) = part;\n                slots_[at] = std::move(item);\n            } else {",
+        "new": "            if (false) {\n                slots_[at] = std::move(item);\n            } else {"
+      }
+    ]
+  }
+]

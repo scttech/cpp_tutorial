@@ -1,0 +1,365 @@
+[
+  {
+    "name": "tab-is-not-blank",
+    "why": "only a space separates words",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "if (c == ' ' || c == '\\t') {",
+        "new": "if (c == ' ') {"
+      }
+    ]
+  },
+  {
+    "name": "last-word-lost",
+    "why": "the word under construction is dropped at the end of the line",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "    flush();\n    return r;\n}",
+        "new": "    return r;\n}"
+      }
+    ]
+  },
+  {
+    "name": "single-quote-keeps-quotes",
+    "why": "the quote characters stay in the word",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "word.append(line.substr(i + 1, close - i - 1));",
+        "new": "word.append(line.substr(i, close - i + 1));"
+      }
+    ]
+  },
+  {
+    "name": "dq-backslash-always-escapes",
+    "why": "a backslash in double quotes escapes any character",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "if (d == '\\\\' && j + 1 < n && (line[j + 1] == '\"' || line[j + 1] == '\\\\' || line[j + 1] == '$')) {",
+        "new": "if (d == '\\\\' && j + 1 < n) {"
+      }
+    ]
+  },
+  {
+    "name": "dq-dollar-not-escapable",
+    "why": "a dollar cannot be escaped inside double quotes",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "(line[j + 1] == '\"' || line[j + 1] == '\\\\' || line[j + 1] == '$')",
+        "new": "(line[j + 1] == '\"' || line[j + 1] == '\\\\')"
+      }
+    ]
+  },
+  {
+    "name": "dq-no-expansion",
+    "why": "nothing is expanded inside double quotes",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "} else if (d == '$') {",
+        "new": "} else if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "empty-words-vanish",
+    "why": "an empty quoted string produces no word",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "        if (in_word) {\n            r.tokens.push_back",
+        "new": "        if (in_word && !word.empty()) {\n            r.tokens.push_back"
+      }
+    ]
+  },
+  {
+    "name": "backslash-stays",
+    "why": "the backslash is kept in front of the escaped character",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "            word += line[i + 1];\n            i += 2;",
+        "new": "            word += c;\n            word += line[i + 1];\n            i += 2;"
+      }
+    ]
+  },
+  {
+    "name": "dangling-backslash-ignored",
+    "why": "a final backslash is silently dropped",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "                fail(ErrorKind::DanglingBackslash, i);\n                return r;\n",
+        "new": "                break;\n"
+      }
+    ]
+  },
+  {
+    "name": "operator-keeps-word-open",
+    "why": "an operator does not end the word before it",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "        } else if (detail::is_operator_char(c)) {\n            flush();\n",
+        "new": "        } else if (detail::is_operator_char(c)) {\n"
+      }
+    ]
+  },
+  {
+    "name": "operators-never-doubled",
+    "why": "every operator has one character",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "std::size_t len = 1;\n            if (i + 1 < n && (",
+        "new": "std::size_t len = 1;\n            if (false && ("
+      }
+    ]
+  },
+  {
+    "name": "or-or-missing",
+    "why": "|| is two pipes",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "(c == '|' && line[i + 1] == '|') || ",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "and-and-missing",
+    "why": "&& is two ampersands",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "(c == '&' && line[i + 1] == '&') || ",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "append-missing",
+    "why": ">> is two redirections",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": " || (c == '>' && line[i + 1] == '>')",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "semicolon-is-text",
+    "why": "; is an ordinary character",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "c == '&' || c == ';' || ",
+        "new": "c == '&' || "
+      }
+    ]
+  },
+  {
+    "name": "less-than-is-text",
+    "why": "< is an ordinary character",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": " || c == '<' ||",
+        "new": " ||"
+      }
+    ]
+  },
+  {
+    "name": "operator-position-wrong",
+    "why": "a two-character operator reports its last offset",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "std::string(line.substr(i, len)), i}",
+        "new": "std::string(line.substr(i, len)), i + len - 1}"
+      }
+    ]
+  },
+  {
+    "name": "hash-everywhere",
+    "why": "a # inside a word starts a comment",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "} else if (c == '#' && !in_word) {",
+        "new": "} else if (c == '#') {"
+      }
+    ]
+  },
+  {
+    "name": "hash-only-first-column",
+    "why": "a comment must start at column 0",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "} else if (c == '#' && !in_word) {",
+        "new": "} else if (c == '#' && i == 0) {"
+      }
+    ]
+  },
+  {
+    "name": "undefined-keeps-text",
+    "why": "an undefined variable stays in the text",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "    if (it != env.end()) out += it->second;",
+        "new": "    if (it != env.end()) out += it->second;\n    else {\n        out += '$';\n        out.append(name);\n    }"
+      }
+    ]
+  },
+  {
+    "name": "open-brace-is-text",
+    "why": "an unclosed ${ is taken as text",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "error = ErrorKind::UnterminatedBrace;\n            return i;",
+        "new": "out += '$';\n            return i + 1;"
+      }
+    ]
+  },
+  {
+    "name": "bad-names-accepted",
+    "why": "${1x} and ${} are not rejected",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "        if (!is_valid_name(name)) {\n            error = ErrorKind::BadSubstitution;\n            return i;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "digit-starts-a-name",
+    "why": "$5 is a variable reference",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "inline bool is_name_start(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }",
+        "new": "inline bool is_name_start(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9'); }"
+      }
+    ]
+  },
+  {
+    "name": "underscore-ends-a-name",
+    "why": "names stop at an underscore",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "inline bool is_name_char(char c) { return is_name_start(c) || (c >= '0' && c <= '9'); }",
+        "new": "inline bool is_name_char(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); }"
+      }
+    ]
+  },
+  {
+    "name": "empty-expansion-is-a-word",
+    "why": "an empty unquoted expansion leaves an empty word",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "            if (!word.empty()) begin_word(i);  // an empty expansion adds nothing",
+        "new": "            begin_word(i);"
+      }
+    ]
+  },
+  {
+    "name": "quote-position-off-by-one",
+    "why": "a word that starts with a single quote reports the offset after the quote",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "} else if (c == '\\'') {\n            begin_word(i);",
+        "new": "} else if (c == '\\'') {\n            begin_word(i + 1);"
+      }
+    ]
+  },
+  {
+    "name": "error-position-at-end",
+    "why": "an unterminated single quote is reported at the end of the line",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "fail(ErrorKind::UnterminatedSingleQuote, i);",
+        "new": "fail(ErrorKind::UnterminatedSingleQuote, n);"
+      }
+    ]
+  },
+  {
+    "name": "error-drops-finished-tokens",
+    "why": "an error discards the tokens read so far",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "        r.error = kind;\n",
+        "new": "        r.error = kind;\n        r.tokens.clear();\n"
+      }
+    ]
+  },
+  {
+    "name": "error-keeps-partial-word",
+    "why": "an error flushes the unfinished word as a token",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "    auto fail = [&](ErrorKind kind, std::size_t at) {\n        r.error = kind;",
+        "new": "    auto fail = [&](ErrorKind kind, std::size_t at) {\n        flush();\n        r.error = kind;"
+      }
+    ]
+  },
+  {
+    "name": "copies-the-line-per-token",
+    "why": "every token copies the rest of the line",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "            r.tokens.push_back(Token{TokenKind::Word, std::move(word), start});",
+        "new": "            const std::string rest(line.substr(start));\n            r.tokens.push_back(Token{TokenKind::Word, std::move(word), start + rest.size() - rest.size()});"
+      }
+    ]
+  },
+  {
+    "name": "unterminated-dq-accepted",
+    "why": "a missing closing double quote is not an error",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "            if (!closed) {\n                fail(ErrorKind::UnterminatedDoubleQuote, i);\n                return r;\n            }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "unterminated-sq-takes-rest",
+    "why": "a missing closing single quote swallows the rest of the line",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "            if (close == std::string_view::npos) {\n                fail(ErrorKind::UnterminatedSingleQuote, i);\n                return r;\n            }",
+        "new": "            if (close == std::string_view::npos) {\n                word.append(line.substr(i + 1));\n                i = n;\n                continue;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "lone-dollar-dropped",
+    "why": "a $ that starts no reference disappears",
+    "edits": [
+      {
+        "file": "tokenizer.hpp",
+        "old": "    out += '$';\n    return i + 1;\n}",
+        "new": "    return i + 1;\n}"
+      }
+    ]
+  }
+]

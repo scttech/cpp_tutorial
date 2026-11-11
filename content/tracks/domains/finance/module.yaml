@@ -1,0 +1,6 @@
+id: domain.finance
+title: "Finance and Trading"
+track: finance
+order: 102
+summary: "Money without rounding errors, an order book matching engine, streaming moving averages, portfolio risk metrics, a zero-copy FIX-style message parser and a lock-free event queue."
+recommends: "Modules 1 to 6 (up to the Standard Library)"

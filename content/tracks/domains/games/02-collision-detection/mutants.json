@@ -1,0 +1,337 @@
+[
+  {
+    "name": "box-strict-x",
+    "why": "boxes that touch on x do not overlap",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;",
+        "new": "return a.min.x < b.max.x && b.min.x < a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;"
+      }
+    ]
+  },
+  {
+    "name": "box-strict-y",
+    "why": "boxes that touch on y do not overlap",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;",
+        "new": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y < b.max.y && b.min.y < a.max.y;"
+      }
+    ]
+  },
+  {
+    "name": "box-x-only",
+    "why": "the y axis is not tested",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;",
+        "new": "return a.min.x <= b.max.x && b.min.x <= a.max.x;"
+      }
+    ]
+  },
+  {
+    "name": "box-one-sided",
+    "why": "only one direction of each axis is tested",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;",
+        "new": "return a.min.x <= b.max.x && a.min.y <= b.max.y;"
+      }
+    ]
+  },
+  {
+    "name": "box-or-instead-of-and",
+    "why": "either axis overlapping is enough",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return a.min.x <= b.max.x && b.min.x <= a.max.x && a.min.y <= b.max.y && b.min.y <= a.max.y;",
+        "new": "return (a.min.x <= b.max.x && b.min.x <= a.max.x) || (a.min.y <= b.max.y && b.min.y <= a.max.y);"
+      }
+    ]
+  },
+  {
+    "name": "circle-strict",
+    "why": "touching circles do not overlap",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return length_squared(a.center - b.center) <= reach * reach;",
+        "new": "return length_squared(a.center - b.center) < reach * reach;"
+      }
+    ]
+  },
+  {
+    "name": "circle-distance-not-squared",
+    "why": "squared distance compared with the radius sum",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return length_squared(a.center - b.center) <= reach * reach;",
+        "new": "return length_squared(a.center - b.center) <= reach;"
+      }
+    ]
+  },
+  {
+    "name": "circle-radius-minus",
+    "why": "radii are subtracted instead of added",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "const double reach = a.radius + b.radius;",
+        "new": "const double reach = std::abs(a.radius - b.radius);"
+      }
+    ]
+  },
+  {
+    "name": "circle-first-radius-only",
+    "why": "only the first radius counts",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "const double reach = a.radius + b.radius;",
+        "new": "const double reach = a.radius;"
+      }
+    ]
+  },
+  {
+    "name": "circle-box-center-inside-only",
+    "why": "a circle overlaps a box only when its centre is inside",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "    const Vec2 closest{std::clamp(c.center.x, box.min.x, box.max.x), std::clamp(c.center.y, box.min.y, box.max.y)};\n    return length_squared(c.center - closest) <= c.radius * c.radius;",
+        "new": "    return c.center.x >= box.min.x && c.center.x <= box.max.x && c.center.y >= box.min.y && c.center.y <= box.max.y;"
+      }
+    ]
+  },
+  {
+    "name": "circle-box-bounding-square",
+    "why": "the circle is treated as its bounding square",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "    return length_squared(c.center - closest) <= c.radius * c.radius;",
+        "new": "    return std::abs(c.center.x - closest.x) <= c.radius && std::abs(c.center.y - closest.y) <= c.radius;"
+      },
+      {
+        "file": "shapes.hpp",
+        "old": "#include <algorithm>\n",
+        "new": "#include <algorithm>\n#include <cmath>\n"
+      }
+    ]
+  },
+  {
+    "name": "circle-box-strict",
+    "why": "touching a box does not count",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return length_squared(c.center - closest) <= c.radius * c.radius;",
+        "new": "return length_squared(c.center - closest) < c.radius * c.radius;"
+      }
+    ]
+  },
+  {
+    "name": "circle-box-x-clamp-only",
+    "why": "the closest point is clamped on x only",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "std::clamp(c.center.y, box.min.y, box.max.y)};",
+        "new": "c.center.y};"
+      }
+    ]
+  },
+  {
+    "name": "circle-box-radius-not-squared",
+    "why": "distance squared compared with the radius",
+    "edits": [
+      {
+        "file": "shapes.hpp",
+        "old": "return length_squared(c.center - closest) <= c.radius * c.radius;",
+        "new": "return length_squared(c.center - closest) <= c.radius;"
+      }
+    ]
+  },
+  {
+    "name": "grid-truncates-negative",
+    "why": "cells are found by truncation toward zero",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "return static_cast<std::int64_t>(std::floor(v / cell_)); }",
+        "new": "return static_cast<std::int64_t>(v / cell_); }"
+      }
+    ]
+  },
+  {
+    "name": "grid-ceil",
+    "why": "cells are found with ceil",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "return static_cast<std::int64_t>(std::floor(v / cell_)); }",
+        "new": "return static_cast<std::int64_t>(std::ceil(v / cell_)); }"
+      }
+    ]
+  },
+  {
+    "name": "grid-min-cell-only",
+    "why": "a box is stored only in the cell of its min corner",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "        const std::int64_t x0 = cell_of(box.min.x), x1 = cell_of(box.max.x);\n        const std::int64_t y0 = cell_of(box.min.y), y1 = cell_of(box.max.y);",
+        "new": "        const std::int64_t x0 = cell_of(box.min.x), x1 = x0;\n        const std::int64_t y0 = cell_of(box.min.y), y1 = y0;"
+      }
+    ]
+  },
+  {
+    "name": "grid-max-cell-exclusive",
+    "why": "the last cell of a box is left out",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "for (std::int64_t cy = y0; cy <= y1; ++cy) {\n            for (std::int64_t cx = x0; cx <= x1; ++cx)",
+        "new": "for (std::int64_t cy = y0; cy < y1 || cy == y0; ++cy) {\n            for (std::int64_t cx = x0; cx < x1 || cx == x0; ++cx)"
+      }
+    ]
+  },
+  {
+    "name": "grid-x-cells-only",
+    "why": "a box is stored in all its x cells but only its first y cell",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "for (std::int64_t cy = y0; cy <= y1; ++cy) {",
+        "new": "for (std::int64_t cy = y0; cy <= y0; ++cy) {"
+      }
+    ]
+  },
+  {
+    "name": "grid-key-collides",
+    "why": "the key ignores the y cell",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "return (static_cast<std::uint64_t>(cx) << 32) ^ (static_cast<std::uint64_t>(cy) & 0xFFFFFFFFull);",
+        "new": "return static_cast<std::uint64_t>(cx);"
+      }
+    ]
+  },
+  {
+    "name": "grid-key-sign-bug",
+    "why": "the key mixes negative cells with positive ones",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "return (static_cast<std::uint64_t>(cx) << 32) ^ (static_cast<std::uint64_t>(cy) & 0xFFFFFFFFull);",
+        "new": "return (static_cast<std::uint64_t>(cx < 0 ? -cx : cx) << 32) ^ static_cast<std::uint64_t>(cy < 0 ? -cy : cy);"
+      }
+    ]
+  },
+  {
+    "name": "pairs-not-deduplicated",
+    "why": "a pair sharing two cells is reported twice",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "        pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());  // a pair that shares two cells is reported once\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pairs-unsorted",
+    "why": "the pairs come out in hash order",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "        std::sort(pairs.begin(), pairs.end());\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pairs-unordered-ids",
+    "why": "a pair may be (larger, smaller)",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "pairs.emplace_back(std::min(ids[i], ids[j]), std::max(ids[i], ids[j]));",
+        "new": "pairs.emplace_back(ids[j], ids[i]);"
+      }
+    ]
+  },
+  {
+    "name": "pairs-include-self",
+    "why": "an id is paired with itself",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "for (std::size_t j = i + 1; j < ids.size(); ++j)",
+        "new": "for (std::size_t j = i; j < ids.size(); ++j)"
+      }
+    ]
+  },
+  {
+    "name": "pairs-skip-first-neighbour",
+    "why": "the pair of the first two ids of a cell is lost",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "for (std::size_t j = i + 1; j < ids.size(); ++j)",
+        "new": "for (std::size_t j = i + 1 + (i == 0 ? 1 : 0); j < ids.size(); ++j)"
+      }
+    ]
+  },
+  {
+    "name": "collisions-without-narrow-phase",
+    "why": "every candidate is reported as a collision",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "        if (overlaps(boxes[static_cast<std::size_t>(pair.first)], boxes[static_cast<std::size_t>(pair.second)])) hits.push_back(pair);",
+        "new": "        hits.push_back(pair);"
+      }
+    ]
+  },
+  {
+    "name": "collisions-brute-force",
+    "why": "find_collisions ignores the grid and tests every pair",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "    UniformGrid grid(cell);\n    for (std::size_t i = 0; i < boxes.size(); ++i) grid.insert(static_cast<int>(i), boxes[i]);\n    std::vector<std::pair<int, int>> hits;\n    for (const auto& pair : grid.candidate_pairs()) {\n        if (overlaps(boxes[static_cast<std::size_t>(pair.first)], boxes[static_cast<std::size_t>(pair.second)])) hits.push_back(pair);\n    }\n    return hits;  // candidate_pairs() is sorted",
+        "new": "    std::vector<std::pair<int, int>> hits;\n    for (std::size_t i = 0; i < boxes.size(); ++i) {\n        for (std::size_t j = i + 1; j < boxes.size(); ++j) {\n            if (overlaps(boxes[i], boxes[j])) hits.emplace_back(static_cast<int>(i), static_cast<int>(j));\n        }\n    }\n    return hits;"
+      }
+    ]
+  },
+  {
+    "name": "grid-one-cell",
+    "why": "every box goes into one big cell: no pruning",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "explicit UniformGrid(double cell) : cell_(cell) {}",
+        "new": "explicit UniformGrid(double cell) : cell_(cell * 1000000) {}"
+      }
+    ]
+  },
+  {
+    "name": "grid-cells-never-pruned",
+    "why": "candidate pairs are built from all ids in the grid",
+    "edits": [
+      {
+        "file": "grid.hpp",
+        "old": "        for (const auto& cell : cells_) {\n            const std::vector<int>& ids = cell.second;",
+        "new": "        std::vector<int> everyone;\n        for (const auto& c : cells_) everyone.insert(everyone.end(), c.second.begin(), c.second.end());\n        std::sort(everyone.begin(), everyone.end());\n        everyone.erase(std::unique(everyone.begin(), everyone.end()), everyone.end());\n        const std::pair<int, std::vector<int>> all{0, everyone};\n        for (const auto& cell : {all}) {\n            const std::vector<int>& ids = cell.second;"
+      }
+    ]
+  }
+]

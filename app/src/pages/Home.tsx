@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { modules } from "../content/loader";
-import type { Lesson } from "../content/types";
+import type { Lesson, Module } from "../content/types";
 import { runner } from "../runner";
 import { wasmProblem } from "../content/wasmCompat";
 import { catalog } from "../badges/catalog";
@@ -114,52 +114,65 @@ export function Home() {
       saveChoices(next);
       return next;
     });
+  const core = modules.filter((m) => (m.track ?? "core") === "core");
+  const domains = modules.filter((m) => (m.track ?? "core") !== "core");
+  const renderModule = (m: Module) => {
+    const status = (l: Lesson) => progress.lessons[l.meta.id]?.status;
+    const testOut = m.lessons.find((l) => l.meta.type === "test-out");
+    const regular = m.lessons.filter((l) => l.meta.type !== "test-out");
+    const done = regular.filter((l) => status(l) === "complete").length;
+    // A module is complete when its test-out is passed, or when every other lesson is complete.
+    const testedOut = testOut ? status(testOut) === "complete" : false;
+    const moduleComplete = isModuleComplete(progress, catalog, m.id);
+    const open = choices[m.id] ?? m.id === defaultOpen;
+    return (
+      <section key={m.id} className={moduleComplete ? "module complete" : "module"}>
+        <h2>
+          <button type="button" className="module-toggle" aria-expanded={open} aria-controls={`mod-${m.id}`} onClick={() => toggle(m.id, !open)}>
+            <span className="chevron" aria-hidden="true">
+              {open ? "▾" : "▸"}
+            </span>
+            <span className="module-title">{m.title}</span>
+            {moduleComplete ? (
+              <span className="badge ok">✔ module complete{testedOut && done < regular.length ? " (tested out)" : ""}</span>
+            ) : (
+              <span className="muted small">
+                {done}/{regular.length} complete
+              </span>
+            )}
+          </button>
+        </h2>
+        <div id={`mod-${m.id}`} hidden={!open}>
+          {m.summary && <p className="muted">{m.summary}</p>}
+          {m.recommends && <p className="muted small">Recommended first: {m.recommends}.</p>}
+          {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
+          <ul className="lesson-list">
+            {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
+            {regular.map((l) => (
+              <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
+            ))}
+          </ul>
+          {testOut && !moduleComplete && (
+            <p className="muted small">Know this already? Pass the test-out to complete the whole module. The lessons stay available.</p>
+          )}
+        </div>
+      </section>
+    );
+  };
   return (
     <main className="home">
       <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
       <ContinueCard progress={progress} />
-      {modules.map((m) => {
-        const status = (l: Lesson) => progress.lessons[l.meta.id]?.status;
-        const testOut = m.lessons.find((l) => l.meta.type === "test-out");
-        const regular = m.lessons.filter((l) => l.meta.type !== "test-out");
-        const done = regular.filter((l) => status(l) === "complete").length;
-        // A module is complete when its test-out is passed, or when every other lesson is complete.
-        const testedOut = testOut ? status(testOut) === "complete" : false;
-        const moduleComplete = isModuleComplete(progress, catalog, m.id);
-        const open = choices[m.id] ?? m.id === defaultOpen;
-        return (
-          <section key={m.id} className={moduleComplete ? "module complete" : "module"}>
-            <h2>
-              <button type="button" className="module-toggle" aria-expanded={open} aria-controls={`mod-${m.id}`} onClick={() => toggle(m.id, !open)}>
-                <span className="chevron" aria-hidden="true">
-                  {open ? "▾" : "▸"}
-                </span>
-                <span className="module-title">{m.title}</span>
-                {moduleComplete ? (
-                  <span className="badge ok">✔ module complete{testedOut && done < regular.length ? " (tested out)" : ""}</span>
-                ) : (
-                  <span className="muted small">
-                    {done}/{regular.length} complete
-                  </span>
-                )}
-              </button>
-            </h2>
-            <div id={`mod-${m.id}`} hidden={!open}>
-              {m.summary && <p className="muted">{m.summary}</p>}
-              {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
-              <ul className="lesson-list">
-                {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
-                {regular.map((l) => (
-                  <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
-                ))}
-              </ul>
-              {testOut && !moduleComplete && (
-                <p className="muted small">Know this already? Pass the test-out to complete the whole module. The lessons stay available.</p>
-              )}
-            </div>
-          </section>
-        );
-      })}
+      {core.map(renderModule)}
+      {domains.length > 0 && (
+        <section className="domain-tracks" aria-label="Domain challenge tracks">
+          <h2 className="track-heading">Domain challenge tracks</h2>
+          <p className="muted">
+            Real-world problems, each with the four tiers: Works, Robust, Fast and Clean. Every track lists the core modules it builds on; nothing is locked, so jump in when you are ready.
+          </p>
+          {domains.map(renderModule)}
+        </section>
+      )}
     </main>
   );
 }

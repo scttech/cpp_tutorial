@@ -1,0 +1,337 @@
+[
+  {
+    "name": "filter-includes-minimum",
+    "why": "a log at exactly the minimum level is filtered",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        if (level < min_level_) {",
+        "new": "        if (level <= min_level_) {"
+      }
+    ]
+  },
+  {
+    "name": "filtered-logs-use-sequence-numbers",
+    "why": "filtered logs still advance the sequence numbers",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "const std::uint64_t seq = ++total_logged_;",
+        "new": "const std::uint64_t seq = ++total_logged_ + filtered_;"
+      }
+    ]
+  },
+  {
+    "name": "filtered-not-counted",
+    "why": "filtered logs are not counted",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "            ++filtered_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "sequence-starts-at-zero",
+    "why": "the first sequence number is 0",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "const std::uint64_t seq = ++total_logged_;",
+        "new": "const std::uint64_t seq = total_logged_++;"
+      }
+    ]
+  },
+  {
+    "name": "lost-not-counted",
+    "why": "logs that cannot be stored are not counted as lost",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "            ++lost_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "header-only-buffer-stores",
+    "why": "a buffer of exactly 13 bytes stores an empty record",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        if (buf_.size() <= kHeaderBytes) {",
+        "new": "        if (buf_.size() < kHeaderBytes) {"
+      }
+    ]
+  },
+  {
+    "name": "truncates-one-byte-too-many",
+    "why": "the cut message is one byte shorter than what fits",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "            length = buf_.size() - kHeaderBytes;",
+        "new": "            length = buf_.size() - kHeaderBytes - 1;"
+      }
+    ]
+  },
+  {
+    "name": "truncated-not-counted",
+    "why": "truncation is not counted",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "            ++truncated_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "exact-fit-counts-as-truncated",
+    "why": "a record that fills the buffer exactly counts as truncated",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        if (kHeaderBytes + length > buf_.size()) {",
+        "new": "        if (kHeaderBytes + length >= buf_.size()) {"
+      }
+    ]
+  },
+  {
+    "name": "evicts-one-too-many",
+    "why": "one extra record is evicted when the new one fits exactly",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        while (buf_.size() - used_ < needed) drop_oldest();",
+        "new": "        while (count_ > 0 && buf_.size() - used_ <= needed) drop_oldest();"
+      }
+    ]
+  },
+  {
+    "name": "evicts-at-most-one",
+    "why": "at most one old record is evicted",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        while (buf_.size() - used_ < needed) drop_oldest();",
+        "new": "        if (buf_.size() - used_ < needed) drop_oldest();"
+      }
+    ]
+  },
+  {
+    "name": "eviction-not-counted",
+    "why": "evictions are not counted",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        ++evicted_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "write-position-ignores-head",
+    "why": "the record is written at used_ instead of head_ + used_",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "std::size_t pos = (head_ + used_) % buf_.size();",
+        "new": "std::size_t pos = used_ % buf_.size();"
+      }
+    ]
+  },
+  {
+    "name": "write-does-not-wrap",
+    "why": "write() drops the part that should continue at offset 0",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        std::copy(data + first, data + n, buf_.begin());",
+        "new": "        (void)first;"
+      }
+    ]
+  },
+  {
+    "name": "read-does-not-wrap",
+    "why": "read() stops at the end of the buffer and leaves the rest of the bytes as they were",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        std::copy(buf_.begin(), buf_.begin() + static_cast<std::ptrdiff_t>(n - first), out + first);",
+        "new": "        (void)first;"
+      }
+    ]
+  },
+  {
+    "name": "sequence-stored-in-one-byte",
+    "why": "only the low byte of the sequence number is stored",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "for (std::size_t i = 0; i < 8; ++i) header[1 + i]",
+        "new": "for (std::size_t i = 0; i < 1; ++i) header[1 + i]"
+      }
+    ]
+  },
+  {
+    "name": "length-stored-in-one-byte",
+    "why": "only the low byte of the length is stored",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "for (std::size_t i = 0; i < 4; ++i) header[9 + i]",
+        "new": "for (std::size_t i = 0; i < 1; ++i) header[9 + i]"
+      }
+    ]
+  },
+  {
+    "name": "length-stored-in-two-bytes",
+    "why": "only two bytes of the length are stored",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "for (std::size_t i = 0; i < 4; ++i) header[9 + i]",
+        "new": "for (std::size_t i = 0; i < 2; ++i) header[9 + i]"
+      }
+    ]
+  },
+  {
+    "name": "level-not-stored",
+    "why": "the level is always stored as Debug",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "header[0] = static_cast<char>(level);",
+        "new": "header[0] = 0;"
+      }
+    ]
+  },
+  {
+    "name": "snapshot-newest-first",
+    "why": "snapshot() returns the newest record first",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        return out;\n    }",
+        "new": "        std::reverse(out.begin(), out.end());\n        return out;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "dump-without-hash",
+    "why": "dump lines start with the sequence number but no #",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "text += \"#\" + std::to_string(e.seq)",
+        "new": "text += std::to_string(e.seq)"
+      }
+    ]
+  },
+  {
+    "name": "dump-without-newline",
+    "why": "dump lines are not terminated",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "e.message + \"\\n\";",
+        "new": "e.message + \" \";"
+      }
+    ]
+  },
+  {
+    "name": "clear-resets-sequence",
+    "why": "clear() also restarts the sequence numbers",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        head_ = 0;\n        used_ = 0;\n        count_ = 0;\n    }",
+        "new": "        head_ = 0;\n        used_ = 0;\n        count_ = 0;\n        total_logged_ = 0;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "clear-keeps-bytes",
+    "why": "clear() forgets to reset the bytes in use",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        used_ = 0;\n        count_ = 0;\n    }",
+        "new": "        count_ = 0;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "logging-allocates",
+    "why": "every log makes a heap allocation",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "const std::uint64_t seq = ++total_logged_;",
+        "new": "const std::uint64_t seq = ++total_logged_;\n        auto scratch = std::make_unique<int>(1);\n        (void)scratch;"
+      },
+      {
+        "file": "ring_logger.hpp",
+        "old": "#include <cstdint>\n",
+        "new": "#include <cstdint>\n#include <memory>\n"
+      }
+    ]
+  },
+  {
+    "name": "message-copied-to-a-string",
+    "why": "the message is copied into a std::string first",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        std::size_t length = message.size();",
+        "new": "        const std::string copy(message);\n        std::size_t length = copy.size();"
+      }
+    ]
+  },
+  {
+    "name": "compacts-on-every-log",
+    "why": "the buffer is rotated so that the oldest record is at offset 0 on every log",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        char header[kHeaderBytes];\n        header[0] =",
+        "new": "        std::rotate(buf_.begin(), buf_.begin() + static_cast<std::ptrdiff_t>(head_), buf_.end());\n        head_ = 0;\n        char header[kHeaderBytes];\n        header[0] ="
+      }
+    ]
+  },
+  {
+    "name": "default-level-info",
+    "why": "the default minimum level is Info",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "Level min_level_ = Level::Debug;",
+        "new": "Level min_level_ = Level::Info;"
+      }
+    ]
+  },
+  {
+    "name": "empty-messages-rejected",
+    "why": "an empty message is not stored",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "        std::size_t length = message.size();",
+        "new": "        if (message.empty()) return false;\n        std::size_t length = message.size();"
+      }
+    ]
+  },
+  {
+    "name": "bytes-used-excludes-headers",
+    "why": "bytes_used() does not count the headers",
+    "edits": [
+      {
+        "file": "ring_logger.hpp",
+        "old": "std::size_t bytes_used() const { return used_; }",
+        "new": "std::size_t bytes_used() const { return used_ - count_ * kHeaderBytes; }"
+      }
+    ]
+  }
+]

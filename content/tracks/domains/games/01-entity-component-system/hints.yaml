@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Start with SparseSet alone. Three vectors: sparse_ (entity id -> slot), dense_ (slot -> entity id), components_ (slot -> component). emplace: if the entity is already in, overwrite its component; otherwise grow sparse_ if the id is beyond its end, record sparse_[id] = dense_.size(), push the id and the component. contains(id): id < sparse_.size() && sparse_[id] < dense_.size() && dense_[sparse_[id]] == id. The last check is what makes stale sparse entries harmless."
+  - level: 2
+    text: "erase(id): not contained -> false. Otherwise slot = sparse_[id], last = dense_.size() - 1; if slot != last, move the last entity and the last component into the slot (dense_[slot] = dense_[last]; components_[slot] = std::move(components_[last]);) and fix sparse_[dense_[slot]] = slot. Then pop_back both dense arrays. Registry entities: generations_ (one number per slot) and free_ (a stack of free slots). destroy: if alive, erase the entity from every store, ++generations_[slot], push the slot on free_. create: pop free_ if possible (the generation is already the bumped one) else push a new generation 0."
+  - level: 3
+    text: "Type erasure: struct StoreBase { virtual ~StoreBase(); virtual bool erase(EntityId) = 0; virtual size_t size() const = 0; virtual const std::vector<EntityId>& entities() const = 0; }; template<class T> struct Store final : StoreBase { SparseSet<T> set; ... }. The registry keeps std::unordered_map<std::type_index, std::unique_ptr<StoreBase>>; store<T>() creates on demand with std::make_unique<Store<T>>() and static_casts back. Use a find_store<T>() that does NOT create a store for get/has/remove/count/each."
+  - level: 4
+    text: |
+      // each: collect the stores for Cs... in a std::array<const StoreBase*, sizeof...(Cs)>; if any is null return;
+      // pick the one with the smallest size(); then for every id in its entities():
+      //   if (!(find_store<Cs>()->set.contains(id) && ...)) continue;      // fold expression over the pack
+      //   f(Entity{id, generations_[id]}, *find_store<Cs>()->set.find(id)...);   // pack expansion in the call
+      // alive(e): e.index < generations_.size() && generations_[e.index] == e.generation

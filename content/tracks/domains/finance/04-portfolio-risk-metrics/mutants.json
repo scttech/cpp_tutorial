@@ -1,0 +1,469 @@
+[
+  {
+    "name": "population-stdev",
+    "why": "divides by n instead of n-1",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    double sample_stdev() const { return n < 2 ? 0.0 : std::sqrt(m2 / static_cast<double>(n - 1)); }",
+        "new": "    double sample_stdev() const { return n < 2 ? 0.0 : std::sqrt(m2 / static_cast<double>(n)); }"
+      }
+    ]
+  },
+  {
+    "name": "stdev-sum-of-squares",
+    "why": "the textbook sum-of-squares formula",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    detail::Welford w;\n    for (const double x : values) w.add(x);\n    return w.sample_stdev();\n}\n\ninline std::optional<Summary>",
+        "new": "    double sum = 0, sq = 0;\n    for (const double x : values) {\n        sum += x;\n        sq += x * x;\n    }\n    const double n = static_cast<double>(values.size());\n    const double var = (sq - sum * sum / n) / (n - 1);\n    return std::sqrt(var < 0 ? 0 : var);\n}\n\ninline std::optional<Summary>"
+      }
+    ]
+  },
+  {
+    "name": "welford-wrong-update",
+    "why": "the Welford update uses the old mean twice",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        m2 += delta * (x - mean);",
+        "new": "        m2 += delta * delta;"
+      }
+    ]
+  },
+  {
+    "name": "welford-mean-wrong",
+    "why": "the running mean divides by n-1",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        mean += delta / static_cast<double>(n);",
+        "new": "        mean += delta / static_cast<double>(n > 1 ? n - 1 : n);"
+      }
+    ]
+  },
+  {
+    "name": "stdev-one-value-ok",
+    "why": "a single value has a stdev of 0 instead of nullopt",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (values.size() < 2 || !detail::all_finite(values)) return std::nullopt;",
+        "new": "    if (values.empty() || !detail::all_finite(values)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "mean-empty-zero",
+    "why": "the mean of nothing is 0",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (values.empty() || !detail::all_finite(values)) return std::nullopt;\n    detail::Welford w;\n    for (const double x : values) w.add(x);\n    return w.mean;",
+        "new": "    if (!detail::all_finite(values)) return std::nullopt;\n    detail::Welford w;\n    for (const double x : values) w.add(x);\n    return w.mean;"
+      }
+    ]
+  },
+  {
+    "name": "nan-accepted-in-mean",
+    "why": "NaN is not rejected by mean",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (values.empty() || !detail::all_finite(values)) return std::nullopt;\n    detail::Welford w;\n    for (const double x : values) w.add(x);\n    return w.mean;",
+        "new": "    if (values.empty()) return std::nullopt;\n    detail::Welford w;\n    for (const double x : values) w.add(x);\n    return w.mean;"
+      }
+    ]
+  },
+  {
+    "name": "infinity-accepted-in-stdev",
+    "why": "infinity is not rejected by stdev",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (values.size() < 2 || !detail::all_finite(values)) return std::nullopt;",
+        "new": "    if (values.size() < 2) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "return-is-difference",
+    "why": "returns are price differences",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double r = p / previous - 1.0;",
+        "new": "        const double r = p - previous;"
+      }
+    ]
+  },
+  {
+    "name": "return-is-log",
+    "why": "returns are log returns",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double r = p / previous - 1.0;",
+        "new": "        const double r = std::log(p / previous);"
+      }
+    ]
+  },
+  {
+    "name": "return-from-first-price",
+    "why": "each return is relative to the first price",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double r = p / previous - 1.0;",
+        "new": "        const double r = p / first - 1.0;"
+      }
+    ]
+  },
+  {
+    "name": "total-return-off",
+    "why": "total return uses the best price",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    s.total_return = previous / first - 1.0;",
+        "new": "    s.total_return = peak_total(previous, first);"
+      },
+      {
+        "file": "risk.hpp",
+        "old": "inline std::optional<double> mean(",
+        "new": "inline double peak_total(double last, double first) { return last > first ? last / first - 1.0 : last / first; }\n\ninline std::optional<double> mean("
+      }
+    ]
+  },
+  {
+    "name": "drawdown-relative-to-start",
+    "why": "drawdown is measured from the first price",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double drawdown = (peak - p) / peak;",
+        "new": "        const double drawdown = (first - p) / first;"
+      }
+    ]
+  },
+  {
+    "name": "drawdown-absolute",
+    "why": "drawdown is a price difference, not a fraction",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double drawdown = (peak - p) / peak;",
+        "new": "        const double drawdown = peak - p;"
+      }
+    ]
+  },
+  {
+    "name": "drawdown-peak-not-updated",
+    "why": "the peak is the first price",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (p > peak) peak = p;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "drawdown-last-fall-only",
+    "why": "only the current fall counts, not the worst one",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (drawdown > s.max_drawdown) s.max_drawdown = drawdown;",
+        "new": "        s.max_drawdown = drawdown;"
+      }
+    ]
+  },
+  {
+    "name": "drawdown-from-previous-price",
+    "why": "drawdown compares with the previous price instead of the peak",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double drawdown = (peak - p) / peak;",
+        "new": "        const double drawdown = (previous - p) / previous;"
+      }
+    ]
+  },
+  {
+    "name": "best-starts-at-zero",
+    "why": "best and worst start at 0",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (i == 1 || r > s.best) s.best = r;\n        if (i == 1 || r < s.worst) s.worst = r;",
+        "new": "        if (r > s.best) s.best = r;\n        if (r < s.worst) s.worst = r;"
+      }
+    ]
+  },
+  {
+    "name": "best-worst-swapped",
+    "why": "best and worst are swapped",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (i == 1 || r > s.best) s.best = r;\n        if (i == 1 || r < s.worst) s.worst = r;",
+        "new": "        if (i == 1 || r < s.best) s.best = r;\n        if (i == 1 || r > s.worst) s.worst = r;"
+      }
+    ]
+  },
+  {
+    "name": "zero-price-accepted",
+    "why": "a price of zero is accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (!(p > 0) || !std::isfinite(p)) return std::nullopt;",
+        "new": "        if (!std::isfinite(p)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "negative-first-price-accepted",
+    "why": "a bad first price is accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (!(first > 0) || !std::isfinite(first)) return std::nullopt;",
+        "new": "    if (!std::isfinite(first)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "one-price-accepted",
+    "why": "one price gives a summary",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (n < 2) return std::nullopt;\n    detail::Welford w;\n    Summary s;",
+        "new": "    if (n < 1) return std::nullopt;\n    detail::Welford w;\n    Summary s;"
+      }
+    ]
+  },
+  {
+    "name": "nan-price-accepted",
+    "why": "a NaN price is accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        if (!(p > 0) || !std::isfinite(p)) return std::nullopt;",
+        "new": "        if (p <= 0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "returns-count-off-by-one",
+    "why": "the number of returns is the number of prices",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    s.returns = w.n;",
+        "new": "    s.returns = n;"
+      }
+    ]
+  },
+  {
+    "name": "summary-two-passes",
+    "why": "prices are read again in a second loop",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    s.returns = w.n;",
+        "new": "    for (std::size_t i = 0; i < n; ++i) (void)prices[i];\n    for (std::size_t i = 0; i < n; ++i) (void)prices[i];\n    s.returns = w.n;"
+      }
+    ]
+  },
+  {
+    "name": "summary-reads-twice-per-loop",
+    "why": "each price is read three times",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "        const double p = prices[i];  // one read per price",
+        "new": "        (void)prices[i];\n        (void)prices[i];\n        const double p = prices[i];"
+      }
+    ]
+  },
+  {
+    "name": "summary-allocates",
+    "why": "summarize builds a vector of returns",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    detail::Welford w;\n    Summary s;",
+        "new": "    std::vector<double> all_returns;\n    all_returns.reserve(n);\n    detail::Welford w;\n    Summary s;"
+      }
+    ]
+  },
+  {
+    "name": "var-float-index",
+    "why": "the quantile index uses floating point",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    const std::size_t k = (n * tail + 99) / 100 - 1;  // ceil(n * tail / 100) - 1 with integers",
+        "new": "    const std::size_t k = static_cast<std::size_t>(std::ceil(static_cast<double>(n) * (1.0 - confidence_percent / 100.0))) - 1;"
+      }
+    ]
+  },
+  {
+    "name": "var-index-floor",
+    "why": "the index is floor instead of ceil",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    const std::size_t k = (n * tail + 99) / 100 - 1;  // ceil(n * tail / 100) - 1 with integers",
+        "new": "    const std::size_t k = (n * tail) / 100 == 0 ? 0 : (n * tail) / 100 - 1;"
+      }
+    ]
+  },
+  {
+    "name": "var-index-off-by-one-up",
+    "why": "the index is one too high",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    const std::size_t k = (n * tail + 99) / 100 - 1;  // ceil(n * tail / 100) - 1 with integers",
+        "new": "    const std::size_t k = std::min(n - 1, (n * tail + 99) / 100);"
+      }
+    ]
+  },
+  {
+    "name": "var-wrong-tail",
+    "why": "the confidence is used as the tail",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    const std::size_t tail = static_cast<std::size_t>(100 - confidence_percent);",
+        "new": "    const std::size_t tail = static_cast<std::size_t>(confidence_percent);"
+      }
+    ]
+  },
+  {
+    "name": "var-negative-sign",
+    "why": "VaR is reported as a negative number",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    return quantile < 0 ? -quantile : 0.0;",
+        "new": "    return quantile < 0 ? quantile : 0.0;"
+      }
+    ]
+  },
+  {
+    "name": "var-gain-reported",
+    "why": "a gain at the quantile is reported as a negative VaR",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    return quantile < 0 ? -quantile : 0.0;",
+        "new": "    return -quantile;"
+      }
+    ]
+  },
+  {
+    "name": "var-confidence-100-ok",
+    "why": "confidence 100 is accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "confidence_percent < 1 || confidence_percent > 99",
+        "new": "confidence_percent < 1 || confidence_percent > 100"
+      }
+    ]
+  },
+  {
+    "name": "var-confidence-0-ok",
+    "why": "confidence 0 is accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "confidence_percent < 1 || confidence_percent > 99",
+        "new": "confidence_percent < 0 || confidence_percent > 99"
+      }
+    ]
+  },
+  {
+    "name": "var-full-sort",
+    "why": "the whole vector is sorted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    std::nth_element(returns.begin(), returns.begin() + static_cast<std::ptrdiff_t>(k), returns.end());",
+        "new": "    std::sort(returns.begin(), returns.end());"
+      }
+    ]
+  },
+  {
+    "name": "var-nan-accepted",
+    "why": "NaN returns are accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (returns.empty() || confidence_percent < 1 || confidence_percent > 99 || !detail::all_finite(returns)) return std::nullopt;",
+        "new": "    if (returns.empty() || confidence_percent < 1 || confidence_percent > 99) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "sharpe-no-annualisation",
+    "why": "no square root of the periods",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    return (s.mean - risk_free_per_period) / s.stdev * std::sqrt(periods_per_year);",
+        "new": "    return (s.mean - risk_free_per_period) / s.stdev;"
+      }
+    ]
+  },
+  {
+    "name": "sharpe-periods-not-rooted",
+    "why": "periods are multiplied, not rooted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    return (s.mean - risk_free_per_period) / s.stdev * std::sqrt(periods_per_year);",
+        "new": "    return (s.mean - risk_free_per_period) / s.stdev * periods_per_year;"
+      }
+    ]
+  },
+  {
+    "name": "sharpe-ignores-risk-free",
+    "why": "the risk-free rate is ignored",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    return (s.mean - risk_free_per_period) / s.stdev * std::sqrt(periods_per_year);",
+        "new": "    return s.mean / s.stdev * std::sqrt(periods_per_year);"
+      }
+    ]
+  },
+  {
+    "name": "sharpe-zero-stdev",
+    "why": "a zero stdev divides by zero",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (!(s.stdev > 0) || !(periods_per_year > 0)) return std::nullopt;",
+        "new": "    if (!(periods_per_year > 0)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "sharpe-bad-periods",
+    "why": "non-positive periods are accepted",
+    "edits": [
+      {
+        "file": "risk.hpp",
+        "old": "    if (!(s.stdev > 0) || !(periods_per_year > 0)) return std::nullopt;",
+        "new": "    if (!(s.stdev > 0)) return std::nullopt;"
+      }
+    ]
+  }
+]

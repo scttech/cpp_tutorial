@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Slots are a std::vector<std::optional<Item>>. Two tiny helpers help everything else: count_of(Item&) returns an int* to the count of a Potion or Gem (std::get_if<Potion>(&item) ...) or nullptr for the other types, and same_kind(a, b) is true for two Potions with the same name and heal, or two Gems with the same name and value. Non-stackable add: take the lowest empty slot, std::move the item into it, or return Full."
+  - level: 2
+    text: "Stackable add, all or nothing: first compute room = sum of (kMaxStack - count) over the matching stacks and free = number of empty slots; if count > room + free * kMaxStack return Full without touching anything. Then fill the matching stacks from the lowest slot, then put the rest into the lowest empty slots in parts of at most kMaxStack. Result: Added if a new slot was used, otherwise Stacked. A count below 1 is Full."
+  - level: 3
+    text: "use: out of range or empty -> NothingThere. Then std::visit with an Overloaded of lambdas, one per type. Potion: if hp >= max_hp -> CannotUse (keep it); else hp = min(max_hp, hp + heal); if (--count == 0) reset the slot; Used. Weapon: std::optional<Weapon> previous = std::move(player.weapon); player.weapon = std::move(w); if previous, the slot becomes Item(std::move(*previous)), else reset the slot. Armor likewise. Key and Gem -> CannotUse."
+  - level: 4
+    text: |
+      // template<class... Fs> struct Overloaded : Fs... { using Fs::operator()...; };
+      // template<class... Fs> Overloaded(Fs...) -> Overloaded<Fs...>;
+      // return std::visit(Overloaded{ [&](Potion& p) { ... return UseResult::Used; }, [&](Weapon& w) { ... }, [&](Armor& a) { ... },
+      //                               [](Key&) { return UseResult::CannotUse; }, [](Gem&) { return UseResult::CannotUse; } }, *slot);
+      // every lambda must return the same type (UseResult)

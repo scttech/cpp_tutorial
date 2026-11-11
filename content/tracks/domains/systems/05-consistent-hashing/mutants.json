@@ -1,0 +1,233 @@
+[
+  {
+    "name": "lookup-no-wrap",
+    "why": "keys past the last point map to the last point instead of wrapping",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        if (it == points_.end()) it = points_.begin();",
+        "new": "        if (it == points_.end()) --it;"
+      }
+    ]
+  },
+  {
+    "name": "lookup-linear-scan",
+    "why": "lookup walks the points one by one",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        auto it = std::lower_bound(points_.begin(), points_.end(), h, [](const Point& p, std::uint64_t value) { return p.hash < value; });",
+        "new": "        auto it = points_.begin();\n        while (it != points_.end() && it->hash < h) ++it;"
+      }
+    ]
+  },
+  {
+    "name": "add-sorts-everything",
+    "why": "every add_node re-sorts the whole ring",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        std::inplace_merge(points_.begin(), points_.begin() + static_cast<std::ptrdiff_t>(old_size), points_.end(), before);",
+        "new": "        (void)old_size;\n        std::sort(points_.begin(), points_.end(), before);"
+      }
+    ]
+  },
+  {
+    "name": "add-forgets-to-merge",
+    "why": "the new points are appended and never merged",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        std::inplace_merge(points_.begin(), points_.begin() + static_cast<std::ptrdiff_t>(old_size), points_.end(), before);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "merge-wrong-boundary",
+    "why": "the merge boundary is the wrong size",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "points_.begin() + static_cast<std::ptrdiff_t>(old_size), points_.end(), before);",
+        "new": "points_.begin() + static_cast<std::ptrdiff_t>(fresh.size()), points_.end(), before);"
+      }
+    ]
+  },
+  {
+    "name": "all-points-identical",
+    "why": "every virtual node of a server sits at the same place",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "hash64(vnode_label(name, i))",
+        "new": "hash64(vnode_label(name, 0))"
+      }
+    ]
+  },
+  {
+    "name": "weight-ignored",
+    "why": "weights do not change the number of points",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "const std::size_t count = vnodes_ * weight;",
+        "new": "const std::size_t count = vnodes_;"
+      }
+    ]
+  },
+  {
+    "name": "weight-zero-accepted",
+    "why": "a node of weight 0 is accepted",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "if (weight == 0 || contains(name)) return false;",
+        "new": "if (contains(name)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-add-accepted",
+    "why": "adding an existing node adds its points again",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "if (weight == 0 || contains(name)) return false;",
+        "new": "if (weight == 0) return false;"
+      }
+    ]
+  },
+  {
+    "name": "remove-leaves-points",
+    "why": "removing a node leaves its points behind",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        points_.erase(std::remove_if(points_.begin(), points_.end(), [node](const Point& p) { return p.node == node; }), points_.end());\n",
+        "new": "        (void)node;\n"
+      }
+    ]
+  },
+  {
+    "name": "remove-leaves-node",
+    "why": "removing a node leaves it in the node table",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        nodes_.erase(it);\n        return true;",
+        "new": "        return true;"
+      }
+    ]
+  },
+  {
+    "name": "remove-scrambles-order",
+    "why": "removal uses partition, which does not keep the order",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "points_.erase(std::remove_if(points_.begin(), points_.end(), [node](const Point& p) { return p.node == node; }), points_.end());",
+        "new": "points_.erase(std::partition(points_.begin(), points_.end(), [node](const Point& p) { return p.node != node; }), points_.end());"
+      }
+    ]
+  },
+  {
+    "name": "remove-always-true",
+    "why": "removing an unknown node reports success",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        if (it == nodes_.end()) return false;\n        const std::string* node = &it->first;",
+        "new": "        if (it == nodes_.end()) return true;\n        const std::string* node = &it->first;"
+      }
+    ]
+  },
+  {
+    "name": "replicas-repeat-nodes",
+    "why": "lookup_n may return the same node twice",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "            if (std::find(out.begin(), out.end(), node) == out.end()) out.push_back(node);",
+        "new": "            out.push_back(node);"
+      }
+    ]
+  },
+  {
+    "name": "replicas-start-at-zero",
+    "why": "lookup_n starts at the first point, not at the key",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        const std::size_t start = first_point_at_or_after(hash64(key));\n        for",
+        "new": "        const std::size_t start = 0;\n        (void)key;\n        for"
+      }
+    ]
+  },
+  {
+    "name": "replicas-skip-the-owner",
+    "why": "lookup_n starts one point after the key",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "(start + step) % points_.size()",
+        "new": "(start + step + 1) % points_.size()"
+      }
+    ]
+  },
+  {
+    "name": "nodes-unsorted",
+    "why": "nodes() lists the names in table order",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        std::sort(out.begin(), out.end());\n        return out;",
+        "new": "        return out;"
+      }
+    ]
+  },
+  {
+    "name": "zero-vnodes-allowed",
+    "why": "a ring with 0 virtual nodes has no points",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "vnodes_(vnodes_per_weight == 0 ? 1 : vnodes_per_weight)",
+        "new": "vnodes_(vnodes_per_weight)"
+      }
+    ]
+  },
+  {
+    "name": "lookup-copies-the-key",
+    "why": "lookup copies the key into a std::string",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        return points_[first_point_at_or_after(hash64(key))].node;",
+        "new": "        const std::string copy(key);\n        return points_[first_point_at_or_after(hash64(copy))].node;"
+      }
+    ]
+  },
+  {
+    "name": "empty-ring-not-checked",
+    "why": "lookup on an empty ring reads a point that is not there",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "        if (points_.empty()) return nullptr;\n        return points_[",
+        "new": "        return points_["
+      }
+    ]
+  },
+  {
+    "name": "contains-wrong",
+    "why": "contains() is true for nodes that were never added and false for added ones",
+    "edits": [
+      {
+        "file": "hash_ring.hpp",
+        "old": "bool contains(std::string_view name) const { return nodes_.find(std::string(name)) != nodes_.end(); }",
+        "new": "bool contains(std::string_view name) const { return nodes_.find(std::string(name)) == nodes_.end(); }"
+      }
+    ]
+  }
+]

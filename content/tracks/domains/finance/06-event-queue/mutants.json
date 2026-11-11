@@ -1,0 +1,279 @@
+[
+  {
+    "name": "push-publishes-before-writing",
+    "why": "the index is published before the slot is written",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        buffer_[tail] = std::move(item);                                  // write the slot ...\n        tail_.store(next, std::memory_order_release);                     // ... then publish it",
+        "new": "        tail_.store(next, std::memory_order_release);\n        buffer_[tail] = std::move(item);"
+      }
+    ]
+  },
+  {
+    "name": "push-store-relaxed",
+    "why": "the tail is published with relaxed (no release)",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        tail_.store(next, std::memory_order_release);                     // ... then publish it",
+        "new": "        tail_.store(next, std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "pop-load-relaxed",
+    "why": "the consumer reads the tail with relaxed (no acquire)",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (head == tail_.load(std::memory_order_acquire)) return false; // empty",
+        "new": "        if (head == tail_.load(std::memory_order_relaxed)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "pop-store-relaxed",
+    "why": "the head is released with relaxed: the producer may overwrite a slot still being read",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        head_.store(advance(head), std::memory_order_release);           // ... then give it back",
+        "new": "        head_.store(advance(head), std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "push-load-head-relaxed",
+    "why": "the producer reads the head with relaxed",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (next == head_.load(std::memory_order_acquire)) return false;  // full: the consumer has not freed a slot",
+        "new": "        if (next == head_.load(std::memory_order_relaxed)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "plain-indices",
+    "why": "the indices are plain integers (a data race)",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    alignas(64) std::atomic<std::size_t> head_{0};  // next slot to read: written by the consumer\n    alignas(64) std::atomic<std::size_t> tail_{0};  // next slot to write: written by the producer",
+        "new": "    alignas(64) volatile std::size_t head_vol_ = 0;\n    alignas(64) volatile std::size_t tail_vol_ = 0;\n    alignas(64) std::atomic<std::size_t> head_{0};\n    alignas(64) std::atomic<std::size_t> tail_{0};"
+      }
+    ]
+  },
+  {
+    "name": "capacity-n-minus-one",
+    "why": "N slots instead of N + 1: the queue holds one item less",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    alignas(64) std::array<T, N + 1> buffer_{};",
+        "new": "    alignas(64) std::array<T, N + 1> buffer_{};\n    static_assert(sizeof(T) > 0);"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "const std::size_t next = advance(tail);\n        if (next == head_.load(std::memory_order_acquire)) return false;",
+        "new": "const std::size_t next = advance(tail);\n        if (advance(next) == head_.load(std::memory_order_acquire)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "full-check-missing",
+    "why": "a full queue overwrites the oldest item",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (next == head_.load(std::memory_order_acquire)) return false;  // full: the consumer has not freed a slot\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "empty-check-missing",
+    "why": "popping an empty queue returns garbage",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (head == tail_.load(std::memory_order_acquire)) return false; // empty\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "empty-check-wrong",
+    "why": "an empty queue is reported when one item is left",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (head == tail_.load(std::memory_order_acquire)) return false; // empty",
+        "new": "        if (advance(head) == tail_.load(std::memory_order_acquire) || head == tail_.load(std::memory_order_acquire)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "advance-wraps-early",
+    "why": "the index wraps one slot too early",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    static std::size_t advance(std::size_t i) { return i + 1 == N + 1 ? 0 : i + 1; }",
+        "new": "    static std::size_t advance(std::size_t i) { return i + 1 >= N ? 0 : i + 1; }"
+      }
+    ]
+  },
+  {
+    "name": "advance-never-wraps",
+    "why": "the index grows without wrapping (out of bounds)",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    static std::size_t advance(std::size_t i) { return i + 1 == N + 1 ? 0 : i + 1; }",
+        "new": "    static std::size_t advance(std::size_t i) { return i + 1; }"
+      }
+    ]
+  },
+  {
+    "name": "false-sharing",
+    "why": "head and tail share a cache line",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    alignas(64) std::atomic<std::size_t> head_{0};  // next slot to read: written by the consumer\n    alignas(64) std::atomic<std::size_t> tail_{0};  // next slot to write: written by the producer\n    alignas(64) std::array<T, N + 1> buffer_{};",
+        "new": "    std::atomic<std::size_t> head_{0};\n    std::atomic<std::size_t> tail_{0};\n    std::array<T, N + 1> buffer_{};"
+      }
+    ]
+  },
+  {
+    "name": "buffer-not-aligned-but-indices-are",
+    "why": "only the indices are aligned: the object is too small",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    alignas(64) std::atomic<std::size_t> head_{0};  // next slot to read: written by the consumer\n    alignas(64) std::atomic<std::size_t> tail_{0};  // next slot to write: written by the producer\n    alignas(64) std::array<T, N + 1> buffer_{};",
+        "new": "    std::atomic<std::size_t> head_{0};\n    alignas(8) std::atomic<std::size_t> tail_{0};\n    std::array<T, N + 1> buffer_{};"
+      }
+    ]
+  },
+  {
+    "name": "size-wrong-wrap",
+    "why": "size_approx is wrong when the indices wrapped",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        return tail >= head ? tail - head : tail + (N + 1) - head;",
+        "new": "        return tail >= head ? tail - head : tail + N - head;"
+      }
+    ]
+  },
+  {
+    "name": "size-always-zero",
+    "why": "size_approx returns 0",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        return tail >= head ? tail - head : tail + (N + 1) - head;",
+        "new": "        return tail >= head ? 0 : tail + (N + 1) - head;"
+      }
+    ]
+  },
+  {
+    "name": "empty-wrong",
+    "why": "empty() is true when one item is present",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    bool empty() const { return head_.load(std::memory_order_acquire) == tail_.load(std::memory_order_acquire); }",
+        "new": "    bool empty() const { return size_approx() <= 1; }"
+      }
+    ]
+  },
+  {
+    "name": "uses-mutex",
+    "why": "a mutex protects both operations",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    bool try_push(T item) {\n        const std::size_t tail",
+        "new": "    bool try_push(T item) {\n        std::lock_guard<std::mutex> guard(m_);\n        const std::size_t tail"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "#include <utility>\n",
+        "new": "#include <mutex>\n#include <utility>\n"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    bool try_pop(T& out) {\n",
+        "new": "    bool try_pop(T& out) {\n        std::lock_guard<std::mutex> guard(m_);\n"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "    alignas(64) std::atomic<std::size_t> head_{0};",
+        "new": "    std::mutex m_;\n    alignas(64) std::atomic<std::size_t> head_{0};"
+      }
+    ]
+  },
+  {
+    "name": "push-spins-when-full",
+    "why": "try_push waits for room instead of returning false",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (next == head_.load(std::memory_order_acquire)) return false;  // full: the consumer has not freed a slot",
+        "new": "        while (next == head_.load(std::memory_order_acquire)) std::this_thread::yield();"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "#include <utility>\n",
+        "new": "#include <thread>\n#include <utility>\n"
+      }
+    ]
+  },
+  {
+    "name": "pop-spins-when-empty",
+    "why": "try_pop waits for an item instead of returning false",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        if (head == tail_.load(std::memory_order_acquire)) return false; // empty",
+        "new": "        while (head == tail_.load(std::memory_order_acquire)) std::this_thread::yield();"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "#include <utility>\n",
+        "new": "#include <thread>\n#include <utility>\n"
+      }
+    ]
+  },
+  {
+    "name": "allocates-per-push",
+    "why": "every push allocates",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        const std::size_t tail = tail_.load(std::memory_order_relaxed);  // only this thread writes it",
+        "new": "        std::unique_ptr<int> tmp = std::make_unique<int>(1);\n        (void)tmp;\n        const std::size_t tail = tail_.load(std::memory_order_relaxed);  // only this thread writes it"
+      },
+      {
+        "file": "spsc_queue.hpp",
+        "old": "#include <utility>\n",
+        "new": "#include <memory>\n#include <utility>\n"
+      }
+    ]
+  },
+  {
+    "name": "push-moves-before-checking-full",
+    "why": "the item is moved into a local before the full check (lost when full)",
+    "edits": [
+      {
+        "file": "spsc_queue.hpp",
+        "old": "        const std::size_t next = advance(tail);\n        if (next == head_.load(std::memory_order_acquire)) return false;  // full: the consumer has not freed a slot",
+        "new": "        const std::size_t next = advance(tail);\n        buffer_[tail] = std::move(item);\n        if (next == head_.load(std::memory_order_acquire)) return false;"
+      }
+    ]
+  }
+]

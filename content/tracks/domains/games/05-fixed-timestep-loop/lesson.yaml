@@ -1,0 +1,15 @@
+id: domain.games.game-loop
+title: "Game Loop and Fixed Timestep"
+module: domain.games
+type: challenge
+estimatedMinutes: 70
+concepts: [fixed-timestep, accumulator, std-chrono, dependency-injection, injectable-clock, determinism, spiral-of-death, integer-time, render-interpolation, template-callbacks]
+prerequisites: []
+files:
+  editable: [game_loop.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [first-frame-runs-no-update, integer-time-not-floating-point, spiral-of-death, dropping-the-excess, clock-going-backwards, alpha-is-the-leftover-fraction, exact-multiples, non-positive-step, no-real-clock-in-the-loop, template-callback-not-std-function, frame-independence]

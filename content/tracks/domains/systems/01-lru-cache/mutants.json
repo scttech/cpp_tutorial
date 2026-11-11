@@ -1,0 +1,282 @@
+[
+  {
+    "name": "get-does-not-promote",
+    "why": "get does not make the entry the most recent",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        ++hits_;\n        items_.splice(items_.begin(), items_, it->second);\n",
+        "new": "        ++hits_;\n"
+      }
+    ]
+  },
+  {
+    "name": "update-keeps-old-value",
+    "why": "updating an existing key does not store the new value",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            it->second->second = std::move(value);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "update-evicts-when-full",
+    "why": "the eviction check runs before the existing-key check",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        const auto it = index_.find(key);\n        if (it != index_.end()) {",
+        "new": "        if (items_.size() == capacity_) {\n            index_.erase(items_.back().first);\n            items_.pop_back();\n        }\n        const auto it = index_.find(key);\n        if (it != index_.end()) {"
+      }
+    ]
+  },
+  {
+    "name": "evicts-the-newest",
+    "why": "the most recently used entry is evicted",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            index_.erase(items_.back().first);\n            items_.pop_back();",
+        "new": "            index_.erase(items_.front().first);\n            items_.pop_front();"
+      }
+    ]
+  },
+  {
+    "name": "evicts-too-early",
+    "why": "the cache holds one entry fewer than its capacity",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        if (items_.size() == capacity_) {",
+        "new": "        if (items_.size() + 1 >= capacity_ && !items_.empty()) {"
+      }
+    ]
+  },
+  {
+    "name": "capacity-zero-stores",
+    "why": "a capacity-0 cache stores the entry anyway",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        if (capacity_ == 0) return false;\n",
+        "new": "        if (capacity_ == 0) {\n            items_.emplace_front(std::move(key), std::move(value));\n            index_.emplace(items_.front().first, items_.begin());\n            return false;\n        }\n"
+      }
+    ]
+  },
+  {
+    "name": "erase-keeps-list-node",
+    "why": "erase removes the map entry only",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        items_.erase(it->second);\n        index_.erase(it);\n        return true;",
+        "new": "        index_.erase(it);\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "erase-keeps-map-entry",
+    "why": "erase removes the list node only (a dangling iterator stays in the map)",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        items_.erase(it->second);\n        index_.erase(it);\n        return true;",
+        "new": "        items_.erase(it->second);\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "eviction-keeps-map-entry",
+    "why": "an evicted entry stays in the map",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            index_.erase(items_.back().first);\n            items_.pop_back();",
+        "new": "            items_.pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "peek-promotes",
+    "why": "peek moves the entry to the front",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        return it == index_.end() ? nullptr : &it->second->second;",
+        "new": "        if (it == index_.end()) return nullptr;\n        auto& self = const_cast<LruCache&>(*this);\n        self.items_.splice(self.items_.begin(), self.items_, it->second);\n        return &it->second->second;"
+      }
+    ]
+  },
+  {
+    "name": "misses-not-counted",
+    "why": "misses are not counted",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            ++misses_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "hits-counted-twice",
+    "why": "every hit counts twice",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        ++hits_;\n",
+        "new": "        hits_ += 2;\n"
+      }
+    ]
+  },
+  {
+    "name": "clear-resets-statistics",
+    "why": "clear also zeroes the counters",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "    void clear() {\n        index_.clear();\n        items_.clear();\n    }",
+        "new": "    void clear() {\n        index_.clear();\n        items_.clear();\n        hits_ = misses_ = 0;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "clear-keeps-map",
+    "why": "clear forgets the list but not the map",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        index_.clear();\n        items_.clear();",
+        "new": "        items_.clear();"
+      }
+    ]
+  },
+  {
+    "name": "for-each-oldest-first",
+    "why": "for_each visits the least recent first",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        for (const auto& entry : items_) f(entry.first, entry.second);",
+        "new": "        for (auto it = items_.rbegin(); it != items_.rend(); ++it) f(it->first, it->second);"
+      }
+    ]
+  },
+  {
+    "name": "get-scans-the-list",
+    "why": "get searches the list linearly before using the map",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        const auto it = index_.find(key);\n        if (it == index_.end()) {\n            ++misses_;",
+        "new": "        auto found = items_.end();\n        for (auto i = items_.begin(); i != items_.end(); ++i) {\n            if (i->first == key) {\n                found = i;\n                break;\n            }\n        }\n        const auto it = found == items_.end() ? index_.end() : index_.find(key);\n        if (it == index_.end()) {\n            ++misses_;"
+      }
+    ]
+  },
+  {
+    "name": "get-looks-up-twice",
+    "why": "get checks contains() and then finds again",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        const auto it = index_.find(key);\n        if (it == index_.end()) {\n            ++misses_;",
+        "new": "        if (!contains(key)) {\n            ++misses_;\n            return nullptr;\n        }\n        const auto it = index_.find(key);\n        if (it == index_.end()) {\n            ++misses_;"
+      }
+    ]
+  },
+  {
+    "name": "put-looks-up-twice",
+    "why": "put checks contains() before the real lookup",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        const auto it = index_.find(key);\n        if (it != index_.end()) {",
+        "new": "        (void)contains(key);\n        const auto it = index_.find(key);\n        if (it != index_.end()) {"
+      }
+    ]
+  },
+  {
+    "name": "put-copies-the-key",
+    "why": "the key is copied into the list instead of moved",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        items_.emplace_front(std::move(key), std::move(value));",
+        "new": "        items_.emplace_front(key, std::move(value));"
+      }
+    ]
+  },
+  {
+    "name": "put-always-says-evicted",
+    "why": "put returns true even without an eviction",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        return evicted;",
+        "new": "        return true;"
+      }
+    ]
+  },
+  {
+    "name": "erase-always-true",
+    "why": "erase of a missing key returns true",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        if (it == index_.end()) return false;\n        items_.erase(it->second);",
+        "new": "        if (it == index_.end()) return true;\n        items_.erase(it->second);"
+      }
+    ]
+  },
+  {
+    "name": "get-allocates",
+    "why": "get allocates",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        ++hits_;\n",
+        "new": "        ++hits_;\n        auto spare = std::make_unique<int>(1);\n        (void)spare;\n"
+      },
+      {
+        "file": "lru.hpp",
+        "old": "#include <list>\n",
+        "new": "#include <list>\n#include <memory>\n"
+      }
+    ]
+  },
+  {
+    "name": "get-reinserts-the-node",
+    "why": "get moves the entry to a NEW node (the returned pointer from before is dead)",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "        items_.splice(items_.begin(), items_, it->second);\n        return &it->second->second;",
+        "new": "        items_.emplace_front(std::move(*it->second));\n        items_.erase(it->second);\n        it->second = items_.begin();\n        return &items_.front().second;"
+      }
+    ]
+  },
+  {
+    "name": "update-does-not-promote",
+    "why": "updating an existing key leaves it where it was",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            it->second->second = std::move(value);\n            items_.splice(items_.begin(), items_, it->second);\n",
+        "new": "            it->second->second = std::move(value);\n"
+      }
+    ]
+  },
+  {
+    "name": "update-says-evicted",
+    "why": "updating an existing key returns true",
+    "edits": [
+      {
+        "file": "lru.hpp",
+        "old": "            items_.splice(items_.begin(), items_, it->second);\n            return false;",
+        "new": "            items_.splice(items_.begin(), items_, it->second);\n            return true;"
+      }
+    ]
+  }
+]

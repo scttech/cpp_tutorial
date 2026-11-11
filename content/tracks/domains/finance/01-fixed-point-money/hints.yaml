@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Store int64 cents and do every calculation in __int128 (detail::Wide), then convert back with a range check: narrow(v) returns nullopt if v > INT64_MAX or v < INT64_MIN. checked_add/sub/mul are then one line each: wrap(Wide(a) + b). negated(): INT64_MIN has no positive twin -> nullopt."
+  - level: 2
+    text: "Rounded division of num by den (den != 0) in Wide: q = num / den (truncates toward zero), r = num % den. If r == 0 or the mode is Down, q is the answer. Otherwise compare twice = 2*|r| with |den|: more than half -> step away from zero; exactly half -> HalfUp steps away from zero, HalfEven steps only if q is odd; less than half -> q. 'Away from zero' is +1 if num and den have the same sign, else -1."
+  - level: 3
+    text: "allocate(parts): base = cents / parts (toward zero); left = cents - base * parts (same sign as the amount, |left| < parts); give each of the first |left| shares one extra cent in the direction of the sign. allocate_by_ratio: share_i = cents * r_i / total (in Wide, truncating), then distribute what is left over (cents - sum of shares) one cent each from the first share. parse: optional '-', optional '$', digits (std::from_chars into a uint64), then optionally '.' and 1 or 2 digits and the end; value = units*100 + cents in Wide, negate for '-', then narrow()."
+  - level: 4
+    text: |
+      // to_string without overflow:  const std::uint64_t mag = cents_ < 0 ? 0 - static_cast<std::uint64_t>(cents_) : static_cast<std::uint64_t>(cents_);
+      //   out = (cents_ < 0 ? "-" : "") + "$" + to_string(mag / 100) + "." + digit(mag % 100 / 10) + digit(mag % 10)
+      // "12.3" means 12.30: one decimal digit d gives d * 10 cents.   "-$92233720368547758.08" parses: units*100 + cents = 2^63, negated = INT64_MIN: fits.

@@ -1,0 +1,7 @@
+# Fast path: what's different in C++
+
+- **`std::chrono` makes units part of the type.** `10ms` is a `std::chrono::milliseconds`, `16666667ns` a `nanoseconds`; adding them converts to the finer unit automatically, and you cannot confuse seconds with milliseconds (a classic source of game bugs). Operators like `acc >= step`, `acc -= step`, `step * n` and `a / b` (a count) work between durations.
+- **Dependency injection with an interface.** `Clock` is an abstract class with one virtual function; production passes a real-time clock, tests pass `ManualClock`. This is the same idea as the injected allocator (`std::pmr`) or the injected random engine (`<random>`). Hidden global state (`steady_clock::now()` inside the loop) would make the loop untestable.
+- **Templates for callbacks.** `template <class Update> int frame(const Clock&, Update&&)` lets the compiler inline `update` into the loop; `std::function` would add an indirect call and possibly an allocation per construction.
+- **Integer vs floating-point time.** A `double` of seconds has 53 bits of precision; after hours of play adding 0.016666... loses digits and the step counts diverge. Unreal, Unity and Godot all keep integer ticks or a double *and* an integer step counter.
+- **Determinism is a feature.** Lockstep multiplayer (RTS games), replays and rollback netcode all depend on the simulation being a pure function of (initial state, inputs, step count). The fixed step is what makes that true.

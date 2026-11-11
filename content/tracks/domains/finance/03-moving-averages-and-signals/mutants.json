@@ -1,0 +1,387 @@
+[
+  {
+    "name": "window-off-by-one",
+    "why": "the average is the last window-1 prices but divides by window",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (count_ == window_) add(-buffer_[head_]);  // the oldest price leaves\n        else ++count_;",
+        "new": "        if (count_ == window_ - 1 || count_ == window_) add(-buffer_[head_]);\n        if (count_ < window_) ++count_;"
+      }
+    ]
+  },
+  {
+    "name": "ready-too-early",
+    "why": "an average is returned before the window is full",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (count_ < window_) return std::nullopt;\n        return (sum_ + compensation_)",
+        "new": "        if (count_ == 0) return std::nullopt;\n        return (sum_ + compensation_)"
+      }
+    ]
+  },
+  {
+    "name": "ready-one-late",
+    "why": "the average appears one price late",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (count_ < window_) return std::nullopt;\n        return (sum_ + compensation_)",
+        "new": "        if (count_ <= window_ && window_ > 1 && count_ == window_) return std::nullopt;\n        if (count_ < window_) return std::nullopt;\n        return (sum_ + compensation_)"
+      }
+    ]
+  },
+  {
+    "name": "divides-by-count",
+    "why": "a full window divides by the wrong number",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "return (sum_ + compensation_) / static_cast<double>(window_);",
+        "new": "return (sum_ + compensation_) / static_cast<double>(window_ + 1);"
+      }
+    ]
+  },
+  {
+    "name": "oldest-not-subtracted",
+    "why": "the price that leaves the window is not subtracted",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (count_ == window_) add(-buffer_[head_]);  // the oldest price leaves\n        else ++count_;",
+        "new": "        if (count_ < window_) ++count_;"
+      }
+    ]
+  },
+  {
+    "name": "subtracts-the-new-price",
+    "why": "the new price is subtracted instead of the oldest",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (count_ == window_) add(-buffer_[head_]);  // the oldest price leaves",
+        "new": "        if (count_ == window_) add(-x);"
+      }
+    ]
+  },
+  {
+    "name": "ring-not-advanced",
+    "why": "the ring index never moves",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        head_ = (head_ + 1) % window_;\n        add(x);",
+        "new": "        add(x);"
+      }
+    ]
+  },
+  {
+    "name": "ring-wrong-modulus",
+    "why": "the ring wraps one slot early",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        head_ = (head_ + 1) % window_;",
+        "new": "        head_ = (head_ + 1) % (window_ > 1 ? window_ - 1 : window_);"
+      }
+    ]
+  },
+  {
+    "name": "plain-sum-no-compensation",
+    "why": "the running sum drifts (no compensation)",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        const double t = sum_ + v;\n        if (std::fabs(sum_) >= std::fabs(v)) compensation_ += (sum_ - t) + v;\n        else compensation_ += (v - t) + sum_;\n        sum_ = t;",
+        "new": "        sum_ += v;"
+      }
+    ]
+  },
+  {
+    "name": "kahan-wrong-branch",
+    "why": "the compensation always uses the same branch (wrong when the new term is bigger)",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (std::fabs(sum_) >= std::fabs(v)) compensation_ += (sum_ - t) + v;\n        else compensation_ += (v - t) + sum_;",
+        "new": "        compensation_ += (sum_ - t) + v;"
+      }
+    ]
+  },
+  {
+    "name": "compensation-not-read",
+    "why": "the compensation is collected but never added back",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "return (sum_ + compensation_) / static_cast<double>(window_);",
+        "new": "return sum_ / static_cast<double>(window_);"
+      }
+    ]
+  },
+  {
+    "name": "recompute-sum-each-time",
+    "why": "the sum is recomputed over the window every time (O(window))",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        add(x);\n        return value();",
+        "new": "        add(x);\n        sum_ = 0;\n        compensation_ = 0;\n        for (std::size_t i = 0; i < count_; ++i) add(buffer_[i]);\n        return value();"
+      }
+    ]
+  },
+  {
+    "name": "nan-not-ignored",
+    "why": "a NaN price enters the sum",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!std::isfinite(x)) return value();\n        if (count_ == window_)",
+        "new": "        if (count_ == window_)"
+      }
+    ]
+  },
+  {
+    "name": "infinity-allowed",
+    "why": "infinity is accepted, NaN is not",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!std::isfinite(x)) return value();\n        if (count_ == window_)",
+        "new": "        if (std::isnan(x)) return value();\n        if (count_ == window_)"
+      }
+    ]
+  },
+  {
+    "name": "window-zero-crash",
+    "why": "window 0 is not turned into 1",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "explicit Sma(std::size_t window) : window_(window == 0 ? 1 : window), buffer_(window_, 0.0) {}",
+        "new": "explicit Sma(std::size_t window) : window_(window), buffer_(window_, 0.0) {}"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-count",
+    "why": "reset leaves the count",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        count_ = 0;\n        head_ = 0;\n        sum_ = compensation_ = 0;",
+        "new": "        head_ = 0;\n        sum_ = compensation_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-sum",
+    "why": "reset leaves the sum",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        count_ = 0;\n        head_ = 0;\n        sum_ = compensation_ = 0;",
+        "new": "        count_ = 0;\n        head_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "allocates-per-push",
+    "why": "every push builds a temporary vector",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!std::isfinite(x)) return value();\n        if (count_ == window_) add",
+        "new": "        if (!std::isfinite(x)) return value();\n        std::vector<double> scratch(2, x);\n        (void)scratch;\n        if (count_ == window_) add"
+      }
+    ]
+  },
+  {
+    "name": "ema-alpha-wrong",
+    "why": "alpha is 1/period",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "explicit Ema(std::size_t period) : alpha_(2.0 / (static_cast<double>(period == 0 ? 1 : period) + 1.0)) {}",
+        "new": "explicit Ema(std::size_t period) : alpha_(1.0 / static_cast<double>(period == 0 ? 1 : period)) {}"
+      }
+    ]
+  },
+  {
+    "name": "ema-alpha-period-minus-one",
+    "why": "alpha is 2/(period-1)",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "alpha_(2.0 / (static_cast<double>(period == 0 ? 1 : period) + 1.0))",
+        "new": "alpha_(2.0 / (static_cast<double>(period == 0 ? 3 : period) + 1.0) * 1.1)"
+      }
+    ]
+  },
+  {
+    "name": "ema-seed-zero",
+    "why": "the EMA starts from zero",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        value_ = seeded_ ? alpha_ * x + (1.0 - alpha_) * value_ : x;",
+        "new": "        value_ = alpha_ * x + (1.0 - alpha_) * value_;"
+      }
+    ]
+  },
+  {
+    "name": "ema-weights-swapped",
+    "why": "alpha weights the old value",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "alpha_ * x + (1.0 - alpha_) * value_ : x;",
+        "new": "(1.0 - alpha_) * x + alpha_ * value_ : x;"
+      }
+    ]
+  },
+  {
+    "name": "ema-nan-poisons",
+    "why": "a NaN price enters the EMA",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!std::isfinite(x)) return value_;\n        value_ = seeded_",
+        "new": "        value_ = seeded_"
+      }
+    ]
+  },
+  {
+    "name": "ema-ready-immediately",
+    "why": "an EMA that has seen nothing claims to be ready",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "    bool ready() const { return seeded_; }\n    void reset() {\n        seeded_ = false;",
+        "new": "    bool ready() const { return true; }\n    void reset() {\n        seeded_ = false;"
+      }
+    ]
+  },
+  {
+    "name": "ema-reset-keeps-seed",
+    "why": "reset leaves the EMA seeded",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        seeded_ = false;\n        value_ = 0;",
+        "new": "        value_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "cross-signal-on-first-diff",
+    "why": "the first difference already gives a signal",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (have_previous_) {\n            if (previous_diff_ <= 0 && diff > 0)",
+        "new": "        if (true) {\n            if (previous_diff_ <= 0 && diff > 0)"
+      }
+    ]
+  },
+  {
+    "name": "cross-repeats-while-above",
+    "why": "a Buy is repeated on every price while the fast average stays above",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "            if (previous_diff_ <= 0 && diff > 0) signal = Signal::Buy;",
+        "new": "            if (diff > 0) signal = Signal::Buy;"
+      }
+    ]
+  },
+  {
+    "name": "cross-repeats-while-below",
+    "why": "a Sell is repeated on every price while the fast average stays below",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Sell;",
+        "new": "            else if (diff < 0) signal = Signal::Sell;"
+      }
+    ]
+  },
+  {
+    "name": "cross-directions-swapped",
+    "why": "Buy and Sell are swapped",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "            if (previous_diff_ <= 0 && diff > 0) signal = Signal::Buy;\n            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Sell;",
+        "new": "            if (previous_diff_ <= 0 && diff > 0) signal = Signal::Sell;\n            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Buy;"
+      }
+    ]
+  },
+  {
+    "name": "cross-zero-is-a-side",
+    "why": "a difference of zero counts as being above",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "            if (previous_diff_ <= 0 && diff > 0) signal = Signal::Buy;\n            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Sell;",
+        "new": "            if (previous_diff_ < 0 && diff >= 0) signal = Signal::Buy;\n            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Sell;"
+      }
+    ]
+  },
+  {
+    "name": "cross-strict-previous",
+    "why": "a cross from exactly zero is missed",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "            if (previous_diff_ <= 0 && diff > 0) signal = Signal::Buy;\n            else if (previous_diff_ >= 0 && diff < 0) signal = Signal::Sell;",
+        "new": "            if (previous_diff_ < 0 && diff > 0) signal = Signal::Buy;\n            else if (previous_diff_ > 0 && diff < 0) signal = Signal::Sell;"
+      }
+    ]
+  },
+  {
+    "name": "cross-signals-before-ready",
+    "why": "a signal is possible while the slow average is not ready",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!f || !s) return Signal::None;",
+        "new": "        if (!f) return Signal::None;\n        const double slow_value = s ? *s : 0;"
+      }
+    ]
+  },
+  {
+    "name": "cross-previous-not-updated",
+    "why": "the previous difference is never updated",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        previous_diff_ = diff;\n        have_previous_ = true;",
+        "new": "        if (!have_previous_) previous_diff_ = diff;\n        have_previous_ = true;"
+      }
+    ]
+  },
+  {
+    "name": "cross-nan-poisons",
+    "why": "a NaN price is fed to the averages",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "        if (!std::isfinite(price)) return Signal::None;\n        const auto f",
+        "new": "        const auto f"
+      }
+    ]
+  },
+  {
+    "name": "cross-swapped-windows",
+    "why": "the fast average is the slow one",
+    "edits": [
+      {
+        "file": "averages.hpp",
+        "old": "Crossover(std::size_t fast, std::size_t slow) : fast_(fast), slow_(slow) {}",
+        "new": "Crossover(std::size_t fast, std::size_t slow) : fast_(slow), slow_(fast) {}"
+      }
+    ]
+  }
+]

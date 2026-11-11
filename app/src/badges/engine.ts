@@ -20,6 +20,7 @@ export type Rule =
   | { type: "lesson-complete"; lesson: string }
   | { type: "lesson-count"; where: Where; atLeast: number }
   | { type: "module-complete"; module: string }
+  | { type: "track-complete"; module: string; tier?: Tier }
   | { type: "tier-complete"; tier: Tier; atLeast: number }
   | { type: "first-try"; atLeast: number }
   | { type: "persistence"; failedRunsAtLeast: number }
@@ -31,7 +32,7 @@ export type Rule =
 export interface BadgeDef {
   id: string;
   name: string;
-  category: "progress" | "mastery" | "habits" | "consistency" | "fun";
+  category: "progress" | "mastery" | "habits" | "consistency" | "fun" | "domain";
   tier?: "bronze" | "silver" | "gold";
   icon: string;
   description: string;
@@ -107,6 +108,13 @@ export function evaluate(rule: Rule, state: Progress, catalog: Catalog): Evaluat
       const ok = isModuleComplete(state, catalog, rule.module);
       return { met: ok, lessons: ok ? catalog.lessons.filter((l) => l.module === rule.module).map((l) => l.id) : [] };
     }
+    case "track-complete": {
+      // every challenge of the domain track has the given tier (or is complete, when no tier is named)
+      const inTrack = catalog.lessons.filter((l) => l.module === rule.module);
+      const ids = inTrack.filter((l) => (rule.tier ? l.tiers[rule.tier] && prog(state, l.id).bestTiers[rule.tier] : prog(state, l.id).status === "complete")).map((l) => l.id);
+      const ok = inTrack.length > 0 && ids.length === inTrack.length;
+      return { met: ok, lessons: ok ? ids : [], current: ids.length, target: inTrack.length };
+    }
     case "tier-complete": {
       const ids = catalog.lessons.filter((l) => l.tiers[rule.tier] && prog(state, l.id).bestTiers[rule.tier]).map((l) => l.id);
       return count(ids, rule.atLeast);
@@ -166,6 +174,7 @@ export function isAvailable(rule: Rule, catalog: Catalog): boolean {
     case "lesson-complete":
       return catalog.lessons.some((l) => l.id === rule.lesson);
     case "module-complete":
+    case "track-complete":
       return catalog.lessons.some((l) => l.module === rule.module) && !catalog.inProgressModules?.includes(rule.module);
     case "lesson-count":
     case "same-day-count":
@@ -189,7 +198,7 @@ export function awardBadges(state: Progress, earned: { id: string; lessons: stri
   return { ...state, badges };
 }
 
-const RULE_TYPES = new Set(["lesson-complete", "lesson-count", "module-complete", "tier-complete", "first-try", "persistence", "streak-days", "custom-event", "same-day-count", "all"]);
+const RULE_TYPES = new Set(["lesson-complete", "lesson-count", "module-complete", "track-complete", "tier-complete", "first-try", "persistence", "streak-days", "custom-event", "same-day-count", "all"]);
 
 /** Structural check of a rule from YAML; returns a list of problems (empty when fine). */
 export function checkRule(rule: unknown, path = "rule"): string[] {
@@ -201,6 +210,7 @@ export function checkRule(rule: unknown, path = "rule"): string[] {
     case "lesson-complete":
       return need("lesson", "string");
     case "module-complete":
+    case "track-complete":
       return need("module", "string");
     case "lesson-count":
     case "same-day-count":

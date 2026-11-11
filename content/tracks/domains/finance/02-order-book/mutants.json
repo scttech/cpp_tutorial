@@ -1,0 +1,425 @@
+[
+  {
+    "name": "buy-takes-highest-ask-first",
+    "why": "asks are ordered high to low",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "    using Asks = std::map<Price, Level>;",
+        "new": "    using Asks = std::map<Price, Level, std::greater<Price>>;"
+      }
+    ]
+  },
+  {
+    "name": "sell-takes-lowest-bid-first",
+    "why": "bids are ordered low to high",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "    using Bids = std::map<Price, Level, std::greater<Price>>;",
+        "new": "    using Bids = std::map<Price, Level>;"
+      }
+    ]
+  },
+  {
+    "name": "equal-prices-do-not-trade",
+    "why": "a buy at the ask price does not trade",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "incoming.side == Side::Buy ? level_price.ticks <= incoming.price.ticks : level_price.ticks >= incoming.price.ticks;",
+        "new": "incoming.side == Side::Buy ? level_price.ticks < incoming.price.ticks : level_price.ticks >= incoming.price.ticks;"
+      }
+    ]
+  },
+  {
+    "name": "equal-prices-do-not-trade-sell",
+    "why": "a sell at the bid price does not trade",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "incoming.side == Side::Buy ? level_price.ticks <= incoming.price.ticks : level_price.ticks >= incoming.price.ticks;",
+        "new": "incoming.side == Side::Buy ? level_price.ticks <= incoming.price.ticks : level_price.ticks > incoming.price.ticks;"
+      }
+    ]
+  },
+  {
+    "name": "crossing-test-reversed",
+    "why": "a buy trades against asks above its limit",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "incoming.side == Side::Buy ? level_price.ticks <= incoming.price.ticks : level_price.ticks >= incoming.price.ticks;",
+        "new": "incoming.side == Side::Buy ? level_price.ticks >= incoming.price.ticks : level_price.ticks <= incoming.price.ticks;"
+      }
+    ]
+  },
+  {
+    "name": "lifo-within-a-level",
+    "why": "the latest order at a price trades first",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "                Order& maker = level.front();",
+        "new": "                Order& maker = level.back();"
+      },
+      {
+        "file": "order_book.hpp",
+        "old": "                    level.pop_front();",
+        "new": "                    level.pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "new-orders-rest-in-front",
+    "why": "a new resting order goes to the front of its level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            level.push_back(std::move(order));\n            index_.emplace(id, Where{side, price, std::prev(level.end())});\n        } else {",
+        "new": "            level.push_front(std::move(order));\n            index_.emplace(id, Where{side, price, level.begin()});\n        } else {"
+      }
+    ]
+  },
+  {
+    "name": "trade-at-taker-price",
+    "why": "trades happen at the incoming order's price",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "r.trades.push_back(Trade{incoming.id, maker.id, level_price, qty});",
+        "new": "r.trades.push_back(Trade{incoming.id, maker.id, incoming.price, qty});"
+      }
+    ]
+  },
+  {
+    "name": "trade-qty-always-incoming",
+    "why": "a trade is for the incoming quantity even if the maker has less",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "const std::int64_t qty = std::min(incoming.qty, maker.qty);",
+        "new": "const std::int64_t qty = incoming.qty;"
+      }
+    ]
+  },
+  {
+    "name": "trade-qty-always-maker",
+    "why": "a trade is for the maker quantity even if the incoming has less",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "const std::int64_t qty = std::min(incoming.qty, maker.qty);",
+        "new": "const std::int64_t qty = maker.qty;"
+      }
+    ]
+  },
+  {
+    "name": "maker-not-reduced",
+    "why": "a partly filled maker keeps its full quantity",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "                maker.qty -= qty;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "incoming-not-reduced",
+    "why": "the incoming order is not reduced by a trade",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "                incoming.qty -= qty;\n",
+        "new": "                if (maker.qty == qty) incoming.qty -= qty;\n"
+      }
+    ]
+  },
+  {
+    "name": "filled-maker-stays-in-index",
+    "why": "a completely filled maker is not removed from the id index",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "                    index_.erase(maker.id);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "filled-maker-stays-in-level",
+    "why": "a completely filled maker is not removed from its level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "                    level.pop_front();",
+        "new": "                    maker.qty = 0;\n                    break;"
+      }
+    ]
+  },
+  {
+    "name": "empty-level-stays",
+    "why": "empty price levels are never erased after matching",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            if (level.empty()) book.erase(level_it);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "only-one-level-per-submit",
+    "why": "matching stops after the first level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            if (level.empty()) book.erase(level_it);",
+        "new": "            if (level.empty()) book.erase(level_it);\n            break;"
+      }
+    ]
+  },
+  {
+    "name": "rests-even-when-filled",
+    "why": "a fully filled order also rests with zero quantity",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        if (order.qty == 0) {\n            r.status = Status::Filled;\n            return r;\n        }",
+        "new": "        if (order.qty == 0) r.status = Status::Filled;"
+      }
+    ]
+  },
+  {
+    "name": "rested-quantity-wrong",
+    "why": "the result reports the original quantity as resting",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        r.resting = order.qty;",
+        "new": "        r.resting = order.qty + (r.trades.empty() ? 0 : r.trades.front().qty);"
+      }
+    ]
+  },
+  {
+    "name": "rests-at-the-wrong-price",
+    "why": "the remainder rests at the best opposite price",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        const Price price = order.price;",
+        "new": "        const Price price = r.trades.empty() ? order.price : r.trades.back().price;"
+      }
+    ]
+  },
+  {
+    "name": "no-reject-for-zero-qty",
+    "why": "zero quantity is accepted",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "if (order.qty <= 0 || order.price.ticks <= 0 || index_.count(order.id) > 0) return r;",
+        "new": "if (order.qty < 0 || order.price.ticks <= 0 || index_.count(order.id) > 0) return r;"
+      }
+    ]
+  },
+  {
+    "name": "no-reject-for-bad-price",
+    "why": "a zero or negative price is accepted",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "if (order.qty <= 0 || order.price.ticks <= 0 || index_.count(order.id) > 0) return r;",
+        "new": "if (order.qty <= 0 || index_.count(order.id) > 0) return r;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-id-accepted",
+    "why": "an id that is resting is accepted again",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "if (order.qty <= 0 || order.price.ticks <= 0 || index_.count(order.id) > 0) return r;",
+        "new": "if (order.qty <= 0 || order.price.ticks <= 0) return r;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-id-check-after-matching",
+    "why": "the duplicate check happens only when resting (trades already happened)",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "if (order.qty <= 0 || order.price.ticks <= 0 || index_.count(order.id) > 0) return r;  // Rejected",
+        "new": "if (order.qty <= 0 || order.price.ticks <= 0) return r;  // Rejected"
+      }
+    ]
+  },
+  {
+    "name": "cancel-leaves-the-order-in-the-level",
+    "why": "cancel only removes the index entry",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        if (w.side == Side::Buy) erase_from(bids_, w);\n        else erase_from(asks_, w);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cancel-leaves-the-index-entry",
+    "why": "cancel does not remove the id from the index",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        index_.erase(it);\n        return true;",
+        "new": "        return true;"
+      }
+    ]
+  },
+  {
+    "name": "cancel-empty-level-stays",
+    "why": "cancel does not erase an emptied level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        if (level_it->second.empty()) book.erase(level_it);\n    }\n};",
+        "new": "    }\n};"
+      }
+    ]
+  },
+  {
+    "name": "cancel-erases-whole-level",
+    "why": "cancel removes the whole price level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        level_it->second.erase(w.pos);\n        if (level_it->second.empty()) book.erase(level_it);",
+        "new": "        book.erase(level_it);"
+      }
+    ]
+  },
+  {
+    "name": "cancel-by-scanning",
+    "why": "cancel searches every level for the id",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        const auto it = index_.find(id);\n        if (it == index_.end()) return false;\n        const Where w = it->second;",
+        "new": "        const auto it = index_.find(id);\n        if (it == index_.end()) return false;\n        for (auto& level : asks_) for (const Order& o : level.second) if (o.id == id) break;\n        for (auto& level : bids_) for (const Order& o : level.second) if (o.id == id) break;\n        const Where w = it->second;"
+      }
+    ]
+  },
+  {
+    "name": "best-bid-is-lowest",
+    "why": "best_bid returns the worst bid",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        if (bids_.empty()) return std::nullopt;\n        return bids_.begin()->first;",
+        "new": "        if (bids_.empty()) return std::nullopt;\n        return bids_.rbegin()->first;"
+      }
+    ]
+  },
+  {
+    "name": "best-ask-is-highest",
+    "why": "best_ask returns the worst ask",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        if (asks_.empty()) return std::nullopt;\n        return asks_.begin()->first;",
+        "new": "        if (asks_.empty()) return std::nullopt;\n        return asks_.rbegin()->first;"
+      }
+    ]
+  },
+  {
+    "name": "depth-counts-orders",
+    "why": "depth_at counts orders instead of quantity",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            if (it != bids_.end()) for (const Order& o : it->second) total += o.qty;",
+        "new": "            if (it != bids_.end()) for (const Order& o : it->second) total += (o.qty > 0 ? 1 : 0);"
+      }
+    ]
+  },
+  {
+    "name": "depth-ignores-side",
+    "why": "depth_at looks at the bids for both sides",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            const auto it = asks_.find(price);\n            if (it != asks_.end()) for (const Order& o : it->second) total += o.qty;",
+        "new": "            const auto it = bids_.find(price);\n            if (it != bids_.end()) for (const Order& o : it->second) total += o.qty;"
+      }
+    ]
+  },
+  {
+    "name": "remaining-wrong",
+    "why": "remaining reports the first order of the level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        return it->second.pos->qty;",
+        "new": "        const auto level = it->second.side == Side::Buy ? bids_.find(it->second.price)->second.front().qty : asks_.find(it->second.price)->second.front().qty;\n        return level;"
+      }
+    ]
+  },
+  {
+    "name": "order-count-counts-levels",
+    "why": "order_count counts price levels",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "    std::size_t order_count() const { return index_.size(); }",
+        "new": "    std::size_t order_count() const { return bids_.size() + asks_.size(); }"
+      }
+    ]
+  },
+  {
+    "name": "book-resorted-on-every-submit",
+    "why": "a vector of levels is re-sorted for every submit",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "        Result r;\n        if (order.qty <= 0",
+        "new": "        std::vector<Price> prices;\n        for (const auto& l : bids_) prices.push_back(l.first);\n        for (const auto& l : asks_) prices.push_back(l.first);\n        std::sort(prices.begin(), prices.end());\n        Result r;\n        if (order.qty <= 0"
+      }
+    ]
+  },
+  {
+    "name": "match-scans-all-levels",
+    "why": "matching looks at every level for the best price",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            auto level_it = book.begin();",
+        "new": "            auto level_it = book.begin();\n            for (auto probe = book.begin(); probe != book.end(); ++probe) {\n                if (probe->first == level_it->first) continue;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "order-copied-into-level",
+    "why": "the order is copied into its level",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            level.push_back(std::move(order));\n            index_.emplace(id, Where{side, price, std::prev(level.end())});\n        } else {",
+        "new": "            level.push_back(order);\n            index_.emplace(id, Where{side, price, std::prev(level.end())});\n        } else {"
+      }
+    ]
+  },
+  {
+    "name": "trades-vector-per-level",
+    "why": "orders are copied into a temporary list for matching",
+    "edits": [
+      {
+        "file": "order_book.hpp",
+        "old": "            Level& level = level_it->second;",
+        "new": "            Level copy_of_level = level_it->second;\n            (void)copy_of_level;\n            Level& level = level_it->second;"
+      }
+    ]
+  }
+]

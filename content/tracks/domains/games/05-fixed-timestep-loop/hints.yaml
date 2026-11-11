@@ -1,0 +1,21 @@
+ladder:
+  - level: 1
+    text: "State: the step and max steps, an accumulator (Duration), the reference time last_, a bool started_, and three counters. frame(): now = clock.now(); if not started_: remember it and return 0. Otherwise dt = now - last_; last_ = now; add dt to the accumulator only if dt is positive."
+  - level: 2
+    text: "Then a loop: while (acc >= step && run < max_steps) { update(step); acc -= step; ++run; }. After it, if acc is still >= step you hit the cap: the whole steps that are left are dropped: whole = acc / step (an integer), dropped += whole, acc -= step * whole. Never run them later. steps_total counts the updates that ran; simulated_time is step * steps_total."
+  - level: 3
+    text: "Guard the odd cases: a step <= 0 returns 0 right after the accumulation (or before the loop), max steps below 1 becomes 1 in the constructor. alpha() = double(acc.count()) / double(step.count()) when step > 0. reset(clock): last_ = clock.now(); started_ = true; acc = 0 (the counters are kept)."
+  - level: 4
+    text: |
+      // template <class Update> int frame(const Clock& clock, Update&& update) {
+      //     const Duration now = clock.now();
+      //     if (!started_) { started_ = true; last_ = now; return 0; }
+      //     const Duration dt = now - last_;  last_ = now;
+      //     if (dt > Duration{0}) acc_ += dt;
+      //     if (step_ <= Duration{0}) return 0;
+      //     int run = 0;
+      //     while (acc_ >= step_ && run < max_steps_) { update(step_); acc_ -= step_; ++run; }
+      //     steps_ += run;
+      //     if (acc_ >= step_) { const auto whole = acc_ / step_; dropped_ += whole; acc_ -= step_ * whole; }
+      //     return run;
+      // }
