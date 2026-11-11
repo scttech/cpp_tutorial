@@ -1,0 +1,26 @@
+ladder:
+  - level: 1
+    text: "The starter's submit already builds a packaged_task and a future: the missing part is WHERE the task runs. Give the pool the five members listed in the TODO: a deque of tasks, a mutex, a condition variable, a stop flag and a vector of std::jthread. The constructor starts the workers; each runs a loop that waits for a task."
+  - level: 2
+    text: "A std::function<void()> needs a copyable callable but a packaged_task can only be moved: `auto task = std::make_shared<std::packaged_task<R()>>(...)` and queue `[task] { (*task)(); }`. submit: lock, throw std::runtime_error if stopping_, push the lambda, unlock, `wake_.notify_one()`. The worker loop: `wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });` then if the queue is empty, return; otherwise take the front task, UNLOCK, run it."
+  - level: 3
+    text: "shutdown(): under the lock set `stopping_ = true`; then `wake_.notify_all()` (the sleeping workers must see the flag); then join every worker. The workers only leave when the flag is set AND the queue is empty, so every queued task still runs. Declare the vector of workers LAST, and let the destructor call shutdown(). Exceptions need no code: the packaged_task stores them in the future."
+  - level: 4
+    text: |
+      explicit ThreadPool(std::size_t threads) : size_(threads) {
+          if (threads == 0) throw std::invalid_argument("a pool needs at least one thread");
+          for (std::size_t i = 0; i < threads; ++i) workers_.emplace_back([this] { work(); });
+      }
+      void work() {
+          for (;;) {
+              std::function<void()> job;
+              {
+                  std::unique_lock lock(mutex_);
+                  wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
+                  if (queue_.empty()) return;
+                  job = std::move(queue_.front());
+                  queue_.pop_front();
+              }
+              job();
+          }
+      }

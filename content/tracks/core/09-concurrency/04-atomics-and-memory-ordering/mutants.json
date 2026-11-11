@@ -1,0 +1,192 @@
+[
+  {
+    "name": "counter-is-a-plain-variable",
+    "why": "a plain long long incremented by several threads: a data race.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "    void add(long long n) { count_.fetch_add(n, std::memory_order_relaxed); }  // relaxed: nothing else depends on the order of these additions\n    long long value() const { return count_.load(std::memory_order_relaxed); }\n\nprivate:\n    std::atomic<long long> count_{0};",
+        "new": "    void add(long long n) { count_ += n; }\n    long long value() const { return count_; }\n\nprivate:\n    long long count_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "counter-with-a-mutex",
+    "why": "correct, but not what the exercise asks (an atomic, no mutex): the Clean tier notices.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "    void add(long long n) { count_.fetch_add(n, std::memory_order_relaxed); }  // relaxed: nothing else depends on the order of these additions\n    long long value() const { return count_.load(std::memory_order_relaxed); }\n\nprivate:\n    std::atomic<long long> count_{0};",
+        "new": "    void add(long long n) {\n        std::lock_guard<std::mutex> lock(m_);\n        count_ += n;\n    }\n    long long value() const {\n        std::lock_guard<std::mutex> lock(m_);\n        return count_;\n    }\n\nprivate:\n    mutable std::mutex m_;\n    long long count_ = 0;"
+      },
+      {
+        "file": "atomics.hpp",
+        "old": "#include <cstddef>\n",
+        "new": "#include <cstddef>\n#include <mutex>\n"
+      }
+    ]
+  },
+  {
+    "name": "spinlock-relaxed-lock",
+    "why": "taking the lock is not an acquire: the data it protects is not ordered after the previous owner.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "while (flag_.test_and_set(std::memory_order_acquire)) std::this_thread::yield();  // acquire: what the last owner did is visible to us",
+        "new": "while (flag_.test_and_set(std::memory_order_relaxed)) std::this_thread::yield();"
+      }
+    ]
+  },
+  {
+    "name": "spinlock-relaxed-unlock",
+    "why": "giving the lock back is not a release: what the owner wrote may not be visible to the next one.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "flag_.clear(std::memory_order_release);",
+        "new": "flag_.clear(std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "spinlock-try-lock-inverted",
+    "why": "try_lock answers the wrong way round.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "bool try_lock() { return !flag_.test_and_set(std::memory_order_acquire); }",
+        "new": "bool try_lock() { return flag_.test_and_set(std::memory_order_acquire); }"
+      }
+    ]
+  },
+  {
+    "name": "oneshot-relaxed-publication",
+    "why": "the flag is set with a relaxed store: the value is not published, and a reader can see the flag without the value.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "ready_.store(true, std::memory_order_release);  // publishes value_",
+        "new": "ready_.store(true, std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "oneshot-relaxed-wait",
+    "why": "the reader waits with a relaxed load: no acquire, so no happens-before with the writer.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "ready_.wait(false, std::memory_order_acquire);  // sleeps while the flag is false; the acquire pairs with the release in set()",
+        "new": "ready_.wait(false, std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "oneshot-forgets-to-notify",
+    "why": "the sleeping readers are never woken.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "        ready_.notify_all();                            // wakes the threads that sleep in get()\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "oneshot-spins",
+    "why": "get() loops (and yields) instead of sleeping: it works and burns the processor.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "        ready_.wait(false, std::memory_order_acquire);  // sleeps while the flag is false; the acquire pairs with the release in set()",
+        "new": "        while (!ready_.load(std::memory_order_acquire)) std::this_thread::yield();"
+      }
+    ]
+  },
+  {
+    "name": "fetch-double-load-then-store",
+    "why": "load() and store() are two steps: the updates of the other threads are overwritten.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "    int old = a.load();\n    while (!a.compare_exchange_weak(old, old * 2)) {\n        // the exchange failed: `old` now holds the value that is really there, so the next try doubles THAT\n    }\n    return old;",
+        "new": "    int old = a.load();\n    a.store(old * 2);\n    return old;"
+      }
+    ]
+  },
+  {
+    "name": "fetch-double-returns-the-new-value",
+    "why": "the function must return the value from BEFORE the change.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "    return old;\n}\n\ntemplate <class T>\nclass LockFreeStack",
+        "new": "    return old * 2;\n}\n\ntemplate <class T>\nclass LockFreeStack"
+      }
+    ]
+  },
+  {
+    "name": "stack-publishes-with-relaxed",
+    "why": "the node is linked in with a relaxed exchange: a reader can see the new head before the node's contents.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)",
+        "new": "compare_exchange_weak(node->next, node, std::memory_order_relaxed, std::memory_order_relaxed)"
+      }
+    ]
+  },
+  {
+    "name": "stack-peeks-with-relaxed",
+    "why": "peek loads the head without acquire: no happens-before with the push that wrote the node.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "Node* top = head_.load(std::memory_order_acquire);",
+        "new": "Node* top = head_.load(std::memory_order_relaxed);"
+      }
+    ]
+  },
+  {
+    "name": "stack-drains-oldest-first",
+    "why": "drain returns the values in the wrong order.",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "        while (node != nullptr) {\n            out.push_back(std::move(node->value));\n            Node* next = node->next;\n            delete node;\n            node = next;\n        }\n        return out;",
+        "new": "        while (node != nullptr) {\n            out.push_back(std::move(node->value));\n            Node* next = node->next;\n            delete node;\n            node = next;\n        }\n        std::reverse(out.begin(), out.end());\n        return out;"
+      },
+      {
+        "file": "atomics.hpp",
+        "old": "#include <atomic>\n",
+        "new": "#include <algorithm>\n#include <atomic>\n"
+      }
+    ]
+  },
+  {
+    "name": "stack-with-a-volatile-head",
+    "why": "volatile is not atomic: a plain pointer that several threads change (a data race).",
+    "edits": [
+      {
+        "file": "atomics.hpp",
+        "old": "    std::atomic<Node*> head_{nullptr};",
+        "new": "    Node* volatile head_ = nullptr;"
+      },
+      {
+        "file": "atomics.hpp",
+        "old": "        Node* node = new Node{std::move(value), head_.load(std::memory_order_relaxed)};\n        // Publish the node: release, so that a thread that sees the new head also sees node->value and node->next. On failure `node->next` is\n        // refreshed with the head that is really there, and we try again.\n        while (!head_.compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)) {\n        }",
+        "new": "        Node* node = new Node{std::move(value), head_};\n        head_ = node;"
+      },
+      {
+        "file": "atomics.hpp",
+        "old": "        Node* top = head_.load(std::memory_order_acquire);",
+        "new": "        Node* top = head_;"
+      },
+      {
+        "file": "atomics.hpp",
+        "old": "        Node* node = head_.exchange(nullptr, std::memory_order_acquire);",
+        "new": "        Node* node = head_;\n        head_ = nullptr;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+ladder:
+  - level: 1
+    text: "Go through the TODOs in the order of the file and press Run after the first ones: a lazy start and a suspending co_yield are three one-word changes (suspend_never to suspend_always). Then the ownership: the Generator holds a std::coroutine_handle; its destructor must destroy the frame, copying must be forbidden, and a move must leave the old object EMPTY (std::exchange(other.handle_, {}))."
+  - level: 2
+    text: "next(): `if (!handle_ || handle_.done()) return false; handle_.resume(); return !handle_.done();` (resuming a finished coroutine is undefined behavior, so the check comes first). The iterator: begin() calls next() once and remembers whether there was a value; operator++ calls next(); operator== with the sentinel says whether we are at the end. The four functions: range is a loop with co_yield; fibonacci keeps two numbers in an endless loop; words uses find_first_not_of / find on a std::string taken BY VALUE."
+  - level: 3
+    text: "take(source, n): `if (n <= 0) co_return; for (int value : source) { co_yield value; if (--n == 0) co_return; }`. The check comes AFTER the yield so that the source is never asked for the (n+1)-th value (the test counts how many values the source was asked for). The move assignment must destroy the frame it already owns before taking the other one."
+  - level: 4
+    text: |
+      struct promise_type {
+          std::optional<T> current;
+          Generator get_return_object() { return Generator{std::coroutine_handle<promise_type>::from_promise(*this)}; }
+          std::suspend_always initial_suspend() noexcept { return {}; }
+          std::suspend_always final_suspend() noexcept { return {}; }
+          std::suspend_always yield_value(T value) { current = std::move(value); return {}; }
+          void return_void() {}
+          void unhandled_exception() { std::terminate(); }
+      };
+      Generator(Generator&& other) noexcept : handle_(std::exchange(other.handle_, {})) {}
+      ~Generator() { if (handle_) handle_.destroy(); }

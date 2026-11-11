@@ -72,6 +72,10 @@ export interface RuntimeReport {
   /** Memory errors: where the block was freed and where it was allocated (learner code only). */
   freedAt?: Frame;
   allocatedAt?: Frame;
+  /** ThreadSanitizer: the OTHER access of a data race (or the second lock acquisition of a lock-order inversion): learner code only. */
+  previousAt?: Frame;
+  /** ThreadSanitizer data race: what the other access was, e.g. "WRITE of size 4". */
+  previousAccess?: string;
 }
 
 export interface RunResult {

@@ -199,6 +199,35 @@
 # ---- templates ----------------------------------------------------------------------------------
 # An error reported INSIDE the standard library (its file is under /usr): the cause is nearly always in your own code. Kept ABOVE the
 # general rules (invalid-operands, no-matching-function, deleted-function...) so those do not describe library internals.
+# ---- threads ---------------------------------------------------------------------------------------------
+# (before library-internal-error: the first error of a bad std::thread call is reported inside <thread>)
+- id: thread-argument-not-invocable
+  match: 'std::thread arguments must be invocable after conversion to rvalues'
+  friendly: "`std::thread` COPIES the arguments you give it and then calls your function with the copies, as rvalues. A function that takes a non-const reference (`T&`) cannot be called that way. To give the thread a reference to your variable, wrap it in `std::ref(x)` (from `<functional>`), or use a lambda that captures it by reference: `std::thread t([&x] { work(x); });` (and join the thread before `x` goes away)."
+  lesson: core.concurrency.threads
+  trigger: |
+    #include <thread>
+    #include <vector>
+    void fill(std::vector<int>& out, int n) { out.assign(static_cast<std::size_t>(n), 1); }
+    int main() { std::vector<int> v; std::thread t(fill, v, 5); t.join(); }
+
+- id: thread-copied
+  match: 'call to deleted constructor of ''std::j?thread'''
+  friendly: "A thread object cannot be copied: it is the one handle to a running thread, so there must be exactly one owner. Move it (`std::move(t)`), build it in place (`threads.emplace_back(...)` on a `std::vector<std::thread>`), or pass it by reference."
+  lesson: core.concurrency.threads
+  trigger: |
+    #include <thread>
+    int main() { std::thread a([] {}); std::thread b = a; b.join(); }
+
+- id: mutex-member-blocks-copy
+  match: 'call to implicitly-deleted copy constructor of ''(\w+)'''
+  friendly: "`$1` cannot be copied because one of its members cannot: very likely a `std::mutex`, `std::thread`, `std::unique_ptr` or `std::atomic` (the note under the error names the field). A class that owns a mutex is not copyable. If copies are really needed, write a copy constructor that copies the DATA and gives the new object a mutex of its own."
+  lesson: core.concurrency.data-races
+  trigger: |
+    #include <mutex>
+    struct Account { std::mutex m; int balance = 0; };
+    int main() { Account a; Account b = a; return b.balance; }
+
 - id: library-internal-error
   match: '^(?!in instantiation of|candidate |because |and |expanded from|allocating an object of abstract|delete called on|.*declared here|.*marked deleted)'
   fileMatch: '^/usr/'

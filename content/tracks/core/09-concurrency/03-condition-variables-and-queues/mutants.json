@@ -1,0 +1,150 @@
+[
+  {
+    "name": "wait-without-a-predicate",
+    "why": "wait(lock) with no predicate: it waits even if the queue was already closed or non-empty (a lost wake-up).",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_empty_.wait(lock, [this] { return closed_ || !items_.empty(); });",
+        "new": "        not_empty_.wait(lock);"
+      }
+    ]
+  },
+  {
+    "name": "push-does-not-wake-a-consumer",
+    "why": "a consumer that waits in pop() is never told that a value arrived.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        lock.unlock();  // do not wake a thread that would immediately block on our mutex\n        not_empty_.notify_one();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pop-does-not-wake-a-producer",
+    "why": "a producer that waits for room is never told that room appeared.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        T value = std::move(items_.front());\n        items_.pop_front();\n        lock.unlock();\n        not_full_.notify_one();\n        return value;\n    }\n\n    std::optional<T> try_pop()",
+        "new": "        T value = std::move(items_.front());\n        items_.pop_front();\n        return value;\n    }\n\n    std::optional<T> try_pop()"
+      }
+    ]
+  },
+  {
+    "name": "close-does-not-wake-anybody",
+    "why": "threads that wait in push or pop are never told that the queue is closed.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_full_.notify_all();   // every waiting producer must see that the queue is closed...\n        not_empty_.notify_all();  // ...and so must every waiting consumer\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "close-wakes-only-one-consumer",
+    "why": "notify_one instead of notify_all: with three waiting consumers, two sleep for ever.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_empty_.notify_all();  // ...and so must every waiting consumer",
+        "new": "        not_empty_.notify_one();"
+      }
+    ]
+  },
+  {
+    "name": "push-ignores-the-capacity",
+    "why": "push never waits for room: the queue grows past its capacity.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_full_.wait(lock, [this] { return closed_ || items_.size() < capacity_; });",
+        "new": "        (void)not_full_;"
+      }
+    ]
+  },
+  {
+    "name": "capacity-off-by-one",
+    "why": "one value too many fits (<= instead of <).",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "items_.size() < capacity_; });",
+        "new": "items_.size() <= capacity_; });"
+      }
+    ]
+  },
+  {
+    "name": "pop-does-not-wait",
+    "why": "pop returns an empty result at once when there is nothing (it behaves like try_pop).",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_empty_.wait(lock, [this] { return closed_ || !items_.empty(); });\n        if (items_.empty()) return std::nullopt;  // closed, and nothing left",
+        "new": "        if (items_.empty()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "push-after-close-is-accepted",
+    "why": "the value is queued even though the queue is closed.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        if (closed_) return false;\n        items_.push_back",
+        "new": "        items_.push_back"
+      }
+    ]
+  },
+  {
+    "name": "close-throws-the-queued-values-away",
+    "why": "close() empties the queue: values that were queued are lost.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "            closed_ = true;\n",
+        "new": "            closed_ = true;\n            items_.clear();\n"
+      }
+    ]
+  },
+  {
+    "name": "size-without-the-lock",
+    "why": "size() reads the deque while other threads change it: a data race.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "    std::size_t size() const {\n        std::lock_guard lock(mutex_);\n        return items_.size();",
+        "new": "    std::size_t size() const {\n        return items_.size();"
+      }
+    ]
+  },
+  {
+    "name": "try-pop-waits",
+    "why": "try_pop blocks like pop.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "    std::optional<T> try_pop() {\n        std::unique_lock lock(mutex_);\n        if (items_.empty()) return std::nullopt;",
+        "new": "    std::optional<T> try_pop() {\n        std::unique_lock lock(mutex_);\n        not_empty_.wait(lock, [this] { return closed_ || !items_.empty(); });\n        if (items_.empty()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "busy-waiting-consumer",
+    "why": "pop spins (unlock, yield, lock) instead of waiting on the condition variable: it works, and burns the processor.",
+    "edits": [
+      {
+        "file": "queue.hpp",
+        "old": "        not_empty_.wait(lock, [this] { return closed_ || !items_.empty(); });\n        if (items_.empty()) return std::nullopt;  // closed, and nothing left",
+        "new": "        while (!closed_ && items_.empty()) {\n            lock.unlock();\n            std::this_thread::yield();\n            lock.lock();\n        }\n        if (items_.empty()) return std::nullopt;"
+      },
+      {
+        "file": "queue.hpp",
+        "old": "#include <stdexcept>\n",
+        "new": "#include <stdexcept>\n#include <thread>\n"
+      }
+    ]
+  }
+]

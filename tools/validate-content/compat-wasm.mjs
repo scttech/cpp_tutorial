@@ -92,7 +92,7 @@ async function check(runner, dir) {
     jobs.push(run({ ...L.starterReadonly, ...files }).then((r) => {
       if (expectBuildFail) { if (r.compiled) problems.push(`mutant "${name}" should not build but does`); }
       else if (!r.compiled) problems.push(`mutant "${name}" does not build: ${first(r.compileOutput)}`);
-      else if (r.tests.every((t) => t.status === "pass")) problems.push(`mutant "${name}" passes every test (it is only caught on the server)`);
+      else if (!r.timedOut && r.tests.every((t) => t.status === "pass")) problems.push(`mutant "${name}" passes every test (it is only caught on the server)`);
     }));
   }
   await Promise.all(jobs);

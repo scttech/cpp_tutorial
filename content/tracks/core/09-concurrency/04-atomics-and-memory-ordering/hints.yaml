@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Work through the five tools in the order of the file, and press Run after each: ThreadSanitizer reports the tool that is still wrong. Counter: a std::atomic<long long> and fetch_add. SpinLock and OneShot are about memory orders: the lock must ACQUIRE when it is taken and RELEASE when it is given back; a flag that publishes data is stored with RELEASE and read with ACQUIRE."
+  - level: 2
+    text: "OneShot::get(): `ready_.wait(false, std::memory_order_acquire);` sleeps while the flag is false. OneShot::set(): write the value, THEN `ready_.store(true, std::memory_order_release);` then `ready_.notify_all();` (without the notify the sleepers are never woken). fetch_double: `int old = a.load(); while (!a.compare_exchange_weak(old, old * 2)) {}` then return old: when the exchange fails, `old` is refreshed."
+  - level: 3
+    text: "LockFreeStack: `std::atomic<Node*> head_{nullptr}`. push: build the node with next = the current head, then `while (!head_.compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)) {}` (a failed exchange puts the real head into node->next, so the loop retries with the right link). peek: `head_.load(std::memory_order_acquire)`. drain: `head_.exchange(nullptr, std::memory_order_acquire)` and then walk the detached list."
+  - level: 4
+    text: |
+      void lock() { while (flag_.test_and_set(std::memory_order_acquire)) std::this_thread::yield(); }
+      void unlock() { flag_.clear(std::memory_order_release); }
+      void set(T value) { value_ = std::move(value); ready_.store(true, std::memory_order_release); ready_.notify_all(); }
+      const T& get() const { ready_.wait(false, std::memory_order_acquire); return value_; }
+      void push(T value) {
+          Node* node = new Node{std::move(value), head_.load(std::memory_order_relaxed)};
+          while (!head_.compare_exchange_weak(node->next, node, std::memory_order_release, std::memory_order_relaxed)) {}
+      }

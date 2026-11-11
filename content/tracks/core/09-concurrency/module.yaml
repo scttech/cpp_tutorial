@@ -1,0 +1,6 @@
+id: core.concurrency
+title: "Concurrency"
+track: core
+order: 9
+summary: "Threads and std::jthread, data races and mutexes, condition variables and blocking queues, atomics and the memory model, futures and thread pools, a first look at coroutines, and how to read what ThreadSanitizer tells you."
+testOut: core.concurrency.test-out   # "Parallel sum": passing it completes the module

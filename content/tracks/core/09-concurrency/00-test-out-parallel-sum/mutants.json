@@ -1,0 +1,116 @@
+[
+  {
+    "name": "shared-total-without-a-lock",
+    "why": "every thread adds into one shared variable: a data race (and lost updates).",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "    std::vector<long long> partial(workers, 0);  // one slot per thread: no two threads ever write the same variable\n",
+        "new": "    std::vector<long long> partial(workers, 0);\n    long long shared_total = 0;\n"
+      },
+      {
+        "file": "parallel_sum.hpp",
+        "old": "threads.emplace_back([&values, &partial, w, begin, end] {\n                partial[w] = std::accumulate(",
+        "new": "threads.emplace_back([&values, &shared_total, begin, end] {\n                shared_total += std::accumulate("
+      },
+      {
+        "file": "parallel_sum.hpp",
+        "old": "    return std::accumulate(partial.begin(), partial.end(), 0LL);",
+        "new": "    return shared_total;"
+      }
+    ]
+  },
+  {
+    "name": "loop-variable-captured-by-reference",
+    "why": "the lambda captures `w` by reference: the loop changes it while the thread reads it (a race and the wrong slot).",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "[&values, &partial, w, begin, end]",
+        "new": "[&values, &partial, &w, begin, end]"
+      }
+    ]
+  },
+  {
+    "name": "int-accumulator",
+    "why": "accumulate starts from int 0: the partial sums overflow.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "values.begin() + static_cast<std::ptrdiff_t>(end), 0LL);",
+        "new": "values.begin() + static_cast<std::ptrdiff_t>(end), 0);"
+      }
+    ]
+  },
+  {
+    "name": "remainder-dropped",
+    "why": "n % workers values at the end are never added.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "            const std::size_t end = begin + base + (w < extra ? 1 : 0);",
+        "new": "            const std::size_t end = begin + base;\n            (void)extra;"
+      }
+    ]
+  },
+  {
+    "name": "zero-threads-accepted",
+    "why": "thread_count == 0 is not an error.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "    if (thread_count == 0) throw std::invalid_argument(\"thread_count must be positive\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "a-thread-for-every-request",
+    "why": "thread_count threads are created even when there are far fewer values: the process runs out of threads.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "    const std::size_t workers = std::min<std::size_t>(thread_count, n);\n    if (workers == 0) return 0;",
+        "new": "    const std::size_t workers = thread_count;\n    if (n == 0) return 0;"
+      }
+    ]
+  },
+  {
+    "name": "plain-threads-never-joined",
+    "why": "std::thread instead of std::jthread and no join: std::terminate when the vector is destroyed.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "std::vector<std::jthread> threads;",
+        "new": "std::vector<std::thread> threads;"
+      }
+    ]
+  },
+  {
+    "name": "no-threads-at-all",
+    "why": "the sum is computed by the calling thread: right, but not parallel.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "    std::vector<long long> partial(workers, 0);  // one slot per thread: no two threads ever write the same variable\n",
+        "new": "    if (n > 0) return std::accumulate(values.begin(), values.end(), 0LL);\n    std::vector<long long> partial(workers, 0);\n"
+      }
+    ]
+  },
+  {
+    "name": "threads-detached",
+    "why": "the threads are detached instead of joined: the function returns before they have finished.",
+    "edits": [
+      {
+        "file": "parallel_sum.hpp",
+        "old": "        std::vector<std::jthread> threads;",
+        "new": "        std::vector<std::thread> threads;"
+      },
+      {
+        "file": "parallel_sum.hpp",
+        "old": "            begin = end;\n        }\n    }  // the jthreads are joined here, before the partial sums are read",
+        "new": "            threads.back().detach();\n            begin = end;\n        }\n    }  // (nothing is waited for)"
+      }
+    ]
+  }
+]

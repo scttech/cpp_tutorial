@@ -1,0 +1,196 @@
+[
+  {
+    "name": "bug-1-unsynchronized-counter",
+    "why": "bug 1: a plain counter incremented by several threads.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    std::atomic<long long> counter{0};",
+        "new": "    long long counter = 0;"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "counter.fetch_add(1, std::memory_order_relaxed);",
+        "new": "++counter;"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "    return counter.load();",
+        "new": "    return counter;"
+      }
+    ]
+  },
+  {
+    "name": "counter-volatile-is-not-atomic",
+    "why": "volatile does not make a counter safe.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    std::atomic<long long> counter{0};",
+        "new": "    volatile long long counter = 0;"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "counter.fetch_add(1, std::memory_order_relaxed);",
+        "new": "++counter;"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "    return counter.load();",
+        "new": "    return counter;"
+      }
+    ]
+  },
+  {
+    "name": "bug-2-opposite-lock-order",
+    "why": "bug 2: forward() takes a then b, backward() takes b then a.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    void backward() {\n        std::scoped_lock lock(mutex_a_, mutex_b_);\n        ++a_;\n        --b_;\n    }",
+        "new": "    void backward() {\n        std::lock_guard lock_b(mutex_b_);\n        std::lock_guard lock_a(mutex_a_);\n        ++a_;\n        --b_;\n    }"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "    void forward() {\n        std::scoped_lock lock(mutex_a_, mutex_b_);  // both mutexes, in a safe order, whatever the order of the arguments",
+        "new": "    void forward() {\n        std::lock_guard lock_a(mutex_a_);\n        std::lock_guard lock_b(mutex_b_);"
+      }
+    ]
+  },
+  {
+    "name": "bug-3-wait-without-a-predicate",
+    "why": "bug 3: the notification came before the wait, and is lost.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "        cv_.wait(lock, [this] { return set_; });  // the predicate is checked first, so an event that already happened is not missed",
+        "new": "        cv_.wait(lock);"
+      }
+    ]
+  },
+  {
+    "name": "event-wait-times-out",
+    "why": "a polling wait: it comes back after 10 ms even though nothing happened.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "        cv_.wait(lock, [this] { return set_; });  // the predicate is checked first, so an event that already happened is not missed",
+        "new": "        cv_.wait_for(lock, std::chrono::milliseconds(10), [this] { return set_; });"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "#include <atomic>\n",
+        "new": "#include <atomic>\n#include <chrono>\n"
+      }
+    ]
+  },
+  {
+    "name": "bug-4-thread-never-joined",
+    "why": "bug 4: the std::thread is destroyed while it is joinable: std::terminate.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    worker.join();  // wait for the thread BEFORE reading what it wrote\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "sum-detached",
+    "why": "the thread is detached: the sum is read while the thread may still be writing it.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    worker.join();  // wait for the thread BEFORE reading what it wrote\n",
+        "new": "    worker.detach();\n"
+      }
+    ]
+  },
+  {
+    "name": "sum-joined-too-late",
+    "why": "a jthread that joins when the function ends: the result is read (and copied) BEFORE the join.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    std::thread worker([&] {\n        for (int v : values) result += v;\n    });\n    worker.join();  // wait for the thread BEFORE reading what it wrote",
+        "new": "    std::jthread worker([&] {\n        for (int v : values) result += v;\n    });"
+      }
+    ]
+  },
+  {
+    "name": "bug-5-plain-stop-flag",
+    "why": "bug 5: a plain bool that one thread writes and another reads.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    std::atomic<bool> stop_{false};",
+        "new": "    bool stop_ = false;"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "            while (!stop_.load()) {",
+        "new": "            while (!stop_) {"
+      },
+      {
+        "file": "jobs.hpp",
+        "old": "        stop_.store(true);",
+        "new": "        stop_ = true;"
+      }
+    ]
+  },
+  {
+    "name": "worker-stop-does-not-join",
+    "why": "the thread is never joined: std::terminate when the Worker is destroyed.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "        if (thread_.joinable()) thread_.join();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "worker-stop-twice-crashes",
+    "why": "joining a thread that was already joined (or never started) throws.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "        if (thread_.joinable()) thread_.join();",
+        "new": "        thread_.join();"
+      }
+    ]
+  },
+  {
+    "name": "bug-6-exception-escapes-the-thread",
+    "why": "bug 6: nothing catches the exception in the thread: std::terminate.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "        try {\n            job();\n        } catch (...) {\n            error = std::current_exception();  // carry the exception over to the calling thread\n        }",
+        "new": "        job();"
+      }
+    ]
+  },
+  {
+    "name": "run-in-thread-swallows-the-exception",
+    "why": "the exception is caught, and never rethrown in the caller.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    if (error) std::rethrow_exception(error);",
+        "new": "    (void)error;"
+      }
+    ]
+  },
+  {
+    "name": "run-in-thread-runs-on-the-calling-thread",
+    "why": "no thread at all.",
+    "edits": [
+      {
+        "file": "jobs.hpp",
+        "old": "    std::thread t([&job, &error] {\n        try {\n            job();\n        } catch (...) {\n            error = std::current_exception();  // carry the exception over to the calling thread\n        }\n    });\n    t.join();",
+        "new": "    try {\n        job();\n    } catch (...) {\n        error = std::current_exception();\n    }"
+      }
+    ]
+  }
+]

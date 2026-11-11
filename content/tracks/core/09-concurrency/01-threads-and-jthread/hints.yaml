@@ -1,0 +1,22 @@
+ladder:
+  - level: 1
+    text: "Do the three tools in order. fill_in_thread: start a std::thread that runs a function taking the vector by reference, give it std::ref(out), and join. run_all: one std::jthread per job, in a vector; a try/catch INSIDE each thread; the join happens when the vector of jthreads is destroyed. Ticker: a std::jthread member whose function takes a std::stop_token."
+  - level: 2
+    text: "run_all: keep a `std::vector<std::exception_ptr> errors(jobs.size())`; thread i catches (...) and stores `std::current_exception()` in errors[i] (its own slot: no race). Put the jthreads in an inner block so that they are joined before you look at errors; then rethrow the first non-null one. Ticker: the thread function loops `while (!stop.stop_requested())`: call the tick, then wait one period with a wait that a stop request can interrupt."
+  - level: 3
+    text: "The interruptible wait is `std::condition_variable_any cv; std::unique_lock lock(mutex); cv.wait_for(lock, stop_token, period, [] { return false; });` (it returns when the period has passed or a stop was requested). Declare the std::jthread member AFTER the mutex and the condition variable: the thread is stopped and joined first when the Ticker is destroyed. Capture `this` in the lambda to reach the members; call the tick WITHOUT holding the lock."
+  - level: 4
+    text: |
+      inline void fill_in_thread(std::vector<int>& out, int n) {
+          std::thread t(detail::fill_worker, std::ref(out), n);
+          t.join();
+      }
+      // run_all: errors[i] = std::current_exception() inside `catch (...)` in thread i; after the block of jthreads: rethrow the first non-null.
+      class Ticker {
+          Ticker(std::chrono::milliseconds period, std::function<void()> on_tick)
+              : thread_([this, period, tick = std::move(on_tick)](std::stop_token stop) {
+                    std::unique_lock lock(mutex_);
+                    while (!stop.stop_requested()) { lock.unlock(); tick(); lock.lock(); wake_.wait_for(lock, stop, period, [] { return false; }); }
+                }) {}
+          std::mutex mutex_; std::condition_variable_any wake_; std::jthread thread_;   // the thread LAST
+      };

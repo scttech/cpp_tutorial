@@ -1,0 +1,15 @@
+id: core.concurrency.threads
+title: "Threads and std::jthread"
+module: core.concurrency
+type: lesson
+estimatedMinutes: 55
+concepts: [std-thread, std-jthread, join, detach, thread-arguments-are-copied, std-ref, lambda-capture-lifetime, exception-in-thread, std-terminate, stop-token, stop-request, interruptible-wait, condition-variable-any, member-destruction-order, hardware-concurrency, this-thread]
+prerequisites: [core.concurrency.test-out]
+files:
+  editable: [workers.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 9000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [thread-arguments-are-copied, reference-parameter-needs-std-ref, thread-destroyed-while-joinable, exception-escapes-the-thread, detach-and-dangling-reference, sleep-instead-of-interruptible-wait, thread-member-declared-too-early, jobs-run-one-after-the-other, first-tick-delayed]

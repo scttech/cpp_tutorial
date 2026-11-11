@@ -1,0 +1,15 @@
+id: core.concurrency.data-races
+title: "Data races and mutexes"
+module: core.concurrency
+type: lesson
+estimatedMinutes: 60
+concepts: [data-race, undefined-behavior, lost-update, critical-section, std-mutex, lock-guard, unique-lock, scoped-lock, raii-locking, deadlock, lock-ordering, lock-order-inversion, std-lock, consistent-snapshot, shared-mutex, call-once, thread-local, threadsanitizer]
+prerequisites: [core.concurrency.threads]
+files:
+  editable: [bank.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 9000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [unsynchronized-increment, read-without-the-lock, lock-order-inversion, deadlock-on-opposite-transfers, lock-the-same-mutex-twice, torn-snapshot, check-then-act-with-the-lock-released, manual-lock-unlock, lock-held-too-long]

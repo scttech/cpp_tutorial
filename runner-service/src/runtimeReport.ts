@@ -10,6 +10,16 @@ const UBSAN_LINE = /^(.+?):(\d+):(\d+): runtime error: (.*)$/m;
 //     #1 0x562f0fa5afed in zth_fn_8() /work/test.cpp:8:70           (a frame; the function name may contain spaces)
 const FRAME = /^\s*#\d+ 0x[0-9a-f]+ (?:in (.+?) )?(\/\S+?):(\d+)(?::(\d+))?\s*(?:\(BuildId.*)?$/;
 const ACCESS = /^(READ|WRITE) of size (\d+)/;
+// ThreadSanitizer prints its own format:
+//   WARNING: ThreadSanitizer: data race (pid=10)
+//     Write of size 4 at 0x... by thread T2:
+//       #0 bump() /work/main.cpp:3:45 (a.out+0xe0b19) (BuildId: ...)        (no address before the function)
+//     Previous write of size 4 at 0x... by thread T1:
+//   WARNING: ThreadSanitizer: lock-order-inversion (potential deadlock) (pid=10)
+//     Mutex M1 acquired here while holding mutex M0 in thread T1:
+const TSAN_LINE = /^WARNING: ThreadSanitizer: (.*?)(?: \(pid=\d+\))?\s*$/m;
+const TSAN_FRAME = /^\s*#\d+ (.+?) (\/\S+?):(\d+)(?::(\d+))? \(/;
+const TSAN_ACCESS = /^\s*(Previous )?(?:atomic )?(read|write) of size (\d+) at 0x[0-9a-f]+ by /i;
 
 /** Where the learner's code lives. Frames elsewhere (the standard library, the test framework) are not interesting. */
 const isUserFile = (file: string) => file.startsWith("/work/") && !file.startsWith("/work/obj/");
@@ -38,6 +48,58 @@ function ubsanKind(message: string): string {
   return (m?.[1] ?? message.split(/[:,]/)[0] ?? message).trim().replace(/\s+/g, "-");
 }
 
+function toTsanFrame(line: string): Frame | null {
+  const m = TSAN_FRAME.exec(line);
+  if (!m) return null;
+  return { function: m[1] ?? "", file: shortFile(m[2]!), line: Number(m[3]), column: m[4] ? Number(m[4]) : 0, user: isUserFile(m[2]!) };
+}
+
+/** A ThreadSanitizer report: a data race (two accesses) or a lock-order inversion (two lock acquisitions). */
+function parseTsan(lines: string[], header: string): RuntimeReport {
+  const kind = header.replace(/ \(.*$/, "").trim().replace(/\s+/g, "-");
+  const frames: Record<"first" | "second", Frame[]> = { first: [], second: [] };
+  let current: "first" | "second" | "none" = "none";
+  let access: string | undefined;
+  let previousAccess: string | undefined;
+  let locks = 0;
+  const start = lines.findIndex((l) => TSAN_LINE.test(l));
+  for (const l of lines.slice(start + 1)) {
+    if (/^SUMMARY:/.test(l)) break;
+    const a = TSAN_ACCESS.exec(l);
+    if (a) {
+      const text = `${a[2]!.toUpperCase()} of size ${a[3]}`;
+      if (a[1]) {
+        current = "second";
+        previousAccess ??= text;
+      } else {
+        current = "first";
+        access ??= text;
+      }
+      continue;
+    }
+    if (/^\s*Mutex M\d+ acquired here/.test(l)) {
+      current = locks++ === 0 ? "first" : "second";
+      continue;
+    }
+    // everything else (where the memory lives, where the threads were created, hints): its frames are not interesting
+    if (/^\s*(Location is|Thread T\d+|Cycle in lock order|Hint:|Mutex M\d+ \()/.test(l)) {
+      current = "none";
+      continue;
+    }
+    const f = toTsanFrame(l);
+    if (f && current !== "none") frames[current].push(f);
+  }
+  const user = (fs: Frame[]) => fs.filter((f) => f.user);
+  const report: RuntimeReport = { tool: "ThreadSanitizer", kind, summary: `ThreadSanitizer: ${kind}`, frames: user(frames.first).slice(0, 5) };
+  if (access) report.access = access;
+  const first = report.frames[0];
+  if (first) report.location = { file: first.file, line: first.line, column: first.column, function: first.function };
+  const other = user(frames.second)[0];
+  if (other) report.previousAt = other;
+  if (previousAccess) report.previousAccess = previousAccess;
+  return report;
+}
+
 /**
  * Pull the FIRST sanitizer report out of a program's stderr, or null if there is none. Frames are cut down to what a
  * learner can act on: the access, where it happened, and (for memory errors) where the memory was allocated and freed.
@@ -46,6 +108,8 @@ export function parseRuntimeReport(stderr: string): RuntimeReport | null {
   const lines = stderr.split("\n");
   const ub = UBSAN_LINE.exec(stderr);
   const asan = ERROR_LINE.exec(stderr);
+  const tsan = TSAN_LINE.exec(stderr);
+  if (tsan && (!ub || tsan.index < ub.index) && (!asan || tsan.index < asan.index)) return parseTsan(lines, tsan[1]!);
   // whichever report came first in the output
   if (ub && (!asan || ub.index < asan.index)) {
     const [, file, line, column, message] = ub;

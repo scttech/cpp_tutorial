@@ -56,7 +56,7 @@ for (const r of raw) {
     continue;
   }
   // The triggers are meant to give every placeholder a real value from the report (not the neutral fallback phrase).
-  const need = { where: "location", freed: "freedAt", allocated: "allocatedAt", access: "access" };
+  const need = { where: "location", freed: "freedAt", allocated: "allocatedAt", other: "previousAt", access: "access" };
   const missing = Object.entries(need).filter(([ph, field]) => r.friendly.includes(`{${ph}}`) && !out.report[field]).map(([ph]) => ph);
   if (missing.length) {
     errors.push(`${r.id}: the report has nothing for the placeholder(s) {${missing.join("}, {")}} (report: ${JSON.stringify(out.report).slice(0, 300)})`);

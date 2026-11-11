@@ -1,0 +1,23 @@
+ladder:
+  - level: 1
+    text: "Think of it as three steps: (1) decide which values each thread gets (a begin and an end), (2) start one thread per part, each writing its sum into ITS OWN slot of a vector, (3) wait for all the threads, then add the slots. Run it: ThreadSanitizer tells you at once if two threads share a variable."
+  - level: 2
+    text: "With n values and `workers = min(thread_count, n)` threads, every thread gets n / workers values, and the first n % workers threads get one more. Use `std::accumulate(first, last, 0LL)` (the 0LL matters: it makes the sum a long long). A std::vector<std::jthread> joins all its threads when it is destroyed, so put it in a block that ends BEFORE you read the partial sums."
+  - level: 3
+    text: "Capture what the thread needs BY VALUE: `[&values, &partial, w, begin, end]` (the vectors by reference, the loop variables by value). A lambda that captures `w` by reference reads a variable that the loop keeps changing. Do not add the partial sums inside the threads into one shared variable: that is the data race."
+  - level: 4
+    text: |
+      if (thread_count == 0) throw std::invalid_argument("thread_count must be positive");
+      const std::size_t workers = std::min<std::size_t>(thread_count, values.size());
+      if (workers == 0) return 0;
+      std::vector<long long> partial(workers, 0);
+      {
+          std::vector<std::jthread> threads;
+          std::size_t begin = 0;
+          for (std::size_t w = 0; w < workers; ++w) {
+              const std::size_t end = begin + n / workers + (w < n % workers ? 1 : 0);
+              threads.emplace_back([&values, &partial, w, begin, end] { partial[w] = std::accumulate(/* begin..end */, 0LL); });
+              begin = end;
+          }
+      }  // joined here
+      return std::accumulate(partial.begin(), partial.end(), 0LL);

@@ -87,7 +87,7 @@ export function createSuite({ app = "http://localhost:5173", track, timeoutMs = 
   async function solve(page, id, dir, label) {
     await open(page, id);
     const sol = await solutionFiles(dir);
-    const first = await runTests(page, /did not compile|tests passed|failed/);
+    const first = await runTests(page, /did not compile|tests passed|failed|time limit/);
     check(!/All tests passed/.test(first), `${label}: the initial code does not pass (${first})`);
     for (const [name, text] of Object.entries(sol)) await setFile(page, name, text);
     const b = await runTests(page, /All tests passed/);

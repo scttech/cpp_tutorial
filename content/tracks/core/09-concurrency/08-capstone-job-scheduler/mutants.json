@@ -1,0 +1,211 @@
+[
+  {
+    "name": "priority-is-ignored",
+    "why": "the key does not contain the priority: first come first served.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "key = {-static_cast<int>(priority), next_sequence_++};  // highest priority first, then first come first served",
+        "new": "key = {0, next_sequence_++};"
+      }
+    ]
+  },
+  {
+    "name": "lowest-priority-first",
+    "why": "the priority is not negated: Low runs before High.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "key = {-static_cast<int>(priority), next_sequence_++};",
+        "new": "key = {static_cast<int>(priority), next_sequence_++};"
+      }
+    ]
+  },
+  {
+    "name": "last-in-first-out-within-a-priority",
+    "why": "the newest job of a priority runs first.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "key = {-static_cast<int>(priority), next_sequence_++};  // highest priority first, then first come first served",
+        "new": "key = {-static_cast<int>(priority), UINT64_MAX - next_sequence_++};"
+      }
+    ]
+  },
+  {
+    "name": "cancel-leaves-the-future-unfinished",
+    "why": "the job is removed from the queue, but its handle is never told: get() throws a broken_promise error (or waits).",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "        task->cancel_with_exception();\n        return true;\n    }",
+        "new": "        return true;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "cancel-says-true-for-a-running-job",
+    "why": "cancel() reports success even when the job is already running.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "            if (it == queue_.end()) return false;  // already started (or finished, or cancelled)",
+        "new": "            if (it == queue_.end()) return true;"
+      }
+    ]
+  },
+  {
+    "name": "cancel-is-not-counted",
+    "why": "the cancelled counter is not updated by cancel().",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "            queue_.erase(it);\n            ++stats_.cancelled;\n            if (queue_.empty() && running_ == 0) idle_.notify_all();",
+        "new": "            queue_.erase(it);\n            if (queue_.empty() && running_ == 0) idle_.notify_all();"
+      }
+    ]
+  },
+  {
+    "name": "discard-leaves-the-handles-hanging",
+    "why": "the queue is emptied but the handles are not told: they never get JobCancelled.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "        for (auto& task : discarded) task->cancel_with_exception();  // outside the lock: this wakes threads that wait on the futures\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "drain-drops-the-queued-jobs",
+    "why": "the workers leave as soon as the stop flag is set, with jobs still in the queue.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "                if (queue_.empty()) return;  // stopping, and nothing left to run",
+        "new": "                if (stopping_) return;"
+      }
+    ]
+  },
+  {
+    "name": "shutdown-does-not-wake-the-workers",
+    "why": "sleeping workers never see the stop flag: the join waits for ever.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "        work_available_.notify_all();  // sleeping workers must see the stop flag\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "submit-after-shutdown-is-accepted",
+    "why": "the job is queued although no worker will ever run it.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "            if (stopping_) throw std::runtime_error(\"the scheduler has been shut down\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "wait-idle-ignores-running-jobs",
+    "why": "wait_idle returns as soon as the queue is empty, while jobs are still running.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "idle_.wait(lock, [this] { return queue_.empty() && running_ == 0; });",
+        "new": "idle_.wait(lock, [this] { return queue_.empty(); });"
+      }
+    ]
+  },
+  {
+    "name": "idle-is-never-announced",
+    "why": "a worker that finishes the last job does not wake the threads that sit in wait_idle.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "                if (returned) ++stats_.completed;\n                else ++stats_.failed;\n                if (queue_.empty() && running_ == 0) idle_.notify_all();",
+        "new": "                if (returned) ++stats_.completed;\n                else ++stats_.failed;"
+      }
+    ]
+  },
+  {
+    "name": "failed-jobs-count-as-completed",
+    "why": "a job that threw is counted among the completed ones.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "                if (returned) ++stats_.completed;\n                else ++stats_.failed;",
+        "new": "                ++stats_.completed;\n                (void)returned;"
+      }
+    ]
+  },
+  {
+    "name": "pending-includes-the-running-jobs",
+    "why": "pending() adds the running jobs to the queue length.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "        std::lock_guard lock(mutex_);\n        return queue_.size();",
+        "new": "        std::lock_guard lock(mutex_);\n        return queue_.size() + running_;"
+      }
+    ]
+  },
+  {
+    "name": "submit-without-the-lock",
+    "why": "the queue is changed by several threads at once: a data race.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "            std::lock_guard lock(mutex_);\n            if (stopping_) throw std::runtime_error(\"the scheduler has been shut down\");\n            key = {-static_cast<int>(priority), next_sequence_++};  // highest priority first, then first come first served\n            queue_.emplace(key, task);",
+        "new": "            if (stopping_) throw std::runtime_error(\"the scheduler has been shut down\");\n            key = {-static_cast<int>(priority), next_sequence_++};  // highest priority first, then first come first served\n            queue_.emplace(key, task);"
+      }
+    ]
+  },
+  {
+    "name": "idle-workers-spin",
+    "why": "a worker without work loops (unlock, yield, lock) instead of sleeping.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "                work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n                if (queue_.empty()) return;  // stopping, and nothing left to run",
+        "new": "                while (!stopping_ && queue_.empty()) {\n                    lock.unlock();\n                    std::this_thread::yield();\n                    lock.lock();\n                }\n                if (queue_.empty()) return;"
+      }
+    ]
+  },
+  {
+    "name": "a-thread-for-every-job",
+    "why": "each job gets a new detached thread; the workers do nothing.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "            queue_.emplace(key, task);\n        }\n        work_available_.notify_one();",
+        "new": "            queue_.emplace(key, task);\n        }\n        work_available_.notify_one();\n        std::thread([task] { task->run(); }).detach();"
+      }
+    ]
+  },
+  {
+    "name": "wait-without-a-predicate",
+    "why": "the worker waits for any wake-up and does not look at the queue (Clean tier, and a lost wake-up).",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); });",
+        "new": "work_available_.wait(lock);"
+      }
+    ]
+  },
+  {
+    "name": "the-job-runs-under-the-lock",
+    "why": "the mutex is held while the job runs: jobs cannot run at the same time, and a job that submits or cancels deadlocks.",
+    "edits": [
+      {
+        "file": "scheduler.hpp",
+        "old": "    void work() {\n        for (;;) {\n            std::shared_ptr<detail::TaskBase> task;\n            {\n                std::unique_lock lock(mutex_);\n                work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n                if (queue_.empty()) return;  // stopping, and nothing left to run\n                auto first = queue_.begin();\n                task = std::move(first->second);\n                queue_.erase(first);\n                ++running_;\n            }\n            const bool returned = task->run();  // NOT under the lock: other workers and other threads go on meanwhile\n            {\n                std::lock_guard lock(mutex_);\n                --running_;\n                if (returned) ++stats_.completed;\n                else ++stats_.failed;\n                if (queue_.empty() && running_ == 0) idle_.notify_all();\n            }\n        }\n    }\n\n",
+        "new": "    void work() {\n        for (;;) {\n            std::unique_lock lock(mutex_);\n            work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n            if (queue_.empty()) return;\n            auto first = queue_.begin();\n            std::shared_ptr<detail::TaskBase> task = std::move(first->second);\n            queue_.erase(first);\n            ++running_;\n            const bool returned = task->run();  // under the lock\n            --running_;\n            if (returned) ++stats_.completed;\n            else ++stats_.failed;\n            if (queue_.empty() && running_ == 0) idle_.notify_all();\n        }\n    }\n\n"
+      }
+    ]
+  }
+]

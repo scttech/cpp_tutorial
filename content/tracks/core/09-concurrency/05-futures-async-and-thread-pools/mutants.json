@@ -1,0 +1,134 @@
+[
+  {
+    "name": "task-runs-on-the-calling-thread",
+    "why": "submit runs the task itself instead of queueing it: not a pool.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            queue_.push_back([task] { (*task)(); });",
+        "new": "            (*task)();"
+      }
+    ]
+  },
+  {
+    "name": "submit-does-not-wake-a-worker",
+    "why": "a sleeping worker is never told that there is a task.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        wake_.notify_one();\n        return future;",
+        "new": "        return future;"
+      }
+    ]
+  },
+  {
+    "name": "shutdown-does-not-wake-the-workers",
+    "why": "the sleeping workers never see the stop flag: shutdown waits for them for ever.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        wake_.notify_all();\n        for (std::jthread& worker : workers_) {",
+        "new": "        for (std::jthread& worker : workers_) {"
+      }
+    ]
+  },
+  {
+    "name": "shutdown-drops-the-queued-tasks",
+    "why": "the workers leave as soon as the stop flag is set, with tasks still in the queue.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "                wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n                if (queue_.empty()) return;  // stopping, and every queued task has been taken: done",
+        "new": "                wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n                if (stopping_) return;"
+      }
+    ]
+  },
+  {
+    "name": "submit-after-shutdown-is-accepted",
+    "why": "the task is queued although no worker will ever take it.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            if (stopping_) throw std::runtime_error(\"the pool has been shut down\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "one-worker-too-few",
+    "why": "the pool starts n - 1 workers: tasks that wait for each other never finish.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "for (std::size_t i = 0; i < threads; ++i) workers_.emplace_back",
+        "new": "for (std::size_t i = 0; i + 1 < threads; ++i) workers_.emplace_back"
+      }
+    ]
+  },
+  {
+    "name": "a-thread-for-every-task",
+    "why": "each task gets a new detached thread; the workers do nothing.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            queue_.push_back([task] { (*task)(); });",
+        "new": "            std::thread([task] { (*task)(); }).detach();"
+      }
+    ]
+  },
+  {
+    "name": "std-async-instead-of-a-pool",
+    "why": "std::async hides a thread per task: no pool at all (the Clean tier looks for it).",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "        std::future<R> future = task->get_future();\n        {\n            std::lock_guard lock(mutex_);\n            if (stopping_) throw std::runtime_error(\"the pool has been shut down\");\n            queue_.push_back([task] { (*task)(); });\n        }\n        wake_.notify_one();\n        return future;",
+        "new": "        std::future<R> future = task->get_future();\n        std::lock_guard lock(mutex_);\n        if (stopping_) throw std::runtime_error(\"the pool has been shut down\");\n        std::async(std::launch::async, [task] { (*task)(); });\n        return future;"
+      }
+    ]
+  },
+  {
+    "name": "submit-without-the-lock",
+    "why": "the queue is changed by several threads at once: a data race.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "            std::lock_guard lock(mutex_);\n            if (stopping_) throw std::runtime_error(\"the pool has been shut down\");\n            queue_.push_back([task] { (*task)(); });",
+        "new": "            if (stopping_) throw std::runtime_error(\"the pool has been shut down\");\n            queue_.push_back([task] { (*task)(); });"
+      }
+    ]
+  },
+  {
+    "name": "idle-workers-spin",
+    "why": "a worker without work loops (unlock, yield, lock) instead of sleeping.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "                wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });\n                if (queue_.empty()) return;  // stopping, and every queued task has been taken: done",
+        "new": "                while (!stopping_ && queue_.empty()) {\n                    lock.unlock();\n                    std::this_thread::yield();\n                    lock.lock();\n                }\n                if (queue_.empty()) return;"
+      }
+    ]
+  },
+  {
+    "name": "parallel-map-results-in-the-wrong-order",
+    "why": "the results are collected back to front.",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "    for (std::future<R>& future : futures) out.push_back(future.get());\n    return out;",
+        "new": "    for (std::size_t i = futures.size(); i-- > 0;) out.push_back(futures[i].get());\n    return out;"
+      }
+    ]
+  },
+  {
+    "name": "wait-without-a-predicate",
+    "why": "the worker waits for any wake-up and does not check the queue (Clean tier, and a lost wake-up).",
+    "edits": [
+      {
+        "file": "pool.hpp",
+        "old": "wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });",
+        "new": "wake_.wait(lock);"
+      }
+    ]
+  }
+]

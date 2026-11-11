@@ -75,6 +75,10 @@ export interface RuntimeReport {
   frames: ReportFrame[];
   freedAt?: ReportFrame;
   allocatedAt?: ReportFrame;
+  /** ThreadSanitizer: the OTHER access of a data race (or the second lock acquisition of a lock-order inversion). */
+  previousAt?: ReportFrame;
+  /** ThreadSanitizer data race: what the other access was, e.g. "WRITE of size 4". */
+  previousAccess?: string;
 }
 
 export interface RunResult {

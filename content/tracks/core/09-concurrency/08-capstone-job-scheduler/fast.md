@@ -1,0 +1,8 @@
+# Fast path: what's different in C++
+
+- **A scheduler in C++** is a `std::map`/priority queue + `std::mutex` + two `std::condition_variable`s + `std::jthread` workers + `std::promise`/`std::future` per job. Priority = ordered container keyed by (priority, sequence); `std::priority_queue` is faster but cannot remove from the middle (cancel), so cancel is usually "mark and skip" or an ordered container with erase.
+- **Cancellation** of queued jobs is a race decided by the queue's mutex (the winner erases the entry); a running job can only be cancelled cooperatively (`std::stop_token` passed to the job). Complete the future with an exception (`std::make_exception_ptr(JobCancelled{})`) so waiters wake up.
+- **Shutdown protocols**: drain (finish queued work) vs discard (cancel queued work, let running jobs finish) vs abort (cooperative stop). Make them idempotent. Declare worker threads last; notify under or after setting the flag; join; never run user code while holding the queue lock.
+- **Idle detection** (`wait_idle`): predicate `queue.empty() && running == 0`, notified when a job finishes or is cancelled. Do not poll.
+- **What real libraries add**: work stealing (per-worker deques), task dependencies (futures/continuations, `when_all`), timers, thread affinity, bounded queues with backpressure, metrics, exception policies, `std::execution` (C++26) vocabulary for schedulers and senders.
+- **Testing concurrent code**: force interleavings with latches/barriers instead of sleeps; one worker + a blocker job makes ordering deterministic; ThreadSanitizer for races; per-test timeouts for deadlocks; count threads and CPU time instead of measuring wall time.

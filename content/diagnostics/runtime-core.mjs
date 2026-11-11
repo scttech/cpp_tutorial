@@ -19,15 +19,16 @@ const accessPhrase = (a) => {
   return m ? `${m[1].toLowerCase()} of ${m[2]} bytes` : null;
 };
 
-/** Replace {where}, {freed}, {allocated}, {access} with what the report says (or a neutral phrase when it does not). */
+/** Replace {where}, {freed}, {allocated}, {other}, {access} with what the report says (or a neutral phrase when it does not). */
 export function fillPlaceholders(text, report) {
   const values = {
     where: place(report.location) ?? "your code",
     freed: place(report.freedAt) ?? "an earlier point",
     allocated: place(report.allocatedAt) ?? "an earlier point",
+    other: place(report.previousAt) ?? "another thread",
     access: accessPhrase(report.access) ?? "memory access",
   };
-  return text.replace(/\{(where|freed|allocated|access)\}/g, (_, k) => values[k]);
+  return text.replace(/\{(where|freed|allocated|other|access)\}/g, (_, k) => values[k]);
 }
 
 /** The first rule that matches this report: { ruleId, title, text, lesson }, or null. */

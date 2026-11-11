@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "Press Run and read the LAST line the program printed, then how it stopped. Scenario 1 stops with a ThreadSanitizer report; scenario 2 with a different kind of report; scenario 3 stops printing and is killed by the time limit; 4 and 6 end with 'terminate called ...'; 5 is a report again. Fix one, run again."
+  - level: 2
+    text: "(1) the counter is shared by four threads: make it a std::atomic<long long> (or protect it). (2) forward() and backward() take the two mutexes in opposite orders: lock them together with std::scoped_lock in both. (3) the notification came before the wait began and a wait without a condition does not remember it: wait WITH a predicate on the flag. (4) the thread is never joined (and the result is read before it is done). (5) the stop flag and the loop counter are read and written by two threads: atomics. (6) catch the exception inside the thread and pass it to the caller."
+  - level: 3
+    text: "(3) `cv_.wait(lock, [this] { return set_; });` (4) `worker.join();` before `return result;` (5) `std::atomic<bool> stop_{false};`, `std::atomic<long long> loops_{0};` and in stop() join only `if (thread_.joinable())` (6) `std::exception_ptr error;` inside the thread `try { job(); } catch (...) { error = std::current_exception(); }` and after `t.join();` `if (error) std::rethrow_exception(error);`."
+  - level: 4
+    text: |
+      inline long long count_in_parallel(int threads, int per_thread) {
+          std::atomic<long long> counter{0};
+          std::vector<std::jthread> workers;
+          for (int t = 0; t < threads; ++t) workers.emplace_back([&counter, per_thread] { for (int i = 0; i < per_thread; ++i) ++counter; });
+          workers.clear();
+          return counter.load();
+      }
+      void forward() { std::scoped_lock lock(mutex_a_, mutex_b_); --a_; ++b_; }
+      void backward() { std::scoped_lock lock(mutex_a_, mutex_b_); ++a_; --b_; }

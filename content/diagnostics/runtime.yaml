@@ -209,3 +209,38 @@
         std::memcpy(&b, &c, 1);
         return b;
     }
+
+# ---- threads (ThreadSanitizer) ---------------------------------------------------------------------------
+- id: data-race
+  match: '^ThreadSanitizer: data-race'
+  title: "Two threads used the same memory without coordination (a data race)"
+  flags: ["-std=c++20", "-pthread", "-fsanitize=thread"]
+  friendly: "Two threads touched the same variable ({where}), at least one of them to write, and nothing made one wait for the other: that is a data race, and in C++ a data race is undefined behavior (the program may lose updates, crash, or appear to work). The other access is at {other}. Make the access safe: protect both with the same `std::mutex`, make the variable a `std::atomic`, or give every thread its own copy and combine the results after `join()`."
+  lesson: core.concurrency.data-races
+  trigger: |
+    #include <thread>
+    int g = 0;
+    void bump() { for (int i = 0; i < 100; ++i) ++g; }
+    int main() {
+        std::thread a(bump);
+        std::thread b(bump);
+        a.join();
+        b.join();
+    }
+
+- id: lock-order-inversion
+  match: '^ThreadSanitizer: lock-order-inversion'
+  title: "Two mutexes are locked in different orders (a possible deadlock)"
+  flags: ["-std=c++20", "-pthread", "-fsanitize=thread"]
+  friendly: "One thread locks mutex A and then B ({where}); another locks B and then A ({other}). If each gets its first mutex before the other gets its second, both wait for ever: a deadlock. The program did not hang this time, but it can. Always take several mutexes in the same order everywhere, or lock them together with `std::scoped_lock lock(a, b);`, which picks a safe order for you."
+  lesson: core.concurrency.data-races
+  trigger: |
+    #include <mutex>
+    #include <thread>
+    int main() {
+        std::mutex a, b;
+        std::thread t1([&] { std::lock_guard x(a); std::lock_guard y(b); });
+        t1.join();
+        std::thread t2([&] { std::lock_guard x(b); std::lock_guard y(a); });
+        t2.join();
+    }

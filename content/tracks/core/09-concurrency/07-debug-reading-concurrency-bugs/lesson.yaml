@@ -1,0 +1,15 @@
+id: core.concurrency.reading-bugs
+title: "Debug challenge: Reading concurrency bugs"
+module: core.concurrency
+type: debug
+estimatedMinutes: 55
+concepts: [reading-threadsanitizer, data-race-report, lock-order-inversion-report, deadlock-symptom, lost-wakeup, unjoined-thread-terminate, exception-escapes-thread, stop-flag-race, symptom-to-cause, first-failure-first, timeouts-as-evidence]
+prerequisites: [core.concurrency.coroutines]
+files:
+  editable: [jobs.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 10000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: false }
+gotchas: [unsynchronized-counter, opposite-lock-order, wait-without-predicate, thread-never-joined, plain-bool-stop-flag, exception-escapes-the-thread, fixing-the-symptom-not-the-cause, reading-the-last-report-first]

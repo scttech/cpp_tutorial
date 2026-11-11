@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "You need three members: `mutable std::mutex mutex_;` and two `std::condition_variable` (one for 'not full', one for 'not empty'). Every public function takes the mutex first. push and pop WAIT with a predicate; after changing the queue they notify the OTHER side. close() sets closed_ under the mutex and wakes everybody."
+  - level: 2
+    text: "push: `std::unique_lock lock(mutex_); not_full_.wait(lock, [this] { return closed_ || items_.size() < capacity_; }); if (closed_) return false;` then add the value and `not_empty_.notify_one();`. pop: wait for `closed_ || !items_.empty()`; if `items_.empty()` the queue is closed and drained: return std::nullopt; otherwise take the front and `not_full_.notify_one();`."
+  - level: 3
+    text: "close(): set `closed_ = true` while holding the mutex, then `notify_all()` on BOTH condition variables (consumers waiting for a value and producers waiting for room both have to see the flag). size() and closed() lock the mutex too (that is why it is `mutable`). try_pop is pop without the waiting."
+  - level: 4
+    text: |
+      bool push(T value) {
+          std::unique_lock lock(mutex_);
+          not_full_.wait(lock, [this] { return closed_ || items_.size() < capacity_; });
+          if (closed_) return false;
+          items_.push_back(std::move(value));
+          lock.unlock();
+          not_empty_.notify_one();
+          return true;
+      }
+      // pop is the mirror image: wait for (closed_ || !items_.empty()), nullopt if empty, else pop_front and not_full_.notify_one()

@@ -47,6 +47,7 @@ async function validate(dir) {
   // 1. solution
   const sol = await runTests(lesson, { ...starterReadonly, ...solution }, tests);
   if (!sol.compiled) errors.push(`solution does not compile:\n${sol.compileOutput}`);
+  else if (sol.timedOut) errors.push("the solution's run was stopped by the time limit (the tests that finished are not the whole story)");
   else {
     if (sol.compileOutput.trim()) errors.push(`solution compiles with diagnostics (must be zero):\n${sol.compileOutput}`);
     if (!sol.tests.length) errors.push("solution produced no test results (did the harness run?)");
@@ -66,7 +67,7 @@ async function validate(dir) {
   // 2. starter
   const st = await runTests(lesson, starter, tests);
   if (!st.compiled && !lesson.starterBroken) errors.push(`starter does not compile (set starterBroken: true if intended):\n${st.compileOutput}`);
-  if (st.compiled && st.tests.length && st.tests.every((t) => t.status === "pass")) errors.push("starter already passes every test");
+  if (st.compiled && !st.timedOut && st.tests.length && st.tests.every((t) => t.status === "pass")) errors.push("starter already passes every test");
   if (st.compiled && !st.tests.length) errors.push("starter produced no test results");
 
   // 3. mutants: plausible WRONG solutions (mutants/<name>/...) must each fail at least one test,
@@ -87,7 +88,7 @@ async function validate(dir) {
       if (r.compiled) errors.push(`mutant "${name}" was expected to fail to build but compiled`);
     } else if (!r.compiled) errors.push(`mutant "${name}" does not compile:
 ${r.compileOutput}`);
-    else if (r.tests.every((t) => t.status === "pass")) errors.push(`mutant "${name}" passes every test (the tests miss this mistake)`);
+    else if (!r.timedOut && r.tests.every((t) => t.status === "pass")) errors.push(`mutant "${name}" passes every test (the tests miss this mistake)`);
   }
   return { lesson, errors, mutantCount: Object.keys(mutants).length };
 }

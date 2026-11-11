@@ -47,6 +47,11 @@ describe("applyRun: tiers and completion", () => {
     expect(r).toMatchObject({ attempts: 1, testRuns: 0, failedRuns: 0, status: "in_progress" });
     expect(r.bestTiers.works).toBe(false);
   });
+  it("a run that the time limit killed earns nothing: only the tests that finished are reported, and all of them may have passed", () => {
+    const r = applyRun(emptyProgress(), input({ tests: [pass("works"), pass("robust")], result: { timedOut: true } as never }), NOON);
+    expect(r.becameComplete).toBe(false);
+    expect(r.state.lessons.l1).toMatchObject({ status: "in_progress", bestTiers: { works: false, robust: false }, failedRuns: 1 });
+  });
   it("a compile failure on a test run is a failed run", () => {
     const r = applyRun(emptyProgress(), input({ compiled: false }), NOON).state.lessons.l1!;
     expect(r.failedRuns).toBe(1);

@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -267,6 +268,9 @@ inline Captured run_main(int (*fn)(), const std::string& input = "") {
 
 // ---- inspecting the learner's source and memory -----------------------------------------------
 // The learner's files are in the current directory when the tests run.
+// CPU time used by the whole process so far, in milliseconds (all threads). A thread that is blocked uses none; one that spins uses all it gets.
+inline double cpu_ms() { return 1000.0 * static_cast<double>(std::clock()) / static_cast<double>(CLOCKS_PER_SEC); }
+
 inline std::string read_file(const char* path) {
     FILE* f = std::fopen(path, "rb");
     if (!f) return "";
@@ -700,6 +704,13 @@ inline int run_all() {
 #define ZTH_TEST(tier, name)                                                          \
     static void ZTH_CAT(zth_fn_, __LINE__)();                                         \
     static ::zth::Registrar ZTH_CAT(zth_reg_, __LINE__)(tier, name, &ZTH_CAT(zth_fn_, __LINE__)); \
+    static void ZTH_CAT(zth_fn_, __LINE__)()
+
+// Same, with its own time limit in seconds (the default is 2). For tests that start threads, wait for them, or are slowed down by ThreadSanitizer.
+// A test that does not finish in time (a deadlock, a lost wake-up) is reported as "timeout" and the other tests still run.
+#define ZTH_TEST_TIMEOUT(tier, name, seconds)                                                              \
+    static void ZTH_CAT(zth_fn_, __LINE__)();                                                              \
+    static ::zth::Registrar ZTH_CAT(zth_reg_, __LINE__)(tier, name, &ZTH_CAT(zth_fn_, __LINE__), seconds); \
     static void ZTH_CAT(zth_fn_, __LINE__)()
 
 // Expectations stop the current test at the first failure.

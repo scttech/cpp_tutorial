@@ -1,0 +1,15 @@
+id: core.concurrency.test-out
+title: "Test-out: Parallel sum"
+module: core.concurrency
+type: test-out
+estimatedMinutes: 35
+concepts: [std-thread, std-jthread, join, data-race, partial-results, partitioning, lambda-capture, capture-by-reference-pitfall, thread-per-chunk, hardware-threads]
+prerequisites: [core.testing.capstone-csv]
+files:
+  editable: [parallel_sum.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 9000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: false, clean: true }
+gotchas: [shared-accumulator-race, lambda-captures-loop-variable-by-reference, thread-not-joined, more-threads-than-values, int-accumulator-overflows, remainder-values-dropped, zero-threads, no-thread-really-used, detach]

@@ -1,0 +1,15 @@
+id: core.concurrency.capstone-job-scheduler
+title: "Capstone: Job Scheduler"
+module: core.concurrency
+type: capstone
+estimatedMinutes: 120
+concepts: [thread-pool, priority-queue, fifo-within-priority, cancellation, graceful-shutdown, drain-and-discard, wait-idle, statistics, future-and-promise, exception-transport, condition-variables, lock-discipline, no-busy-waiting, shared-ownership-of-tasks]
+prerequisites: [core.concurrency.reading-bugs]
+files:
+  editable: [scheduler.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 10000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [priority-ignored, lifo-within-priority, cancel-leaves-the-future-unfinished, cancel-a-running-job, discard-leaves-handles-hanging, drain-drops-queued-jobs, shutdown-does-not-wake-workers, submit-after-shutdown, wait-idle-ignores-running-jobs, wait-idle-never-woken, job-runs-under-the-lock, exception-kills-a-worker, queue-without-the-lock, busy-waiting-workers, stats-wrong]

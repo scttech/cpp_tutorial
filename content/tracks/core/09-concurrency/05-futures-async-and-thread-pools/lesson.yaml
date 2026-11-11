@@ -1,0 +1,15 @@
+id: core.concurrency.futures
+title: "Futures, async and thread pools"
+module: core.concurrency
+type: lesson
+estimatedMinutes: 65
+concepts: [std-future, std-promise, std-packaged-task, std-async, launch-policy, shared-future, exception-through-future, thread-pool, task-queue, worker-loop, graceful-shutdown, type-erasure-of-tasks, move-only-task, perfect-forwarding, thread-reuse, task-granularity, starvation-deadlock]
+prerequisites: [core.concurrency.atomics]
+files:
+  editable: [pool.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 10000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [task-runs-on-the-calling-thread, async-default-policy-may-be-deferred, async-future-blocks-in-its-destructor, packaged-task-is-move-only, queue-of-std-function-needs-copyable, exception-lost-in-a-worker, destructor-drops-queued-tasks, thread-per-task, workers-spin-when-idle, task-waits-for-another-task, forgot-to-notify, submit-after-shutdown]

@@ -1,0 +1,15 @@
+id: core.concurrency.atomics
+title: "Atomics and memory ordering (an introduction)"
+module: core.concurrency
+type: lesson
+estimatedMinutes: 65
+concepts: [std-atomic, atomic-operations, fetch-add, compare-exchange, cas-loop, atomic-flag, spinlock, memory-order, sequential-consistency, acquire-release, relaxed, happens-before, publication, atomic-wait, lock-free, aba-problem, memory-reclamation, check-then-act]
+prerequisites: [core.concurrency.condition-variables]
+files:
+  editable: [atomics.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 9000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [plain-variable-shared-between-threads, relaxed-spinlock, relaxed-publication, atomic-check-then-act, forgot-notify, busy-wait-on-an-atomic, relaxed-compare-exchange-publishing-a-node, load-and-store-are-not-an-update, volatile-is-not-atomic, mutex-in-a-lock-free-class]

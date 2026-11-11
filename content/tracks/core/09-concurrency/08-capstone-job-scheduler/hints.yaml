@@ -1,0 +1,30 @@
+ladder:
+  - level: 1
+    text: "Start from lesson 5's pool and add what is new: the ORDER of the queue (a std::map keyed by (-priority, sequence number)), cancel() (erase by key), the number of running jobs, wait_idle() (a second condition variable), the statistics, and the two kinds of shutdown. Keep the worker loop exactly as it was: wait with a predicate, take a job, UNLOCK, run it, lock again."
+  - level: 2
+    text: "submit: lock; if stopping_ throw std::runtime_error; `key = {-static_cast<int>(priority), next_sequence_++}`; `queue_.emplace(key, task)`; unlock; notify_one. Return `JobHandle<R>(std::move(future), [this, key] { return cancel_queued(key); })`. cancel_queued(key): lock; find the key; if it is not there return false; erase it, count it as cancelled, notify idle if nothing is left; unlock; then `task->cancel_with_exception()` and return true."
+  - level: 3
+    text: "The worker: `work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); }); if (queue_.empty()) return;` take `queue_.begin()`, erase it, `++running_`, unlock, `task->run()`, lock, `--running_`, count completed or failed, and if `queue_.empty() && running_ == 0` call `idle_.notify_all()`. wait_idle: `idle_.wait(lock, [this] { return queue_.empty() && running_ == 0; });`. shutdown: under the lock set stopping_ (and for Discard move the queued tasks out of the map, count them as cancelled); then notify_all; cancel the moved-out tasks outside the lock; join the workers."
+  - level: 4
+    text: |
+      void work() {
+          for (;;) {
+              std::shared_ptr<detail::TaskBase> task;
+              {
+                  std::unique_lock lock(mutex_);
+                  work_available_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
+                  if (queue_.empty()) return;
+                  auto first = queue_.begin();
+                  task = std::move(first->second);
+                  queue_.erase(first);
+                  ++running_;
+              }
+              const bool returned = task->run();
+              {
+                  std::lock_guard lock(mutex_);
+                  --running_;
+                  if (returned) ++stats_.completed; else ++stats_.failed;
+                  if (queue_.empty() && running_ == 0) idle_.notify_all();
+              }
+          }
+      }

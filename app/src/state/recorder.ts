@@ -34,9 +34,10 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
   const p: LessonProgress = { ...before, bestTiers: { ...before.bestTiers }, attempts: before.attempts + 1 };
   if (mode === "test") p.testRuns += 1;
 
-  // Tiers: a tier is earned only when ALL of its tests pass in one run.
-  const allPass = result.compiled && result.tests.length > 0 && result.tests.every((t) => t.status === "pass");
-  if (mode === "test" && result.compiled) {
+  // Tiers: a tier is earned only when ALL of its tests pass in one run. A run that the time limit killed reports only the tests that
+  // finished before it: they may all have passed while others never ran, so such a run earns nothing.
+  const allPass = result.compiled && !result.timedOut && result.tests.length > 0 && result.tests.every((t) => t.status === "pass");
+  if (mode === "test" && result.compiled && !result.timedOut) {
     for (const tier of declaredTiers) {
       const rows = result.tests.filter((t) => (t.tier ?? "works") === tier);
       if (rows.length > 0 && rows.every((t) => t.status === "pass")) p.bestTiers[tier] = true;

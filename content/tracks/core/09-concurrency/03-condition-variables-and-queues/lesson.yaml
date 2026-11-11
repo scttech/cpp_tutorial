@@ -1,0 +1,15 @@
+id: core.concurrency.condition-variables
+title: "Condition variables and blocking queues"
+module: core.concurrency
+type: lesson
+estimatedMinutes: 60
+concepts: [condition-variable, wait-predicate, spurious-wakeup, lost-wakeup, notify-one, notify-all, producer-consumer, bounded-queue, backpressure, close-and-drain, busy-waiting, std-latch, std-barrier, counting-semaphore, move-only-payload]
+prerequisites: [core.concurrency.data-races]
+files:
+  editable: [queue.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra", "-pthread", "-fsanitize=thread"]
+limits: { wallMs: 9000, memoryMb: 512 }
+requires: [threads, sanitizers]
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [wait-without-a-predicate, lost-wakeup, notify-before-the-state-changes, notify-one-when-all-must-wake, forgot-to-wake-the-other-side, push-ignores-the-capacity, close-does-not-wake-waiters, busy-waiting, size-without-the-lock, throwing-away-queued-items-on-close]

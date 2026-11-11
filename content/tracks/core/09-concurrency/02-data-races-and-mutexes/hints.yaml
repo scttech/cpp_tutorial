@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Start with the simplest correct design: one mutex for the whole bank (`mutable std::mutex mutex_;`), and a `std::lock_guard lock(mutex_);` as the first line of every public function that touches the balances (balance, deposit, withdraw, transfer, total). Run the tests: that already passes everything. Then, if you want, refine it to one mutex per account."
+  - level: 2
+    text: "With one mutex per account: `mutable std::vector<std::mutex> mutexes_;` built in the constructor with `mutexes_(accounts)`. deposit/withdraw/balance lock `mutexes_[account]`. transfer between two DIFFERENT accounts locks both with `std::scoped_lock lock(mutexes_[from], mutexes_[to]);` (never two lock_guards in argument order: opposite transfers would deadlock), and from == to must be handled before that (locking one mutex twice deadlocks). total() locks ALL the mutexes, lowest index first."
+  - level: 3
+    text: "total() with per-account mutexes: `std::vector<std::unique_lock<std::mutex>> locks; for (std::mutex& m : mutexes_) locks.emplace_back(m);` (a std::mutex cannot be copied, so the vector holds the lock objects, which can be moved). In withdraw, the test and the change must be under the SAME lock: `lock; if (balance < amount) return false; balance -= amount;`."
+  - level: 4
+    text: |
+      bool transfer(std::size_t from, std::size_t to, long long amount) {
+          check(from); check(to); positive(amount);
+          if (from == to) { std::lock_guard lock(mutexes_[from]); return balances_[from] >= amount; }
+          std::scoped_lock lock(mutexes_[from], mutexes_[to]);
+          if (balances_[from] < amount) return false;
+          balances_[from] -= amount;
+          balances_[to] += amount;
+          return true;
+      }
+      // simplest alternative: one `mutable std::mutex mutex_;` and `std::lock_guard lock(mutex_);` at the top of every function

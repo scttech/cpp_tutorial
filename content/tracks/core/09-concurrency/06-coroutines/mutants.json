@@ -1,0 +1,166 @@
+[
+  {
+    "name": "eager-start",
+    "why": "initial_suspend does not suspend: the body runs to its first co_yield when the generator is created.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "std::suspend_always initial_suspend() noexcept { return {}; }  // lazy: nothing runs until the first next()",
+        "new": "std::suspend_never initial_suspend() noexcept { return {}; }"
+      }
+    ]
+  },
+  {
+    "name": "frame-destroyed-at-the-end",
+    "why": "final_suspend does not suspend: the frame is destroyed by the coroutine itself, and the Generator's handle dangles.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "std::suspend_always final_suspend() noexcept { return {}; }    // stay suspended at the end: the Generator destroys the frame",
+        "new": "std::suspend_never final_suspend() noexcept { return {}; }"
+      }
+    ]
+  },
+  {
+    "name": "yield-does-not-suspend",
+    "why": "co_yield does not stop the coroutine: it runs on to the end at the first next().",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "            return {};  // suspend: control goes back to whoever resumed us",
+        "new": "            return {};"
+      },
+      {
+        "file": "generator.hpp",
+        "old": "        std::suspend_always yield_value(T value) {",
+        "new": "        std::suspend_never yield_value(T value) {"
+      }
+    ]
+  },
+  {
+    "name": "the-frame-is-never-destroyed",
+    "why": "the destructor forgets handle_.destroy(): every abandoned generator leaks its frame.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "        if (handle_) handle_.destroy();\n        handle_ = {};",
+        "new": "        handle_ = {};"
+      }
+    ]
+  },
+  {
+    "name": "move-copies-the-handle",
+    "why": "the moved-from generator keeps the handle: the frame is destroyed twice.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "    Generator(Generator&& other) noexcept : handle_(std::exchange(other.handle_, {})) {}",
+        "new": "    Generator(Generator&& other) noexcept : handle_(other.handle_) {}"
+      }
+    ]
+  },
+  {
+    "name": "move-assignment-leaks-the-old-frame",
+    "why": "the frame that the target owned is not destroyed before it takes the new one.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "            destroy();\n            handle_ = std::exchange(other.handle_, {});",
+        "new": "            handle_ = std::exchange(other.handle_, {});"
+      }
+    ]
+  },
+  {
+    "name": "next-resumes-a-finished-coroutine",
+    "why": "no done() check: asking again after the end resumes a coroutine that has finished (undefined behavior).",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "        if (!handle_ || handle_.done()) return false;\n        handle_.resume();",
+        "new": "        if (!handle_) return false;\n        handle_.resume();"
+      }
+    ]
+  },
+  {
+    "name": "begin-does-not-start",
+    "why": "the iterator starts at the end without asking for a first value.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "    Iterator begin() { return Iterator{this, !next()}; }",
+        "new": "    Iterator begin() { return Iterator{this, true}; }"
+      }
+    ]
+  },
+  {
+    "name": "range-includes-the-end",
+    "why": "off by one: end is yielded too.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "    for (int i = begin; i < end; ++i) co_yield i;",
+        "new": "    for (int i = begin; i <= end; ++i) co_yield i;"
+      }
+    ]
+  },
+  {
+    "name": "fibonacci-starts-at-one",
+    "why": "the sequence starts 1, 1, 2 instead of 0, 1, 1.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "    unsigned long long a = 0;\n    unsigned long long b = 1;",
+        "new": "    unsigned long long a = 1;\n    unsigned long long b = 1;"
+      }
+    ]
+  },
+  {
+    "name": "take-asks-one-value-too-many",
+    "why": "the count is checked at the start of the loop body: the source is asked for an extra value.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "    for (int value : source) {\n        co_yield value;\n        if (--n == 0) co_return;  // stop BEFORE asking the source for another value\n    }",
+        "new": "    for (int value : source) {\n        if (n-- == 0) co_return;\n        co_yield value;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "words-keeps-empty-words",
+    "why": "every space ends a word, so several spaces give empty words.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "        const std::size_t start = text.find_first_not_of(' ', pos);\n        if (start == std::string::npos) co_return;\n        const std::size_t end = text.find(' ', start);",
+        "new": "        const std::size_t start = pos;\n        const std::size_t end = text.find(' ', start);"
+      },
+      {
+        "file": "generator.hpp",
+        "old": "        co_yield text.substr(start, end - start);\n        pos = end;",
+        "new": "        co_yield text.substr(start, end - start);\n        pos = end + 1;"
+      }
+    ]
+  },
+  {
+    "name": "words-takes-a-reference",
+    "why": "a reference parameter: the frame refers to the caller's string, which can be gone (Clean tier).",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "inline Generator<std::string> words(std::string text) {  // by value: the frame keeps its own copy",
+        "new": "inline Generator<std::string> words(const std::string& text) {"
+      }
+    ]
+  },
+  {
+    "name": "range-is-an-ordinary-function",
+    "why": "not a coroutine at all: it returns an empty generator, so there is nothing to iterate.",
+    "edits": [
+      {
+        "file": "generator.hpp",
+        "old": "inline Generator<int> range(int begin, int end) {\n    for (int i = begin; i < end; ++i) co_yield i;\n}",
+        "new": "inline Generator<int> range(int begin, int end) {\n    (void)begin;\n    (void)end;\n    return {};\n}"
+      }
+    ]
+  }
+]

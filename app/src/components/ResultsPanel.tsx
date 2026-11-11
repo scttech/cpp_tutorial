@@ -82,9 +82,16 @@ function Tests({ result, kind, declared, nErr, onStart }: { result: RunResult; k
   const pass = result.tests.filter((t) => t.status === "pass").length;
   return (
     <>
-      <p className={pass === result.tests.length ? "banner ok" : "banner"} role="status">
-        {pass === result.tests.length ? "All tests passed 🎉" : `${pass} of ${result.tests.length} tests passed`}
-      </p>
+      {result.timedOut ? (
+        <p className="banner error" role="status">
+          The run was stopped by the time limit: {pass} of {result.tests.length} tests had passed when it ended, and the rest never ran. Look for a loop that does not
+          end, or a thread that waits for ever (a deadlock, or a notification that never comes).
+        </p>
+      ) : (
+        <p className={pass === result.tests.length ? "banner ok" : "banner"} role="status">
+          {pass === result.tests.length ? "All tests passed 🎉" : `${pass} of ${result.tests.length} tests passed`}
+        </p>
+      )}
       {TIERS.filter((t) => declared.includes(t.id)).map((tier) => {
         const rows = result.tests.filter((t) => (t.tier ?? "works") === tier.id);
         const done = rows.length > 0 && rows.every((r) => r.status === "pass");
@@ -131,7 +138,7 @@ function RuntimeCard({ report, raw, stopped }: { report: RuntimeReport; raw: str
         </p>
       )}
       <LessonLink id={why?.lesson ?? undefined} />
-      {(report.frames.length > 0 || report.allocatedAt || report.freedAt) && (
+      {(report.frames.length > 0 || report.allocatedAt || report.freedAt || report.previousAt) && (
         <ul className="frames">
           {report.frames.map((f, i) => (
             <li key={i}>
@@ -146,6 +153,11 @@ function RuntimeCard({ report, raw, stopped }: { report: RuntimeReport; raw: str
           {report.allocatedAt && (
             <li>
               allocated at <code>{at(report.allocatedAt)}</code>
+            </li>
+          )}
+          {report.previousAt && (
+            <li>
+              {report.previousAccess ? `the other thread (${report.previousAccess.toLowerCase()})` : "the other thread"} at <code>{at(report.previousAt)}</code>
             </li>
           )}
         </ul>

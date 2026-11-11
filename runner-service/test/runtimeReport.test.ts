@@ -3,6 +3,72 @@ import { parseRuntimeReport } from "../src/runtimeReport.js";
 
 const lines = (...ls: string[]) => ls.join("\n");
 
+describe("parseRuntimeReport: ThreadSanitizer", () => {
+  const race = lines(
+    "/usr/bin/llvm-symbolizer-18: error: '[stack]': No such file or directory",
+    "==================",
+    "WARNING: ThreadSanitizer: data race (pid=10)",
+    "  Write of size 4 at 0x5630b7b76ae8 by thread T2:",
+    "    #0 bump() /work/main.cpp:3:45 (a.out+0xe0b19) (BuildId: 24048eb212a82d172b3982a2c5b84c18c6b8bc18)",
+    "    #1 void std::__invoke_impl<void, void (*)()>(std::__invoke_other, void (*&&)()) /usr/lib/gcc/x86_64-linux-gnu/14/../../../../include/c++/14/bits/invoke.h:61:14 (a.out+0xe1422) (BuildId: 2404)",
+    "    #6 <null> <null> (libstdc++.so.6+0xecdb3) (BuildId: 753c6c8608b61d4e67be8f0c890e03e0aa046b8b)",
+    "",
+    "  Previous write of size 4 at 0x5630b7b76ae8 by thread T1:",
+    "    #0 bump() /work/main.cpp:2:41 (a.out+0xe0b19) (BuildId: 24048eb212a82d172b3982a2c5b84c18c6b8bc18)",
+    "",
+    "  Location is global 'g' of size 4 at 0x5630b7b76ae8 (a.out+0x150eae8)",
+    "",
+    "  Thread T2 (tid=13, running) created by main thread at:",
+    "    #0 pthread_create <null> (a.out+0x6063f) (BuildId: 24048eb212a82d172b3982a2c5b84c18c6b8bc18)",
+    "    #2 main /work/main.cpp:6:17 (a.out+0xe0b75) (BuildId: 24048eb212a82d172b3982a2c5b84c18c6b8bc18)",
+    "",
+    "SUMMARY: ThreadSanitizer: data race /work/main.cpp:3:45 in bump()",
+    "==================",
+  );
+
+  it("reads a data race: both accesses, and ignores where the threads were created", () => {
+    const r = parseRuntimeReport(race)!;
+    expect(r.tool).toBe("ThreadSanitizer");
+    expect(r.kind).toBe("data-race");
+    expect(r.summary).toBe("ThreadSanitizer: data-race");
+    expect(r.access).toBe("WRITE of size 4");
+    expect(r.location).toEqual({ file: "main.cpp", line: 3, column: 45, function: "bump()" });
+    expect(r.previousAccess).toBe("WRITE of size 4");
+    expect(r.previousAt).toMatchObject({ file: "main.cpp", line: 2, column: 41 });
+    expect(r.frames.map((f) => f.line)).toEqual([3]); // the library frames and the thread-creation stack are gone
+  });
+
+  it("reads a lock-order inversion: the two acquisitions, the first in this thread", () => {
+    const r = parseRuntimeReport(
+      lines(
+        "==================",
+        "WARNING: ThreadSanitizer: lock-order-inversion (potential deadlock) (pid=10)",
+        "  Cycle in lock order graph: M0 (0x7ffc7a4322e8) => M1 (0x7ffc7a4322c0) => M0",
+        "",
+        "  Mutex M1 acquired here while holding mutex M0 in thread T1:",
+        "    #0 pthread_mutex_lock <null> (a.out+0x6317e) (BuildId: e4b5)",
+        "    #3 std::lock_guard<std::mutex>::lock_guard(std::mutex&) /usr/lib/gcc/x86_64-linux-gnu/14/../../../../include/c++/14/bits/std_mutex.h:250:19 (a.out+0xe2dc9) (BuildId: e4b5)",
+        "    #4 main::$_0::operator()() const /work/main.cpp:5:64 (a.out+0xe22bc) (BuildId: e4b5)",
+        "",
+        "    Hint: use TSAN_OPTIONS=second_deadlock_stack=1 to get more informative warning message",
+        "",
+        "  Mutex M0 acquired here while holding mutex M1 in thread T2:",
+        "    #4 main::$_1::operator()() const /work/main.cpp:7:64 (a.out+0xe291c) (BuildId: e4b5)",
+        "",
+        "SUMMARY: ThreadSanitizer: lock-order-inversion (potential deadlock) (/work/a.out+0x6317e) in pthread_mutex_lock",
+      ),
+    )!;
+    expect(r).toMatchObject({ tool: "ThreadSanitizer", kind: "lock-order-inversion", summary: "ThreadSanitizer: lock-order-inversion" });
+    expect(r.location).toMatchObject({ file: "main.cpp", line: 5 });
+    expect(r.previousAt).toMatchObject({ file: "main.cpp", line: 7 });
+  });
+
+  it("prefers the report that came first when several sanitizers speak", () => {
+    const both = lines("main.cpp:9:3: runtime error: signed integer overflow: 1 + 2147483647 cannot be represented in type 'int'", race);
+    expect(parseRuntimeReport(both)?.tool).toBe("UndefinedBehaviorSanitizer");
+  });
+});
+
 // Fixtures are trimmed from output captured from the real sandbox image (clang 18 + the sanitizer runtimes).
 describe("parseRuntimeReport", () => {
   const uaf = lines(
