@@ -136,6 +136,8 @@ export function update(id: string, fn: (p: LessonProgress) => LessonProgress) {
 }
 
 export const revealHint = (id: string) => update(id, (p) => ({ ...p, hintsUsed: p.hintsUsed + 1 }));
+/** One tutor request was answered: counts towards aiHelpUsed (and, for explain/discuss modes, towards Good Question). */
+export const recordAiHelp = (id: string, explains: boolean) => update(id, (p) => ({ ...p, aiHelpUsed: p.aiHelpUsed + 1, explainUsed: p.explainUsed || explains }));
 export const revealSolution = (id: string) => update(id, (p) => ({ ...p, solutionRevealed: true }));
 export const setPace = (pace: "full" | "fast") => commit({ ...state, settings: { ...state.settings, pace } });
 

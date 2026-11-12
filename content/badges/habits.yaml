@@ -39,6 +39,13 @@
   description: "Pass a lesson after 15 or more failed test runs, without revealing the solution."
   rule: { type: persistence, failedRunsAtLeast: 15 }
 
+- id: good-question
+  name: "Good Question"
+  category: habits
+  icon: "💬"
+  description: "Ask the AI tutor to explain or discuss an idea, then pass that lesson without revealing the solution."
+  rule: { type: custom-event, event: good-question, atLeast: 1 }
+
 - id: fast-learner
   name: "Fast Learner"
   category: habits

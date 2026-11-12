@@ -2,6 +2,9 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CodeEditor } from "../components/CodeEditor";
 import { HintLadder } from "../components/HintLadder";
+import { TutorPanel } from "../components/TutorPanel";
+import type { TutorRequest } from "../components/TutorPanel";
+import { useTutorSettings } from "../tutor/settings";
 import { Markdown } from "../components/Markdown";
 import { ResultsPanel } from "../components/ResultsPanel";
 import { getLesson } from "../content/loader";
@@ -31,7 +34,7 @@ export function LessonPage() {
   return <LessonView key={lesson.meta.id} lesson={lesson} />;
 }
 
-type LeftTab = "lesson" | "fast" | "hints";
+type LeftTab = "lesson" | "fast" | "hints" | "tutor";
 
 /** Tabs follow lesson.yaml: editable files first, then read-only ones, then anything else. */
 function orderFiles(lesson: Lesson, files: Record<string, string>): Record<string, string> {
@@ -60,6 +63,8 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const [jump, setJump] = useState<{ file: string; line: number; column: number; nonce: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const toolchain = useToolchain();
+  const hasTutorKey = useTutorSettings().apiKey !== "";
+  const [tutorRequest, setTutorRequest] = useState<TutorRequest | null>(null);
   const filesRef = useRef(files);
   filesRef.current = files;
 
@@ -117,6 +122,16 @@ function LessonView({ lesson }: { lesson: Lesson }) {
     if (d.line > 0) setJump({ file: d.file, line: d.line, column: d.column, nonce: Date.now() });
   };
 
+  const explainError = (d: CompileDiagnostic) => {
+    setLeftTab("tutor");
+    setTutorRequest({
+      nonce: Date.now(),
+      mode: "error",
+      text: `Please explain this compiler message and why it happens (do not write the fix):
+${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
+    });
+  };
+
   const reset = () => {
     if (!confirm("Reset your code to the starter? Your current code will be lost.")) return;
     const fresh = orderFiles(lesson, { ...lesson.starter });
@@ -158,10 +173,15 @@ function LessonView({ lesson }: { lesson: Lesson }) {
           {tab("lesson", "Lesson")}
           {tab("fast", "Fast summary")}
           {tab("hints", "Hints")}
+          {tab("tutor", "Tutor")}
         </div>
         <div className="left-body">
           {leftTab === "lesson" && <Markdown>{lesson.lessonMd}</Markdown>}
           {leftTab === "fast" && <Markdown>{lesson.fastMd || "No fast summary for this lesson yet."}</Markdown>}
+          {/* always mounted (just hidden) so the conversation lasts for the whole lesson visit */}
+          <div hidden={leftTab !== "tutor"}>
+            <TutorPanel lesson={lesson} files={files} result={result} progress={progress} request={tutorRequest} />
+          </div>
           {leftTab === "hints" && (
             <>
               <HintLadder
@@ -238,7 +258,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
           </summary>
           <textarea value={stdin} onChange={(e) => setStdin(e.target.value)} rows={3} aria-label="Standard input" />
         </details>
-        <ResultsPanel result={result} kind={kind} busy={busy} error={error} declaredTiers={declared} onJump={onJump} />
+        <ResultsPanel result={result} kind={kind} busy={busy} error={error} declaredTiers={declared} onJump={onJump} onExplain={hasTutorKey ? explainError : undefined} />
       </section>
     </div>
   );

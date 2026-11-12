@@ -2,12 +2,94 @@ import { useRef, useState } from "react";
 import { applyImport, exportProgress, parseImport, resetAll, setPace, summarize, useAllProgress, useStorageKind } from "../state/store";
 import type { ImportSummary } from "../state/store";
 import type { Progress } from "../state/model";
+import { MODELS, MAX_TOKENS_LIMIT, clearApiKey, clearLeaks, looksLikeKey, readLeaks, saveTutorSettings, useTutorSettings } from "../tutor/settings";
 
 const STORAGE_TEXT = {
   indexeddb: "Saved in this browser (IndexedDB).",
   localstorage: "IndexedDB is unavailable here, so progress is saved with the simpler localStorage fallback.",
   memory: "Browser storage is unavailable (a private window?). Progress will be lost when you close this tab: export it to keep it.",
 } as const;
+
+function TutorSettingsSection() {
+  const t = useTutorSettings();
+  const [key, setKey] = useState("");
+  const [show, setShow] = useState(false);
+  const [leaks, setLeaks] = useState(() => readLeaks().length);
+  const known = MODELS.some((m) => m.id === t.model);
+  return (
+    <section className="tutor-key">
+      <h2>AI tutor (optional)</h2>
+      <p className="muted">
+        A tutor you can talk to about each lesson: it nudges, explains and discusses, and it never sees the reference solution or the hidden tests. It uses <b>your own</b> Anthropic API key,
+        and your browser talks directly to api.anthropic.com. The key is stored only in this browser and is never included in exported progress.
+      </p>
+      <p className="banner">Use a dedicated key with a spend limit. Anyone with access to this browser profile can read it.</p>
+      {t.apiKey ? (
+        <p>
+          Key saved: <code>{`${t.apiKey.slice(0, 7)}…${t.apiKey.slice(-4)}`}</code>{" "}
+          <button className="btn" onClick={clearApiKey}>
+            Remove key
+          </button>
+        </p>
+      ) : (
+        <div className="row">
+          <input
+            type={show ? "text" : "password"}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="sk-ant-…"
+            aria-label="Anthropic API key"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <label className="small">
+            <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> show
+          </label>
+          <button
+            className="btn primary"
+            disabled={!key.trim()}
+            onClick={() => {
+              saveTutorSettings({ apiKey: key });
+              setKey("");
+            }}
+          >
+            Save key
+          </button>
+        </div>
+      )}
+      {key.trim() !== "" && !looksLikeKey(key.trim()) && <p className="muted small">That does not look like an Anthropic key (they start with sk-ant-). You can still save it.</p>}
+      <label>
+        Model
+        <select value={known ? t.model : "other"} onChange={(e) => e.target.value !== "other" && saveTutorSettings({ model: e.target.value })}>
+          {MODELS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+          {!known && <option value="other">{t.model}</option>}
+        </select>
+      </label>
+      <label>
+        Longest reply (tokens): {t.maxTokens}
+        <input type="range" min={256} max={MAX_TOKENS_LIMIT} step={128} value={t.maxTokens} onChange={(e) => saveTutorSettings({ maxTokens: Number(e.target.value) })} />
+      </label>
+      <p className="muted small">
+        Guardrail catches so far: {leaks} (replies that were too long or reproduced the solution and were replaced).{" "}
+        {leaks > 0 && (
+          <button
+            className="link"
+            onClick={() => {
+              clearLeaks();
+              setLeaks(0);
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </p>
+    </section>
+  );
+}
 
 export function Settings() {
   const state = useAllProgress();
@@ -66,6 +148,8 @@ export function Settings() {
           <input type="radio" name="pace" checked={state.settings.pace === "fast"} onChange={() => setPace("fast")} /> Fast: the short summary first
         </label>
       </section>
+
+      <TutorSettingsSection />
 
       <section>
         <h2>Your data</h2>

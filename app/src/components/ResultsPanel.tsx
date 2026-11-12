@@ -26,9 +26,11 @@ interface Props {
   error: string | null;
   declaredTiers: Tier[];
   onJump(d: CompileDiagnostic): void;
+  /** Present when the AI tutor is set up: adds an "Explain this error" button to each problem. */
+  onExplain?(d: CompileDiagnostic): void;
 }
 
-export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump }: Props) {
+export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump, onExplain }: Props) {
   const [tab, setTab] = useState<"tests" | "console" | "problems">("tests");
   const problems = result?.diagnostics.filter((d) => d.severity !== "note") ?? [];
   const nErr = problems.filter((d) => d.severity === "error").length;
@@ -50,7 +52,7 @@ export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump 
         {result?.report && tab !== "problems" && <RuntimeCard report={result.report} raw={result.stderr} stopped={result.tests.filter((t) => t.message?.startsWith("stopped by a sanitizer")).length} />}
         {result && tab === "tests" && <Tests result={result} kind={kind} declared={declaredTiers} nErr={nErr} onStart={() => setTab("problems")} />}
         {result && tab === "console" && <Console result={result} />}
-        {result && tab === "problems" && <Problems diags={result.diagnostics} onJump={onJump} raw={result.compileOutput} />}
+        {result && tab === "problems" && <Problems diags={result.diagnostics} onJump={onJump} onExplain={onExplain} raw={result.compileOutput} />}
       </div>
     </section>
   );
@@ -222,7 +224,7 @@ function Explained({ d }: { d: CompileDiagnostic }) {
   );
 }
 
-function Problems({ diags, onJump, raw }: { diags: CompileDiagnostic[]; onJump(d: CompileDiagnostic): void; raw: string }) {
+function Problems({ diags, onJump, onExplain, raw }: { diags: CompileDiagnostic[]; onJump(d: CompileDiagnostic): void; onExplain?(d: CompileDiagnostic): void; raw: string }) {
   const [showRaw, setShowRaw] = useState(false);
   // Notes explain the diagnostic before them ("candidate function not viable..."): nest them under it.
   const groups: { main: CompileDiagnostic; notes: CompileDiagnostic[] }[] = [];
@@ -243,6 +245,11 @@ function Problems({ diags, onJump, raw }: { diags: CompileDiagnostic[]; onJump(d
               <Explained d={d} />
             </button>
             <LessonLink id={d.friendlyLesson} />
+            {onExplain && (
+              <button className="link explain" onClick={() => onExplain(d)}>
+                Explain this error (AI tutor)
+              </button>
+            )}
             {notes.length > 0 && (
               <ul className="notes">
                 {notes.map((n, j) => (

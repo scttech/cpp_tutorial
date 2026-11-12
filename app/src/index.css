@@ -191,3 +191,15 @@ label.btn { display: inline-block; }
 /* Domain challenge tracks (home page) */
 .track-heading { margin-top: 2.5rem; }
 .domain-tracks > p.muted { max-width: 60ch; }
+
+/* AI tutor */
+.tutor { display: flex; flex-direction: column; gap: 8px; }
+.tutor-turns { display: flex; flex-direction: column; gap: 8px; }
+.turn { margin: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--edge); }
+.turn .who { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 2px; }
+.turn.user { background: var(--panel); white-space: pre-wrap; }
+.turn.tutor-reply, .turn.tutor-pending { background: #0d2759; border-color: var(--blue); }
+.turn.fell-back { border-color: var(--warn); }
+.tutor-form { display: flex; flex-direction: column; gap: 6px; position: sticky; bottom: 0; background: var(--panel2); padding-top: 8px; border-top: 1px solid var(--edge); }
+.tutor-form select, .tutor-form textarea, .tutor-key input, .tutor-key select { width: 100%; background: #07173b; color: var(--fg); border: 1px solid var(--edge); border-radius: 4px; padding: 6px; font: inherit; }
+.link.explain { margin-left: 2.2em; font-size: 0.85rem; }

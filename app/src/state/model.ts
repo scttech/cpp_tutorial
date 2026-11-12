@@ -12,6 +12,7 @@ export interface LessonProgress {
   runsToFirstPass?: number; // test runs it took to complete the lesson the first time
   hintsUsed: number;
   aiHelpUsed: number;
+  explainUsed: boolean; // asked the tutor to explain or discuss (for the Good Question badge)
   solutionRevealed: boolean;
   lastCode: Record<string, string>;
   firstCompleteAt?: string; // ISO
@@ -50,6 +51,7 @@ export const emptyLesson = (): LessonProgress => ({
   failedRuns: 0,
   hintsUsed: 0,
   aiHelpUsed: 0,
+  explainUsed: false,
   solutionRevealed: false,
   lastCode: {},
 });
@@ -87,6 +89,7 @@ function normalizeLesson(raw: unknown): LessonProgress {
     failedRuns: num(raw.failedRuns),
     hintsUsed: num(raw.hintsUsed),
     aiHelpUsed: num(raw.aiHelpUsed),
+    explainUsed: raw.explainUsed === true,
     solutionRevealed: raw.solutionRevealed === true,
     lastCode: code,
   };

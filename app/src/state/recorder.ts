@@ -70,6 +70,9 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
     sessionCompileErrors = 0;
   }
 
+  // Good Question: asked the tutor to explain, then passed without revealing the solution
+  if (becameComplete && before.explainUsed && !before.solutionRevealed) next = bumpEvent(next, "good-question", nowIso);
+
   if (becameComplete) {
     const hour = now.getHours();
     if (hour < 4) next = bumpEvent(next, "completed-at-night", nowIso);

@@ -106,6 +106,25 @@ describe("applyRun: streak and events", () => {
   });
 });
 
+describe("applyRun: Good Question", () => {
+  const solved = [pass("works"), pass("robust")];
+  const withLesson = (over: Record<string, unknown>) => normalize({ lessons: { l1: { ...over } } });
+  it("fires when the learner asked for an explanation and then passed without revealing the solution", () => {
+    const r = applyRun(withLesson({ explainUsed: true, aiHelpUsed: 1 }), input({ tests: solved }), NOON);
+    expect(r.state.events["good-question"]?.count).toBe(1);
+  });
+  it("does not fire without an explain request, after a reveal, or on a later re-run", () => {
+    expect(applyRun(withLesson({ aiHelpUsed: 2 }), input({ tests: solved }), NOON).state.events["good-question"]).toBeUndefined();
+    expect(applyRun(withLesson({ explainUsed: true, solutionRevealed: true }), input({ tests: solved }), NOON).state.events["good-question"]).toBeUndefined();
+    const once = applyRun(withLesson({ explainUsed: true }), input({ tests: solved }), NOON).state;
+    expect(applyRun(once, input({ tests: solved }), NOON).state.events["good-question"]?.count).toBe(1);
+  });
+  it("explainUsed survives normalize and defaults to false", () => {
+    expect(normalize({ lessons: { l1: { explainUsed: true } } }).lessons.l1?.explainUsed).toBe(true);
+    expect(normalize({ lessons: { l1: { explainUsed: "yes" } } }).lessons.l1?.explainUsed).toBe(false);
+  });
+});
+
 describe("normalize (untrusted input)", () => {
   it("returns defaults for garbage and never throws", () => {
     for (const bad of [null, undefined, 5, "x", [], { lessons: 7 }, { lessons: { a: 3 } }, { streak: "no" }]) {
