@@ -1,0 +1,235 @@
+constructing-all-elements-up-front:
+  title: "`T data[N]` constructs N objects you did not ask for"
+  text: "A fixed array member default-constructs every slot, even the unused ones, so `T` needs a default constructor and `size()` no longer says how many objects are alive. Use raw aligned storage and construct on push."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct T {
+            static inline int built = 0;
+            T() { ++built; }
+        };
+
+        int main() {
+            T data[8];   // eight objects, before anything was pushed
+            std::cout << T::built << "\n";
+            (void)data;
+        }
+      out: "8\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct T {
+            static inline int built = 0;
+            T() { ++built; }
+        };
+
+        int main() {
+            alignas(T) unsigned char data[8 * sizeof(T)];   // storage only: no T exists yet
+            std::cout << T::built << "\n";
+            (void)data;
+        }
+      out: "0\n"
+forgetting-to-destroy:
+  title: "Elements in raw storage must be destroyed by hand"
+  text: "With raw storage the compiler no longer runs destructors for you: the container's destructor and `clear()` must call `std::destroy_at` on every live element, or whatever the elements own leaks."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            (void)a; (void)b;
+            std::cout << "destroyed: " << T::destroyed << "\n";   // nobody called the destructors
+        }
+      out: "destroyed: 0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            std::destroy_at(a);   // by hand, for every live element
+            std::destroy_at(b);
+            std::cout << "destroyed: " << T::destroyed << "\n";
+        }
+      out: "destroyed: 2\n"
+destroying-twice:
+  title: "Destroying an element twice is undefined"
+  text: "After `pop_back()` destroys an element, the container's destructor must not destroy it again. Only the slots in `[0, size)` hold live objects, so keep `size_` exact."
+touching-a-raw-slot:
+  title: "A raw slot holds no object yet"
+  text: "Before `new (slot) T(...)` there is no `T` in that memory, so reading it or calling a member function is undefined behavior. Construct first, then use."
+moved-from-elements-still-alive:
+  title: "A moved-from element still has to be destroyed"
+  text: "Moving out of a slot leaves a valid, empty object that still needs its destructor. Do not skip `destroy_at` just because the element was moved from."
+self-assignment:
+  title: "`a = a` must be safe"
+  text: "An assignment that clears and refills the container destroys the data when source and target are the same object. Check `this != &other`, or copy first and then swap."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                delete p;                // frees the source as well when o is *this
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                if (this == &o) return *this;   // nothing to do, and nothing to destroy
+                delete p;
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      out: "5\n"
+insert-shifts-wrong-direction:
+  title: "Shift right from the end, left from the start"
+  text: "To insert at index i, move the elements up by one place, last one first. Moving from the front overwrites each element before it has been moved. Erase shifts the other way, front first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {1, 2, 3, 0};
+            for (int i = 1; i < 3; ++i) a[i + 1] = a[i];   // front to back: smears a[1]
+            a[1] = 9;
+            for (int x : a) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 9 2 2 \n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {1, 2, 3, 0};
+            for (int i = 2; i >= 1; --i) a[i + 1] = a[i];   // back to front
+            a[1] = 9;
+            for (int x : a) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 9 2 3 \n"
+assigning-to-a-raw-slot:
+  title: "Assign to live objects, construct into raw slots"
+  text: "`slot = value` calls `operator=` on an object that does not exist yet, which is undefined for types with state. Use placement `new` or `std::construct_at` for a fresh slot."
+copy-where-in-place-was-possible:
+  title: "Construct in place with `emplace_back`"
+  text: "`push_back(T(args))` builds a temporary and moves it into place; `emplace_back(args...)` constructs the element directly in the slot, with fewer moves, and also works for types that cannot be moved."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            explicit T(int) {}
+            T(T&&) noexcept { std::cout << "move\n"; }
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.reserve(1);
+            v.push_back(T(1));   // a temporary, then a move into the slot
+        }
+      out: "move\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            explicit T(int) {}
+            T(T&&) noexcept { std::cout << "move\n"; }
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.reserve(1);
+            v.emplace_back(1);   // constructed directly in the slot
+        }
+      out: ""
+misaligned-storage:
+  title: "Raw storage must be aligned for `T`"
+  text: "A plain `char buf[N * sizeof(T)]` need not be aligned for `T`. Declare it `alignas(T)`, so objects constructed in it are properly aligned; a misaligned access is undefined behavior."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            char buf[16];
+            double* d = new (buf + 1) double(1.5);   // 1 byte off an 8-byte boundary
+            std::cout << *d << "\n";
+        }
+      reports: "misaligned"
+    fix:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            alignas(double) char buf[16];
+            double* d = new (buf) double(1.5);   // aligned for double
+            std::cout << *d << "\n";
+        }
+      out: "1.5\n"
+no-launder:
+  title: "Keep the pointer placement `new` gave you"
+  text: "After placement `new` into storage that held another object, an old pointer does not reliably refer to the new one. Use the pointer that `new` returned, or `std::launder` it."

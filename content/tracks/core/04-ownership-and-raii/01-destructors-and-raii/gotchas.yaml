@@ -1,0 +1,153 @@
+cleanup-skipped-on-early-return:
+  title: "Manual cleanup is skipped by an early `return`"
+  text: "Code that releases a resource on the last line never reaches it when an earlier `return` fires. Put the release in a destructor (RAII), which runs on every way out of the scope."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Lock {
+            void lock() { std::cout << "lock\n"; }
+            void unlock() { std::cout << "unlock\n"; }
+        };
+
+        void work(bool fail) {
+            Lock l;
+            l.lock();
+            if (fail) return;   // skips the unlock
+            l.unlock();
+        }
+
+        int main() { work(true); }
+      out: "lock\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Guard {
+            Guard() { std::cout << "lock\n"; }
+            ~Guard() { std::cout << "unlock\n"; }   // runs on every way out
+        };
+
+        void work(bool fail) {
+            Guard g;
+            if (fail) return;
+        }
+
+        int main() { work(true); }
+      out: "lock\nunlock\n"
+cleanup-skipped-on-exception:
+  title: "Manual cleanup is skipped by an exception"
+  text: "An exception thrown between acquiring and releasing a resource jumps over the release. A destructor still runs while the stack unwinds, so tie the release to an object."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        struct Lock {
+            void lock() { std::cout << "lock\n"; }
+            void unlock() { std::cout << "unlock\n"; }
+        };
+
+        void work() {
+            Lock l;
+            l.lock();
+            throw std::runtime_error("boom");   // jumps over the unlock
+            l.unlock();
+        }
+
+        int main() {
+            try { work(); } catch (const std::exception&) { std::cout << "caught\n"; }
+        }
+      out: "lock\ncaught\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        struct Guard {
+            Guard() { std::cout << "lock\n"; }
+            ~Guard() { std::cout << "unlock\n"; }
+        };
+
+        void work() {
+            Guard g;
+            throw std::runtime_error("boom");   // the destructor still runs
+        }
+
+        int main() {
+            try { work(); } catch (const std::exception&) { std::cout << "caught\n"; }
+        }
+      out: "lock\nunlock\ncaught\n"
+destructor-throws:
+  title: "A destructor must not throw"
+  text: "Destructors are `noexcept` by default, so an exception leaving one calls `std::terminate`, and so does a throw while another exception is already unwinding. Catch inside the destructor and log or ignore."
+copyable-owner:
+  title: "A class that owns a resource must not be copyable by accident"
+  text: "A class holding a raw pointer or handle gets a default copy that duplicates the handle, so two owners release it. Delete the copy operations (`= delete`) or implement them properly."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;   // copies the pointer, not the int it points to
+            std::cout << *b.p << "\n";
+        }                   // both destructors delete the same int
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}   // a deep copy: its own int
+            Buffer& operator=(const Buffer&) = delete;
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+forgotten-delete:
+  title: "Every `new` needs exactly one `delete`"
+  text: "Memory you allocate with `new` and never delete is a leak, and forgetting is easy on early returns and exceptions. Let an owning object (`unique_ptr`, `vector`) do the deleting."
+delete-array-mismatch:
+  title: "`new[]` pairs with `delete[]`"
+  text: "Memory from `new int[n]` must be freed with `delete[]`; a plain `delete` is undefined behavior (it may free the wrong size or run only one destructor). Prefer `std::vector` or `make_unique<T[]>`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int[4];
+            delete p;   // must be delete[]
+        }
+      reports: "alloc-dealloc-mismatch"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int[4];
+            delete[] p;   // matches new[]
+            std::cout << "freed\n";
+        }
+      out: "freed\n"
+wrong-destruction-order:
+  title: "Members are destroyed in reverse order of construction"
+  text: "Members are constructed in declaration order and destroyed in the opposite order. If one member uses another in its destructor, declare the one that must live longer first."

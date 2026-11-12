@@ -1,0 +1,149 @@
+missing-const-on-getter:
+  title: "Every member function that only reads is `const`"
+  text: "One missing `const` spreads: a `const T&` parameter can call only `const` members, so a single forgotten `const` on a getter makes the whole class unusable through const references."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() { return 10; }   // reads only, but is not const
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      error: "const"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() const { return 10; }
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      out: "10\n"
+no-const-overload:
+  title: "`at()` needs both a const and a non-const version"
+  text: "With only the non-const `at()`, a `const Grid&` cannot be indexed at all; the const version returns `const T&` and the non-const one `T&`, so reading and writing both work."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Grid {
+            int cells[2] = {5, 6};
+            int& at(int i) { return cells[i]; }   // no const overload
+        };
+
+        void show(const Grid& g) { std::cout << g.at(0) << "\n"; }
+
+        int main() {
+            show(Grid{});
+        }
+      error: "const"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Grid {
+            int cells[2] = {5, 6};
+            int& at(int i) { return cells[i]; }
+            const int& at(int i) const { return cells[i]; }   // the read-only twin
+        };
+
+        void show(const Grid& g) { std::cout << g.at(0) << "\n"; }
+
+        int main() {
+            show(Grid{});
+        }
+      out: "5\n"
+const-cast-to-return-mutable:
+  title: "Do not `const_cast` to return a mutable reference"
+  text: "Casting constness away inside a const member function breaks the promise its signature makes, and is undefined behavior if the object really was declared const. Write a second, const overload instead."
+pass-by-value-instead-of-const-ref:
+  title: "Pass big read-only arguments by `const&`"
+  text: "A parameter taken by value copies the whole object on every call, silently. `const T&` costs nothing and promises not to modify; cheap types such as `int` and `double` are still passed by value."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+stale-cache:
+  title: "A cache must be reset wherever the data can change"
+  text: "A cached total is only valid until the data changes. Every function that can change the data (including a non-const `at()` that hands out a reference) has to throw the cache away."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Rect {
+            int w, h;
+            int area_;   // cached
+            Rect(int w_, int h_) : w(w_), h(h_), area_(w_ * h_) {}
+            int area() const { return area_; }
+        };
+
+        int main() {
+            Rect r(2, 3);
+            r.w = 10;
+            std::cout << r.area() << "\n";   // still 6
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Rect {
+            int w, h;
+            Rect(int w_, int h_) : w(w_), h(h_) {}
+            int area() const { return w * h; }   // computed when asked: never stale
+        };
+
+        int main() {
+            Rect r(2, 3);
+            r.w = 10;
+            std::cout << r.area() << "\n";
+        }
+      out: "30\n"
+mutable-misuse:
+  title: "`mutable` is for hidden detail only"
+  text: "Marking real data `mutable` to silence a const error means the function is not really const. `mutable` is meant for a cache, a counter or a lock: state that is not part of the object's value."
+non-inline-function-in-header:
+  title: "A function defined in a header must be `inline`"
+  text: "A plain function body in a header is defined once in every `.cpp` that includes it, giving duplicate-symbol link errors. Mark it `inline` (functions defined inside a class already are) or move the body to a `.cpp`."

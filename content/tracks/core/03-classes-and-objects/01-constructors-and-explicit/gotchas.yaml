@@ -1,0 +1,170 @@
+implicit-conversion:
+  title: "A one-argument constructor converts implicitly"
+  text: "Without `explicit`, `Money m = 5;` and passing `5` to a `Money` parameter both compile, so a number silently turns into a `Money`. Mark single-argument constructors `explicit` to keep conversions deliberate."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Meters {
+            double value;
+            Meters(double v) : value(v) {}   // converts from any number
+        };
+
+        void walk(Meters m) { std::cout << "walking " << m.value << "\n"; }
+
+        int main() {
+            walk(5);   // a plain 5 became a Meters, silently
+        }
+      out: "walking 5\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Meters {
+            double value;
+            explicit Meters(double v) : value(v) {}
+        };
+
+        void walk(Meters m) { std::cout << "walking " << m.value << "\n"; }
+
+        int main() {
+            walk(Meters{5});   // the conversion is spelled out
+        }
+      out: "walking 5\n"
+explicit:
+  title: "`explicit` turns a silent conversion into an error"
+  text: "`explicit` forbids copy-initialization (`Money m = 5;`) and implicit conversions, but still allows `Money m{5};` and `Money(5)`. Make it your default for single-argument constructors and conversion operators."
+  demo:
+    bad:
+      code: |
+        struct Money {
+            int cents;
+            explicit Money(int c) : cents(c) {}
+        };
+
+        int main() {
+            Money m = 5;   // copy-initialization: refused
+            (void)m;
+        }
+      error: "conversion"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Money {
+            int cents;
+            explicit Money(int c) : cents(c) {}
+        };
+
+        int main() {
+            Money m{5};    // direct initialization: allowed
+            std::cout << m.cents << "\n";
+        }
+      out: "5\n"
+delegating-constructor:
+  title: "Let one constructor do the work"
+  text: "A delegating constructor, such as `Money() : Money(0, 0) {}`, calls another one from its initializer list, so validation and setup live in one place. The delegated-to constructor must finish the whole object."
+member-init-order:
+  title: "Members initialize in declaration order"
+  text: "The order in the initializer list does not matter: members are constructed in the order they are declared in the class. Using one member to initialize another that is declared later reads garbage."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Pair {
+            int first;
+            int second;
+            Pair(int v) : second(v), first(second + 1) {}   // first is initialized BEFORE second
+        };
+
+        int main() {
+            Pair p(1);
+            (void)p;
+            std::cout << "built\n";
+        }
+      out: "built\n"
+      warns: "will be initialized after"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Pair {
+            int first;
+            int second;
+            Pair(int v) : first(v + 1), second(v) {}   // same order as the declarations
+        };
+
+        int main() {
+            Pair p(1);
+            std::cout << p.first << " " << p.second << "\n";
+        }
+      out: "2 1\n"
+uninitialized-member:
+  title: "A member you forget to set stays uninitialized"
+  text: "A constructor that does not set an `int` member leaves it with garbage; only class types with their own default constructor are initialized for you. Give every member a default initializer, such as `int count = 0;`."
+constructor-that-does-not-validate:
+  title: "A constructor must enforce the rules of the class"
+  text: "If `Time(25, 99)` is accepted, every member function has to cope with impossible values. Validate in the constructor and throw `std::invalid_argument`, so any object that exists is valid."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Time {
+            int hours, minutes;
+            Time(int h, int m) : hours(h), minutes(m) {}   // accepts anything
+        };
+
+        int main() {
+            Time t{25, 99};
+            std::cout << t.hours << ":" << t.minutes << "\n";
+        }
+      out: "25:99\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        struct Time {
+            int hours, minutes;
+            Time(int h, int m) : hours(h), minutes(m) {
+                if (h < 0 || h > 23 || m < 0 || m > 59) throw std::invalid_argument("not a time");
+            }
+        };
+
+        int main() {
+            try {
+                Time t{25, 99};
+            } catch (const std::invalid_argument&) {
+                std::cout << "invalid time\n";
+            }
+        }
+      out: "invalid time\n"
+negating-the-minimum:
+  title: "Negating the smallest integer overflows"
+  text: "`-INT_MIN` does not fit in an `int`, so negating or taking `abs` of the minimum value is undefined behavior. Handle it explicitly, or compute in a wider type."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int smallest = INT_MIN + argc - 1;   // INT_MIN
+            std::cout << -smallest << "\n";      // there is no +2147483648 in an int
+        }
+      reports: "cannot be represented in type"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int smallest = INT_MIN + argc - 1;
+            std::cout << -static_cast<long long>(smallest) << "\n";   // widen first
+        }
+      out: "2147483648\n"

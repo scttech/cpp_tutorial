@@ -1,0 +1,218 @@
+optional-reference-not-allowed:
+  title: "`optional<T&>` is not allowed"
+  text: "For \"maybe a reference\" use a pointer (`T*`, null for none) or `std::optional<std::reference_wrapper<T>>`. `std::optional<T&>` does not compile."
+  demo:
+    bad:
+      code: |
+        #include <optional>
+
+        int main() {
+            int x = 5;
+            std::optional<int&> maybe = x;   // not allowed
+            (void)maybe;
+        }
+      error: "optional"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = 5;
+            int* maybe = &x;   // a pointer is "maybe a reference"
+            if (maybe) std::cout << *maybe << "\n";
+        }
+      out: "5\n"
+dereferencing-an-empty-optional:
+  title: "`*opt` on an empty optional is undefined"
+  text: "Unlike `value()`, which throws `bad_optional_access`, `*opt` and `opt->` do not check. Test `if (opt)` or `has_value()` first, or use `value_or(default)`."
+variant-valueless-by-exception:
+  title: "A `variant` can become valueless"
+  text: "If constructing the new alternative throws during assignment, the variant holds nothing and `valueless_by_exception()` is true; visiting it throws. Rare, but making alternatives' moves `noexcept` avoids it."
+std-get-throws:
+  title: "`std::get<T>` throws on the wrong alternative"
+  text: "`std::get<int>(v)` throws `bad_variant_access` when `v` holds a string. Use `std::get_if<int>(&v)`, `std::holds_alternative<int>(v)` or `std::visit` when the type is not certain."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <variant>
+
+        int main() {
+            std::variant<int, std::string> v = std::string("text");
+            try {
+                std::cout << std::get<int>(v) << "\n";   // v holds a string
+            } catch (const std::bad_variant_access&) {
+                std::cout << "wrong alternative\n";
+            }
+        }
+      out: "wrong alternative\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <variant>
+
+        int main() {
+            std::variant<int, std::string> v = std::string("text");
+            if (const int* n = std::get_if<int>(&v)) std::cout << *n << "\n";
+            else std::cout << "not an int\n";   // asked first, nothing thrown
+        }
+      out: "not an int\n"
+visit-must-cover-every-alternative:
+  title: "`visit` must handle every alternative"
+  text: "A visitor that misses one of the variant's types does not compile. That is a feature: adding an alternative later points you at every place to update. A generic catch-all lambda hides it."
+  demo:
+    bad:
+      code: |
+        #include <string>
+        #include <variant>
+
+        struct OnlyInt { void operator()(int) const {} };
+
+        int main() {
+            std::variant<int, std::string> v = 1;
+            std::visit(OnlyInt{}, v);   // nothing handles std::string
+        }
+      error: "visit"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <variant>
+
+        struct Show {
+            void operator()(int) const { std::cout << "int\n"; }
+            void operator()(const std::string&) const { std::cout << "string\n"; }
+        };
+
+        int main() {
+            std::variant<int, std::string> v = 1;
+            std::visit(Show{}, v);
+        }
+      out: "int\n"
+division-by-zero-is-no-value:
+  title: "Division by zero is \"no value\", not zero"
+  text: "A safe `divide(a, b)` returning `std::optional<int>` should return `nullopt` for `b == 0`, not `0`, so the caller can tell \"the result is zero\" from \"there is no result\"."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int divide(int a, int b) { return b == 0 ? 0 : a / b; }   // 0 means two things
+
+        int main() {
+            std::cout << (divide(5, 0) == divide(0, 5)) << "\n";   // "no result" looks like "zero"
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <optional>
+
+        std::optional<int> divide(int a, int b) {
+            if (b == 0) return std::nullopt;   // no value
+            return a / b;
+        }
+
+        int main() {
+            std::cout << (divide(5, 0) == divide(0, 5)) << "\n";
+        }
+      out: "0\n"
+span-dangles:
+  title: "A `span` does not own its elements"
+  text: "A span over a `vector` dangles when the vector reallocates or is destroyed. Treat it like a pointer: valid only while the underlying storage is unchanged."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <span>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 3};
+            std::span<int> s(v);
+            v.push_back(4);   // reallocates: s now points at freed memory
+            std::cout << s[0] << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <span>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 3};
+            v.push_back(4);
+            std::span<int> s(v);   // made after the last change
+            std::cout << s[0] << "\n";
+        }
+      out: "1\n"
+span-of-temporary:
+  title: "A `span` of a temporary dangles"
+  text: "`std::span<const int> s = make_vector();` points into a vector that is destroyed at the semicolon. Keep the vector in a variable, or pass the temporary straight to the function that consumes the span."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <span>
+        #include <vector>
+
+        std::vector<int> make() { return {1, 2, 3}; }
+
+        int main() {
+            std::span<const int> s = make();   // the vector dies at the semicolon
+            std::cout << s[0] << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <span>
+        #include <vector>
+
+        std::vector<int> make() { return {1, 2, 3}; }
+
+        int main() {
+            std::vector<int> v = make();   // a named owner
+            std::span<const int> s = v;
+            std::cout << s[0] << "\n";
+        }
+      out: "1\n"
+nullopt-propagation:
+  title: "`nullopt` propagates through a calculation"
+  text: "In `a / b + c`, if any step has no value the whole expression has none. Check each step as you go (or chain with `and_then` in C++23) instead of unwrapping early and losing the \"no value\" case."
+deep-copy-vs-move-of-a-tree:
+  title: "A tree of `unique_ptr` must be cloned by hand"
+  text: "`unique_ptr` members make the class move-only, so `Tree b = a;` does not compile. Write a `clone()` that copies recursively when you want a copy, and move when you do not."
+  demo:
+    bad:
+      code: |
+        #include <memory>
+
+        struct Node { std::unique_ptr<Node> left; int value = 5; };
+
+        int main() {
+            Node a;
+            Node b = a;   // a unique_ptr cannot be copied
+            (void)b;
+        }
+      error: "deleted"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <utility>
+
+        struct Node { std::unique_ptr<Node> left; int value = 5; };
+
+        int main() {
+            Node a;
+            Node b = std::move(a);   // moved: a gives it up
+            std::cout << b.value << "\n";
+        }
+      out: "5\n"

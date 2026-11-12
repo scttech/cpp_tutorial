@@ -1,0 +1,48 @@
+using-namespace-in-header:
+  title: "Never put `using namespace` in a header"
+  text: "Every file that includes the header inherits the directive, so names clash in code that never asked for them. Qualify names (`std::string`) in headers, and keep `using` for small scopes in `.cpp` files."
+  demo:
+    bad:
+      code: |
+        #include <list>
+
+        using namespace std;   // imagine this line inside a header
+
+        struct list {};        // our own type
+
+        int main() {
+            list l;            // ours, or std::list?
+            (void)l;
+        }
+      error: "ambiguous"
+    fix:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct list { int size = 3; };   // ours; std::list is always written with its prefix
+
+        int main() {
+            list mine;
+            std::list<int> theirs{1, 2};
+            std::cout << mine.size << " " << theirs.size() << "\n";
+        }
+      out: "3 2\n"
+operator-outside-namespace:
+  title: "Define operators next to the type, in its namespace"
+  text: "An `operator<<` for `geo::Point` written in the global namespace is found only by ordinary lookup, and can be hidden by any other `operator<<` in between. Put it in `namespace geo`, where argument-dependent lookup finds it."
+adl-not-found:
+  title: "Argument-dependent lookup only looks in the arguments' namespaces"
+  text: "ADL is why `swap(a, b)` and `operator<<` work unqualified: the compiler also searches the namespaces of the argument types. A function in an unrelated namespace is not found, so qualify it or move it."
+unnamed-namespace-in-header:
+  title: "An unnamed namespace in a header duplicates code"
+  text: "Each `.cpp` that includes the header gets its own private copy of everything inside, so the same function exists many times and `static` state is not shared. Use `inline` functions in a named namespace instead."
+helper-leaks-into-global-scope:
+  title: "Helpers must not leak into the global scope"
+  text: "A helper function in the global namespace can clash with one of the same name in another file, and the linker reports a duplicate. Put helpers in a `detail` namespace, or in an unnamed namespace inside the `.cpp`."
+helper-in-public-namespace:
+  title: "Keep helpers out of the public namespace"
+  text: "Anything in `lib::` becomes part of the library's interface that others may call and come to depend on. Put implementation details in `lib::detail`, and treat that namespace as private."
+non-inline-function-in-header:
+  title: "A function defined in a header must be `inline`"
+  text: "A plain function body in a header is defined once in every `.cpp` that includes it, giving duplicate-symbol link errors. Mark it `inline` (functions defined inside a class already are) or move the body to a `.cpp`."

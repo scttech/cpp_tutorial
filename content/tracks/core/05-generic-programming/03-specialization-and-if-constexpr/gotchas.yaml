@@ -1,0 +1,165 @@
+function-templates-cannot-be-partially-specialized:
+  title: "Function templates cannot be partially specialized"
+  text: "Class templates can be partially specialized, function templates only fully. For \"one behavior for pointers, another for everything else\" write overloads, use `if constexpr`, or specialize a helper class template."
+  demo:
+    bad:
+      code: |
+        template <class T> void show(T) {}
+        template <class T> void show<T*>(T*) {}   // partial specialization of a function template
+
+        int main() {}
+      error: "partial specialization"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class T> void show(T) { std::cout << "value\n"; }
+        template <class T> void show(T*) { std::cout << "pointer\n"; }   // an overload instead
+
+        int main() {
+            int x = 1;
+            show(x);
+            show(&x);
+        }
+      out: "value\npointer\n"
+overload-declared-after-use:
+  title: "A helper must be declared before the template that calls it"
+  text: "A non-dependent name in a template is looked up where the template is defined, and dependent calls find only what is visible there plus argument-dependent lookup. Declare the helper first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        template <class T>
+        void show(T v) { print(v); }   // print is not declared yet
+
+        void print(int v) { std::cout << v << "\n"; }
+
+        int main() {
+            show(3);
+        }
+      error: "print"
+    fix:
+      code: |
+        #include <iostream>
+
+        void print(int v) { std::cout << v << "\n"; }   // declared first
+
+        template <class T>
+        void show(T v) { print(v); }
+
+        int main() {
+            show(3);
+        }
+      out: "3\n"
+char-printed-as-number:
+  title: "A `char` or `uint8_t` prints as a character, not as a number"
+  text: "A generic `os << value` prints `std::uint8_t{65}` as `A`. Write `+value` or `static_cast<int>(value)` in a specialization or `if constexpr` branch when the number is what you want."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t v = 65;
+            std::cout << v << "\n";   // a character
+        }
+      out: "A\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t v = 65;
+            std::cout << +v << "\n";   // unary plus promotes it to int
+        }
+      out: "65\n"
+bool-printed-as-number:
+  title: "`bool` prints as 1 and 0"
+  text: "`std::cout << true` prints `1` unless the stream has `std::boolalpha`. A pretty-printer should special-case `bool` and print `true` and `false`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << true << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << std::boolalpha << true << "\n";
+        }
+      out: "true\n"
+null-pointer-dereference:
+  title: "A generic printer must handle null pointers"
+  text: "A `print(T*)` overload that dereferences without looking crashes on `nullptr`. Check for null first, and print something like `null` instead."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        void print(const int* p) { std::cout << *p << "\n"; }   // no null check
+
+        int main() {
+            print(nullptr);
+        }
+      reports: "null pointer"
+    fix:
+      code: |
+        #include <iostream>
+
+        void print(const int* p) {
+            if (p) std::cout << *p << "\n";
+            else std::cout << "null\n";
+        }
+
+        int main() {
+            print(nullptr);
+        }
+      out: "null\n"
+quadratic-string-building:
+  title: "Building a string with `s = s + x` is quadratic"
+  text: "Each `s = s + x` allocates and copies the whole string again. Append with `+=` or `append`, which are amortized O(1), or write into a `std::ostringstream`."
+plain-if-instead-of-if-constexpr:
+  title: "A plain `if` still compiles both branches"
+  text: "In a template, `if (std::is_integral_v<T>) { return x % 2; }` is compiled for every `T`, so it fails for `double` even though it never runs. `if constexpr` discards the branch that does not apply."
+  demo:
+    bad:
+      code: |
+        #include <type_traits>
+
+        template <class T>
+        int parity(T x) {
+            if (std::is_integral_v<T>) return x % 2;   // compiled for double too
+            else return 0;
+        }
+
+        int main() {
+            parity(2.5);
+        }
+      error: "operands"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        template <class T>
+        int parity(T x) {
+            if constexpr (std::is_integral_v<T>) return x % 2;   // discarded for double
+            else return 0;
+        }
+
+        int main() {
+            std::cout << parity(3) << " " << parity(2.5) << "\n";
+        }
+      out: "1 0\n"
+specialization-in-wrong-namespace:
+  title: "Specialize a template in the namespace that owns it"
+  text: "Write an explicit specialization where the primary template lives (or in an enclosing namespace with a qualified name). A specialization written inside an unrelated namespace is a different, unrelated template."

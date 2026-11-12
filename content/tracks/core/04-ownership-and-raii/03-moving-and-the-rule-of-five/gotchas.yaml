@@ -1,0 +1,269 @@
+move-that-copies:
+  title: "`std::move` on a `const` object still copies"
+  text: "`std::move` is only a cast to an rvalue. On a `const` object the result can only bind to the copy constructor (`const T&`), so nothing is moved. Also check that your move constructor moves each member."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct N {
+            N() = default;
+            N(const N&) { std::cout << "copy\n"; }
+            N(N&&) noexcept { std::cout << "move\n"; }
+        };
+
+        int main() {
+            const N a;
+            N b = std::move(a);   // a is const: only the copy constructor fits
+            (void)b;
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct N {
+            N() = default;
+            N(const N&) { std::cout << "copy\n"; }
+            N(N&&) noexcept { std::cout << "move\n"; }
+        };
+
+        int main() {
+            N a;
+            N b = std::move(a);   // a can be moved from
+            (void)b;
+        }
+      out: "move\n"
+source-not-emptied:
+  title: "A moved-from object must give up what it owned"
+  text: "The source of a move is still destroyed, so a move that copies the pointer without clearing the source makes both destructors free the same buffer. Set the source's pointer to `nullptr` and its size to 0."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(Buffer&& o) noexcept : p(o.p) {}   // the source still owns it too
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = std::move(a);
+            std::cout << *b.p << "\n";
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(Buffer&& o) noexcept : p(std::exchange(o.p, nullptr)) {}   // the source gives it up
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = std::move(a);
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+move-not-noexcept:
+  title: "A move that may throw is not used by `vector`"
+  text: "`std::vector` only moves its elements when it grows if the move constructor is `noexcept`; otherwise it copies, to keep its strong guarantee. Mark your move operations `noexcept`."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) {}   // not noexcept: vector will not trust it
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});   // grows: relocates the first element
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) noexcept {}   // vector can move safely
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 0\n"
+self-move-assignment:
+  title: "`a = std::move(a)` must not destroy `a`"
+  text: "A move assignment that frees its own buffer before taking the source's does so on itself when both are the same object, and the data is gone. Guard with `this != &other`, or swap."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer& operator=(Buffer&& o) noexcept {
+                delete p;
+                p = o.p;
+                o.p = nullptr;   // when o is *this, this wipes p as well
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(7);
+            Buffer& same = a;
+            a = std::move(same);
+            std::cout << "empty: " << (a.p == nullptr) << "\n";
+        }
+      out: "empty: 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer& operator=(Buffer&& o) noexcept {
+                if (this == &o) return *this;   // moving onto itself: nothing to do
+                delete p;
+                p = o.p;
+                o.p = nullptr;
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(7);
+            Buffer& same = a;
+            a = std::move(same);
+            std::cout << "empty: " << (a.p == nullptr) << "\n";
+        }
+      out: "empty: 0\n"
+move-assignment-leaks:
+  title: "Move assignment must release the old buffer"
+  text: "A move assignment that just takes the source's pointer leaks whatever the target owned before. Free (or swap out) the old resource before taking the new one."
+swap-by-copying:
+  title: "Swap by exchanging pointers, not by copying"
+  text: "A swap that copies three buffers allocates and copies for nothing, and can throw. Exchanging the members (pointer and size) is O(1) and cannot fail: provide a `swap` and build assignment on it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct S {
+            static inline int copies = 0;
+            S() = default;
+            S(const S&) { ++copies; }
+            S& operator=(const S&) { ++copies; return *this; }
+            S(S&&) noexcept = default;
+            S& operator=(S&&) noexcept = default;
+        };
+
+        int main() {
+            S a, b;
+            S t = a;   // a swap written with copies
+            a = b;
+            b = t;
+            std::cout << S::copies << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct S {
+            static inline int copies = 0;
+            S() = default;
+            S(const S&) { ++copies; }
+            S& operator=(const S&) { ++copies; return *this; }
+            S(S&&) noexcept = default;
+            S& operator=(S&&) noexcept = default;
+        };
+
+        int main() {
+            S a, b;
+            std::swap(a, b);   // three moves, no copies
+            std::cout << S::copies << "\n";
+        }
+      out: "0\n"
+moved-from-garbage:
+  title: "A moved-from object must still be valid"
+  text: "After a move the source must be safe to destroy and to assign to; the usual state is empty. For standard types it is valid but unspecified, so only assign to it or destroy it."
+vector-growth-copies:
+  title: "A vector copies on growth unless the move is `noexcept`"
+  text: "When a `vector` reallocates it moves the elements only if that cannot throw, so a missing `noexcept` turns every growth into a full copy of every element. Count the copies in a test."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) {}   // not noexcept: vector will not trust it
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});   // grows: relocates the first element
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) noexcept {}   // vector can move safely
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 0\n"

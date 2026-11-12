@@ -1,0 +1,168 @@
+empty-pack-fold-without-init:
+  title: "A fold over an empty pack needs an initial value"
+  text: "`(args + ...)` with no arguments is an error (only `&&`, `||` and `,` have a default). Use a fold with an initial value: `(0 + ... + args)`."
+  demo:
+    bad:
+      code: |
+        template <class... Ts>
+        auto sum(Ts... xs) { return (xs + ...); }   // no init
+
+        int main() {
+            sum();   // an empty pack
+        }
+      error: "empty"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class... Ts>
+        auto sum(Ts... xs) { return (0 + ... + xs); }   // starts from 0
+
+        int main() {
+            std::cout << sum() << " " << sum(1, 2, 3) << "\n";
+        }
+      out: "0 6\n"
+missing-std-forward:
+  title: "Forward with `std::forward`, or you always copy"
+  text: "Inside `template <class... A> f(A&&... a)` every `a` is an lvalue, so passing it on without `std::forward<A>(a)` always copies and never moves. Forwarding keeps the value category of the caller's argument."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        struct Holder { explicit Holder(Noisy) {} };
+
+        template <class... A>
+        Holder make(A&&... a) { return Holder(a...); }   // a is an lvalue here
+
+        int main() {
+            make(Noisy{});
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        struct Holder { explicit Holder(Noisy) {} };
+
+        template <class... A>
+        Holder make(A&&... a) { return Holder(std::forward<A>(a)...); }   // keeps "rvalue"
+
+        int main() {
+            make(Noisy{});
+        }
+      out: "move\n"
+forwarding-reference-vs-rvalue-reference:
+  title: "`T&&` in a template is a forwarding reference"
+  text: "For a deduced `T`, `T&&` binds to lvalues and rvalues alike. `std::vector<T>&&` or `Widget&&` is an ordinary rvalue reference and accepts rvalues only; the difference is whether `T` itself is deduced."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        template <class T>
+        void take(std::vector<T>&&) {}   // an rvalue reference, not a forwarding one
+
+        int main() {
+            std::vector<int> v{1};
+            take(v);   // v is an lvalue
+        }
+      error: "no matching function"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        template <class T>
+        void take(T&&) { std::cout << "ok\n"; }   // T is deduced: a forwarding reference
+
+        int main() {
+            std::vector<int> v{1};
+            take(v);
+        }
+      out: "ok\n"
+not-constexpr:
+  title: "A variadic function is not `constexpr` unless you say so"
+  text: "Mark the function `constexpr` to call it in a `static_assert` or as a template argument. Fold expressions work at compile time, so there is no reason to leave it out."
+  demo:
+    bad:
+      code: |
+        template <class... Ts>
+        auto sum(Ts... xs) { return (0 + ... + xs); }   // not constexpr
+
+        static_assert(sum(1, 2, 3) == 6);
+
+        int main() {}
+      error: "constant expression"
+    fix:
+      code: |
+        template <class... Ts>
+        constexpr auto sum(Ts... xs) { return (0 + ... + xs); }
+
+        static_assert(sum(1, 2, 3) == 6);   // checked by the compiler
+
+        int main() {}
+      out: ""
+extra-arguments:
+  title: "Extra arguments must be reported"
+  text: "A formatter that quietly ignores arguments beyond its placeholders hides bugs. Count both sides, and report a mismatch as an error."
+fewer-arguments-than-placeholders:
+  title: "Too few arguments for the placeholders"
+  text: "A format string with three `{}` and two arguments must fail loudly, not print garbage or read past the pack. Check the counts before formatting."
+comma-operator-fold-order:
+  title: "A comma fold runs left to right"
+  text: "`(f(args), ...)` calls `f` once per argument, in order, which is why it is the usual way to loop over a pack. Function-call arguments, by contrast, are evaluated in an unspecified order."
+forwarding-a-moved-from-argument:
+  title: "Forward each argument only once"
+  text: "Calling `std::forward<A>(a)` twice uses the argument again after the first call may have moved from it. Forward it exactly once, at its last use, and pass it as an lvalue before that."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <utility>
+
+        void take(std::string s) { std::cout << s.size() << "\n"; }
+
+        template <class A>
+        void both(A&& a) {
+            take(std::forward<A>(a));
+            take(std::forward<A>(a));   // the first call may have moved it away
+        }
+
+        int main() {
+            both(std::string("hello"));
+        }
+      out: "5\n0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <utility>
+
+        void take(std::string s) { std::cout << s.size() << "\n"; }
+
+        template <class A>
+        void both(A&& a) {
+            take(a);                    // as an lvalue: a copy, a stays intact
+            take(std::forward<A>(a));   // forwarded once, at the last use
+        }
+
+        int main() {
+            both(std::string("hello"));
+        }
+      out: "5\n5\n"

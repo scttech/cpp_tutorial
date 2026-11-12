@@ -36,7 +36,7 @@ const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const problems = [];
 const demos = []; // every structurally valid demo, for --run and --wasm
 
-const DEMO_LIMITS = { lines: 20, chars: 1200 };
+const DEMO_LIMITS = { lines: 24, chars: 1200 };
 
 function checkDemo(id, d, bad, rel) {
   const at = (m) => bad(`"${id}": demo ${m}`);

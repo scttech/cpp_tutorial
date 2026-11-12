@@ -1,0 +1,145 @@
+member-vs-nonmember-operators:
+  title: "Binary operators are usually free functions"
+  text: "A member `operator+` only accepts your type on the left, so `2 + f` fails while `f + 2` works. Make symmetric operators free functions (often friends of the class) and keep the compound `+=` as a member."
+  demo:
+    bad:
+      code: |
+        struct Money {
+            int cents;
+            Money operator+(int c) const { return {cents + c}; }   // only Money + int
+        };
+
+        int main() {
+            Money m{5};
+            Money n = 2 + m;   // int + Money: no such member
+            (void)n;
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Money { int cents; };
+
+        Money operator+(Money a, int c) { return {a.cents + c}; }
+        Money operator+(int c, Money a) { return a + c; }   // the other order, as a free function
+
+        int main() {
+            Money m{5};
+            Money n = 2 + m;
+            std::cout << n.cents << "\n";
+        }
+      out: "7\n"
+int-on-the-left:
+  title: "The left operand of a member operator is always `*this`"
+  text: "`3 * v` cannot call `Vec::operator*(double)`, because the 3 would have to be the object. Add a free `operator*(double, Vec)` that forwards to the member."
+  demo:
+    bad:
+      code: |
+        struct Money {
+            int cents;
+            Money operator+(int c) const { return {cents + c}; }   // only Money + int
+        };
+
+        int main() {
+            Money m{5};
+            Money n = 2 + m;   // int + Money: no such member
+            (void)n;
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Money { int cents; };
+
+        Money operator+(Money a, int c) { return {a.cents + c}; }
+        Money operator+(int c, Money a) { return a + c; }   // the other order, as a free function
+
+        int main() {
+            Money m{5};
+            Money n = 2 + m;
+            std::cout << n.cents << "\n";
+        }
+      out: "7\n"
+explicit-conversion:
+  title: "Mark single-argument constructors `explicit`"
+  text: "Without `explicit`, `Fraction f = 3;` and passing `3` where a `Fraction` is expected compile silently, and so do surprising mixes with other overloads. Convert on purpose: `Fraction{3}`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Meters {
+            double value;
+            Meters(double v) : value(v) {}   // converts from any number
+        };
+
+        void walk(Meters m) { std::cout << "walking " << m.value << "\n"; }
+
+        int main() {
+            walk(5);   // a plain 5 became a Meters, silently
+        }
+      out: "walking 5\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Meters {
+            double value;
+            explicit Meters(double v) : value(v) {}
+        };
+
+        void walk(Meters m) { std::cout << "walking " << m.value << "\n"; }
+
+        int main() {
+            walk(Meters{5});   // the conversion is spelled out
+        }
+      out: "walking 5\n"
+overflow-in-arithmetic:
+  title: "Fraction arithmetic overflows quickly"
+  text: "Cross-multiplying two fractions with big numerators overflows `int`, which is undefined behavior. Reduce by the gcd first, or multiply in `long long` and check that the result still fits."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int a = 99999 + argc;      // 100000
+            int denominator = a * a;   // 10^10 does not fit in an int
+            std::cout << denominator << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            long long a = 99999 + argc;
+            long long denominator = a * a;   // a wider type holds it
+            std::cout << denominator << "\n";
+        }
+      out: "10000000000\n"
+comparing-through-double:
+  title: "Compare fractions with integers, not with doubles"
+  text: "Converting to `double` loses precision above 2^53, so two different fractions can compare equal. Cross-multiply in a wide integer type instead: `a/b == c/d` exactly when `a*d == c*b`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long long a = 100000000000000001, b = 100000000000000000, c = 1, d = 1;   // a/b is a hair above 1
+            std::cout << (static_cast<double>(a) / b == static_cast<double>(c) / d) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long long a = 100000000000000001, b = 100000000000000000, c = 1, d = 1;
+            std::cout << (a * d == c * b) << "\n";   // exact integer comparison
+        }
+      out: "0\n"

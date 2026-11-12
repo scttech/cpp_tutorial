@@ -1,0 +1,240 @@
+shallow-copy:
+  title: "Copying a pointer is not copying what it points to"
+  text: "The compiler-generated copy copies the pointer member, so two vectors share one buffer: a change shows in both and both free it. Write a real copy constructor that allocates and copies the elements."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;   // copies the pointer, not the int it points to
+            std::cout << *b.p << "\n";
+        }                   // both destructors delete the same int
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}   // a deep copy: its own int
+            Buffer& operator=(const Buffer&) = delete;
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+double-free:
+  title: "Two owners free the same memory"
+  text: "When two objects hold the same raw pointer, both destructors `delete` it, which is undefined behavior. Give each object its own copy, or use one owner (`unique_ptr`) and let the others only borrow."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int{1};
+            delete p;
+            delete p;   // freed twice
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            auto p = std::make_unique<int>(1);   // freed exactly once, automatically
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+self-assignment:
+  title: "`a = a` must be safe"
+  text: "An assignment operator that frees the old buffer before copying from the source destroys the data when source and target are the same object. Check `this != &other`, or copy first and then swap."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                delete p;                // frees the source as well when o is *this
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                if (this == &o) return *this;   // nothing to do, and nothing to destroy
+                delete p;
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      out: "5\n"
+push-back-of-own-element:
+  title: "`v.push_back(v[0])` reads from freed memory"
+  text: "If `push_back` reallocates and frees the old buffer before copying its argument, a reference to an element of the same vector dangles. Copy the value first, or build the new buffer before freeing the old one."
+insert-of-own-element:
+  title: "`v.insert(i, v[0])` has the same trap"
+  text: "Inserting an element of the vector itself while the buffer is reallocated or shifted reads a moved or freed slot. Take a copy of the value before changing the storage."
+growth-by-one:
+  title: "Grow geometrically, not by one"
+  text: "Growing the capacity by 1 on every `push_back` copies all elements every time, which is O(n squared) overall. Doubling the capacity makes `push_back` amortized O(1)."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t size = 0, capacity = 0, reallocations = 0;
+            for (int i = 0; i < 100; ++i) {
+                if (size == capacity) {
+                    capacity += 1;    // one slot more each time
+                    ++reallocations;  // ... and every element copied again
+                }
+                ++size;
+            }
+            std::cout << reallocations << "\n";
+        }
+      out: "100\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t size = 0, capacity = 0, reallocations = 0;
+            for (int i = 0; i < 100; ++i) {
+                if (size == capacity) {
+                    capacity = capacity == 0 ? 1 : capacity * 2;   // double it
+                    ++reallocations;
+                }
+                ++size;
+            }
+            std::cout << reallocations << "\n";
+        }
+      out: "8\n"
+reserve-shrinks:
+  title: "`reserve(n)` must never shrink"
+  text: "`reserve` asks for at least n slots; if the capacity is already larger it has to do nothing. Shrinking by accident invalidates elements and loses capacity; `shrink_to_fit` is the explicit request."
+shrink-to-fit-keeps-capacity:
+  title: "`shrink_to_fit` should reduce the capacity"
+  text: "`shrink_to_fit` asks the vector to give back unused capacity: afterwards the capacity should equal the size. An implementation that does nothing passes a casual test and fails a careful one."
+clear-frees-capacity:
+  title: "`clear()` keeps the capacity"
+  text: "`clear()` removes the elements but keeps the allocation, so refilling is cheap and no pointer to the buffer is lost. Giving the memory back is a separate step: `shrink_to_fit` or swap with an empty vector."
+brace-initialization-picks-initializer-list:
+  title: "`{}` prefers the `initializer_list` constructor"
+  text: "`std::vector<int> v{3, 7}` holds two elements, 3 and 7, while `std::vector<int> v(3, 7)` holds three sevens. Braces choose an `initializer_list` constructor whenever one is viable."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{3, 7};   // the two elements 3 and 7
+            std::cout << v.size() << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v(3, 7);   // parentheses: three sevens
+            std::cout << v.size() << "\n";
+        }
+      out: "3\n"
+move-not-noexcept:
+  title: "A move that may throw is not used by `vector`"
+  text: "`std::vector` only moves its elements when it grows if the move constructor is `noexcept`; otherwise it copies. Mark your move operations `noexcept`, and test that a vector of your type does not copy."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) {}   // not noexcept: vector will not trust it
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});   // grows: relocates the first element
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) noexcept {}   // vector can move safely
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 0\n"
+off-by-one-on-erase:
+  title: "`erase(i)` must shift exactly the tail"
+  text: "Erasing index i moves elements i+1 to n-1 down by one place. An off-by-one leaves a duplicate or drops the last element; test erasing the first, the last and the only element."
+std-container-inside:
+  title: "Do not hide a `std::vector` inside the class"
+  text: "Wrapping a `std::vector<int>` skips the point of the exercise, managing the memory yourself, and the tests reject it. Allocate with `new int[]` and own the buffer through the rule of five."

@@ -64,11 +64,11 @@ try {
   await shot(page, "g2-demo");
 
   // a lesson whose explanations are not written yet: readable titles, no text, no crash
-  await t.open(page, "core.classes.const-correctness");
+  await t.open(page, "core.inherit.basics");
   await page.locator(".left .tab", { hasText: "Gotchas" }).click();
   const n = await page.locator(".gotchas li").count();
   const first = (await page.locator(".gotchas .g-title").first().textContent()) ?? "";
-  check(n === 7 && first === "Missing const on getter", `an unexplained lesson still lists its ${n} gotchas with readable titles (${first})`);
+  check(n === 9 && first === "Object slicing", `an unexplained lesson still lists its ${n} gotchas with readable titles (${first})`);
   check((await page.locator(".gotchas .g-text").count()) === 0, "…and shows no empty explanation boxes");
   await page.close();
 } catch (e) {

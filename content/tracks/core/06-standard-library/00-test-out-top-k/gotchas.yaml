@@ -1,0 +1,123 @@
+map-operator-inserts:
+  title: "`map[key]` inserts a default value"
+  text: "Reading `counts[word]` creates the entry when it is missing, so a lookup grows the map. Use `find`, `contains` or `at` to look without inserting; `counts[word]++` is the right way to count."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, int> m;
+            if (m["apple"] == 0) {}        // looking, but operator[] inserts
+            std::cout << m.size() << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, int> m;
+            if (m.find("apple") == m.end()) {}   // find looks without inserting
+            std::cout << m.size() << "\n";
+        }
+      out: "0\n"
+case-sensitivity:
+  title: "Words differ by case unless you fold it"
+  text: "\"The\" and \"the\" are different keys. Lower-case each word before counting when the task treats them as the same, going through `unsigned char` as `std::tolower` requires."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <set>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("The the");
+            std::set<std::string> words;
+            std::string w;
+            while (in >> w) words.insert(w);
+            std::cout << words.size() << "\n";   // "The" and "the"
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <cctype>
+        #include <iostream>
+        #include <set>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("The the");
+            std::set<std::string> words;
+            std::string w;
+            while (in >> w) {
+                std::transform(w.begin(), w.end(), w.begin(), [](unsigned char c) { return std::tolower(c); });
+                words.insert(w);
+            }
+            std::cout << words.size() << "\n";
+        }
+      out: "1\n"
+tie-break-missing:
+  title: "Equal counts need a tie-break"
+  text: "Sorting by count alone leaves words with equal counts in an unspecified order, so the output can differ between runs or standard libraries. Break ties explicitly, for example alphabetically."
+tolower-on-negative-char:
+  title: "`std::tolower` needs an `unsigned char` value"
+  text: "The `<cctype>` functions take an `int` that must be 0 to 255 or EOF, so passing a negative `char` (any byte above 127) is undefined behavior. Cast first: `std::tolower(static_cast<unsigned char>(c))`."
+string-per-word:
+  title: "A `string` per word allocates; a `string_view` does not"
+  text: "Copying each word into its own `std::string` allocates for every token. `std::string_view`s into the original text avoid the copies, as long as the text outlives them."
+full-sort-of-everything:
+  title: "Sorting everything to find the top k is wasteful"
+  text: "`std::partial_sort` finds the k largest in O(n log k), and `std::nth_element` in O(n), against O(n log n) for sorting all n elements. For a few results out of many words, that matters."
+k-larger-than-distinct:
+  title: "`k` can exceed the number of distinct words"
+  text: "Asking for the top 10 of 3 distinct words must return 3, not read past the end. Clamp the count first: `std::min(k, size)`."
+k-zero:
+  title: "`k` can be zero"
+  text: "Asking for the top 0 words must return an empty result, not one element and not an error. Check the edge cases `k == 0` and an empty text before the main logic."
+non-letter-separators:
+  title: "Anything that is not a letter separates words"
+  text: "Splitting on spaces alone leaves punctuation attached, so \"end.\" and \"end\" count as different words. Treat every non-letter as a separator."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <set>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("hello, world hello");
+            std::set<std::string> words;
+            std::string w;
+            while (in >> w) words.insert(w);   // "hello," and "hello" differ
+            std::cout << words.size() << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <cctype>
+        #include <iostream>
+        #include <set>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::string text = "hello, world hello";
+            for (char& c : text)
+                if (!std::isalpha(static_cast<unsigned char>(c))) c = ' ';   // punctuation separates too
+            std::istringstream in(text);
+            std::set<std::string> words;
+            std::string w;
+            while (in >> w) words.insert(w);
+            std::cout << words.size() << "\n";
+        }
+      out: "2\n"

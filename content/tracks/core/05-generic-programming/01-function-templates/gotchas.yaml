@@ -1,0 +1,238 @@
+conflicting-deduction:
+  title: "Both arguments must deduce the same `T`"
+  text: "`larger(1, 2.5)` fails because `T` would be both `int` and `double`. Spell the type (`larger<double>(1, 2.5)`), use two type parameters, or return `std::common_type_t<A, B>`."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        T larger(T a, T b) { return a > b ? a : b; }
+
+        int main() {
+            larger(1, 2.5);   // T would be int AND double
+        }
+      error: "larger"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class T>
+        T larger(T a, T b) { return a > b ? a : b; }
+
+        int main() {
+            std::cout << larger<double>(1, 2.5) << "\n";   // say which T you mean
+        }
+      out: "2.5\n"
+returns-a-copy:
+  title: "A template can return a copy where a reference was meant"
+  text: "Returning `T` by value copies big objects on every call, while returning `const T&` is what `std::max` does. Take care that the reference is not to a temporary that dies at the end of the statement."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        template <class T>
+        T first(const T& a, const T&) { return a; }   // returns a copy
+
+        int main() {
+            Noisy a, b;
+            auto r = first(a, b);
+            (void)r;
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        template <class T>
+        const T& first(const T& a, const T&) { return a; }   // a reference to an argument
+
+        int main() {
+            Noisy a, b;
+            const auto& r = first(a, b);
+            (void)r;
+        }
+      out: ""
+requires-operator-greater:
+  title: "Require only `<`, as the standard library does"
+  text: "A template that also uses `>` or `==` forces extra operators onto every type. Express every comparison with `<`: `a > b` is `b < a`, and equivalence is `!(a < b) && !(b < a)`."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        struct Version {
+            int n;
+            bool operator<(const Version& o) const { return n < o.n; }   // only <
+        };
+
+        template <class T>
+        const T& largest(const T& a, const T& b) { return a > b ? a : b; }   // needs > too
+
+        int main() {
+            Version a{1}, b{2};
+            largest(a, b);
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Version {
+            int n;
+            bool operator<(const Version& o) const { return n < o.n; }
+        };
+
+        template <class T>
+        const T& largest(const T& a, const T& b) { return b < a ? a : b; }   // a > b is b < a
+
+        int main() {
+            Version a{1}, b{2};
+            std::cout << largest(a, b).n << "\n";
+        }
+      out: "2\n"
+mixed-type-truncation:
+  title: "Mixed types can truncate silently"
+  text: "With `T add(T a, T b)` and an explicit `T = int`, a `double` argument is converted and its fraction is lost without a warning. Let the result type follow the arguments, with `auto` or `std::common_type_t`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        template <class T>
+        T add(T a, T b) { return a + b; }
+
+        int main() {
+            std::cout << add<int>(1, 2.5) << "\n";   // 2.5 is truncated to 2 first
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class A, class B>
+        auto add(A a, B b) { return a + b; }   // the result follows the arguments
+
+        int main() {
+            std::cout << add(1, 2.5) << "\n";
+        }
+      out: "3.5\n"
+std-swap-instead-of-adl-swap:
+  title: "Use `using std::swap; swap(a, b);`"
+  text: "Calling `std::swap(a, b)` directly ignores a better `swap` that the type provides in its own namespace. Writing `using std::swap; swap(a, b);` lets argument-dependent lookup choose the specialized one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        namespace lib {
+        struct W { int v; };
+        inline void swap(W& a, W& b) noexcept {
+            std::cout << "custom swap\n";
+            std::swap(a.v, b.v);
+        }
+        }  // namespace lib
+
+        int main() {
+            lib::W a{1}, b{2};
+            std::swap(a, b);   // never looks at lib::swap
+        }
+      out: ""
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        namespace lib {
+        struct W { int v; };
+        inline void swap(W& a, W& b) noexcept {
+            std::cout << "custom swap\n";
+            std::swap(a.v, b.v);
+        }
+        }  // namespace lib
+
+        int main() {
+            lib::W a{1}, b{2};
+            using std::swap;
+            swap(a, b);        // ADL finds lib::swap
+        }
+      out: "custom swap\n"
+empty-initializer-list:
+  title: "An empty `initializer_list` has no minimum"
+  text: "`min_of({})` has nothing to return, and the type cannot even be deduced from `{}`. Require at least one element, or return `std::optional<T>`."
+  demo:
+    bad:
+      code: |
+        #include <initializer_list>
+
+        template <class T>
+        T min_of(std::initializer_list<T> list) { return *list.begin(); }
+
+        int main() {
+            min_of({});   // what is T?
+        }
+      error: "min_of"
+    fix:
+      code: |
+        #include <initializer_list>
+        #include <iostream>
+        #include <optional>
+
+        template <class T>
+        std::optional<T> min_of(std::initializer_list<T> list) {
+            if (list.size() == 0) return std::nullopt;
+            T best = *list.begin();
+            for (const T& x : list) if (x < best) best = x;
+            return best;
+        }
+
+        int main() {
+            auto m = min_of<int>({});
+            std::cout << (m ? "has a minimum" : "empty") << "\n";
+        }
+      out: "empty\n"
+dangling-reference-from-clamp-value:
+  title: "`std::max` and `std::clamp` can return a dangling reference"
+  text: "They return a reference to one of their arguments, so `const std::string& r = std::max(make(), make());` binds to temporaries that die at the semicolon. Copy the result into a value: `std::string r = ...`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <string>
+
+        std::string a() { return "the first string is long enough to live on the heap"; }
+        std::string b() { return "the second string is long enough to live on the heap"; }
+
+        int main() {
+            const std::string& r = std::max(a(), b());   // refers to a temporary
+            std::cout << r << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <string>
+
+        std::string a() { return "the first string is long enough to live on the heap"; }
+        std::string b() { return "the second string is long enough to live on the heap"; }
+
+        int main() {
+            std::string r = std::max(a(), b());   // copy it out before the temporaries die
+            std::cout << r << "\n";
+        }
+      out: "the second string is long enough to live on the heap\n"

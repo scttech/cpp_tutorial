@@ -1,0 +1,306 @@
+shallow-copy:
+  title: "Copying a pointer is not copying what it points to"
+  text: "The compiler-generated copy copies the pointer member, so two objects share one buffer: a change shows in both and both free it. Write a real copy constructor, or hold a `std::vector` or `unique_ptr`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;   // copies the pointer, not the int it points to
+            std::cout << *b.p << "\n";
+        }                   // both destructors delete the same int
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}   // a deep copy: its own int
+            Buffer& operator=(const Buffer&) = delete;
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+double-free:
+  title: "Two owners free the same memory"
+  text: "When two objects hold the same raw pointer, both destructors `delete` it, which is undefined behavior. Give each object its own copy, or use one owner (`unique_ptr`) and let the others only borrow."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int{1};
+            delete p;
+            delete p;   // freed twice
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            auto p = std::make_unique<int>(1);   // freed exactly once, automatically
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+self-assignment:
+  title: "`a = a` must be safe"
+  text: "An assignment operator that frees the old buffer before copying from the source destroys the data when source and target are the same object. Check `this != &other`, or copy first and then swap."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                delete p;                // frees the source as well when o is *this
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                if (this == &o) return *this;   // nothing to do, and nothing to destroy
+                delete p;
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      out: "5\n"
+move-without-noexcept:
+  title: "A move that may throw is not used by `vector`"
+  text: "`std::vector` only moves its elements when it grows if the move constructor is `noexcept`; otherwise it copies, to keep its strong guarantee. Mark your move operations `noexcept`."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) {}   // not noexcept: vector will not trust it
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});   // grows: relocates the first element
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct T {
+            static inline int copies = 0;
+            T() = default;
+            T(const T&) { ++copies; }
+            T(T&&) noexcept {}   // vector can move safely
+        };
+
+        int main() {
+            std::vector<T> v;
+            v.push_back(T{});
+            v.push_back(T{});
+            std::cout << "copies: " << T::copies << "\n";
+        }
+      out: "copies: 0\n"
+source-not-emptied:
+  title: "A moved-from object must give up what it owned"
+  text: "The source of a move is still destroyed, so a move that copies the pointer without clearing the source makes both destructors free the same buffer. Set the source's pointer to `nullptr` and its size to 0."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(Buffer&& o) noexcept : p(o.p) {}   // the source still owns it too
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = std::move(a);
+            std::cout << *b.p << "\n";
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(Buffer&& o) noexcept : p(std::exchange(o.p, nullptr)) {}   // the source gives it up
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = std::move(a);
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+resize-overflow:
+  title: "Growing the capacity can overflow"
+  text: "Doubling a `size_t` capacity, or computing `n * sizeof(T)`, can wrap around to a small number, so you allocate too little and then write past it. Check for overflow before you allocate."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t capacity = static_cast<std::size_t>(-1) / 2 + 1;   // half of the range, plus one
+            std::size_t doubled = capacity * 2;                            // wraps around to 0
+            std::cout << doubled << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t capacity = static_cast<std::size_t>(-1) / 2 + 1;
+            if (capacity > static_cast<std::size_t>(-1) / 2) {   // would not fit: refuse
+                std::cout << "too big\n";
+                return 0;
+            }
+            std::cout << capacity * 2 << "\n";
+        }
+      out: "too big\n"
+uninitialized-new-elements:
+  title: "`new int[n]` leaves the elements uninitialized"
+  text: "`new int[3]` holds garbage; `new int[3]{}` or `std::vector<int>(3)` gives zeros. Reading an element before writing it is undefined behavior, so initialize every slot you expose."
+swap-by-copying:
+  title: "Swap by exchanging pointers, not by copying"
+  text: "A swap that copies three buffers allocates and copies for nothing, and can throw. Exchanging the members (pointer and size) is O(1) and cannot fail: provide a `swap` and build assignment on it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct S {
+            static inline int copies = 0;
+            S() = default;
+            S(const S&) { ++copies; }
+            S& operator=(const S&) { ++copies; return *this; }
+            S(S&&) noexcept = default;
+            S& operator=(S&&) noexcept = default;
+        };
+
+        int main() {
+            S a, b;
+            S t = a;   // a swap written with copies
+            a = b;
+            b = t;
+            std::cout << S::copies << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct S {
+            static inline int copies = 0;
+            S() = default;
+            S(const S&) { ++copies; }
+            S& operator=(const S&) { ++copies; return *this; }
+            S(S&&) noexcept = default;
+            S& operator=(S&&) noexcept = default;
+        };
+
+        int main() {
+            S a, b;
+            std::swap(a, b);   // three moves, no copies
+            std::cout << S::copies << "\n";
+        }
+      out: "0\n"
+malloc-instead-of-new:
+  title: "`malloc` does not run constructors"
+  text: "`malloc` returns raw bytes: no constructor runs, so a `std::string` placed there is garbage, and calling `delete` on it is wrong. Use `new` and `make_unique`, or a `std::vector`."
+  demo:
+    bad:
+      code: |
+        #include <cstdlib>
+        #include <iostream>
+
+        struct Widget {
+            Widget() { std::cout << "constructed\n"; }
+        };
+
+        int main() {
+            Widget* w = static_cast<Widget*>(std::malloc(sizeof(Widget)));   // raw bytes: no constructor
+            std::free(w);
+        }
+      out: ""
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Widget {
+            Widget() { std::cout << "constructed\n"; }
+        };
+
+        int main() {
+            Widget* w = new Widget;   // allocates and constructs
+            delete w;
+        }
+      out: "constructed\n"

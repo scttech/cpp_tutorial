@@ -1,0 +1,278 @@
+from-chars-stops-at-first-bad-char:
+  title: "`from_chars` stops at the first bad character"
+  text: "Parsing \"12abc\" succeeds with 12 and leaves `ptr` pointing at the `a`. Check that `ptr` reached the end of the text when the whole token must be a number."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+from-chars-accepts-inf-and-nan:
+  title: "`from_chars` happily parses `nan` and `inf`"
+  text: "`std::from_chars` for `double` accepts the text `nan` and `inf` as numbers. If your program must reject them, check `std::isfinite` after parsing."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc()) << "\n";
+        }
+      out: "accepted: 1\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <cmath>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc() && std::isfinite(value)) << "\n";
+        }
+      out: "accepted: 0\n"
+no-plus-sign:
+  title: "`from_chars` does not accept a leading `+`"
+  text: "\"+5\" fails with `invalid_argument`, unlike `strtol` or `stoi`. If your format allows an explicit plus sign, skip it yourself before parsing."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "+5";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok" : "failed") << "\n";
+        }
+      out: "failed\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "+5";
+            if (!text.empty() && text[0] == '+') text.remove_prefix(1);   // skip an explicit plus
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? value : -1) << "\n";
+        }
+      out: "5\n"
+no-leading-whitespace:
+  title: "`from_chars` does not skip leading whitespace"
+  text: "\" 5\" fails: unlike `strtol` or `stream >>`, `from_chars` starts at the first character you give it. Trim the text first when spaces are allowed."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = " 5";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok" : "failed") << "\n";
+        }
+      out: "failed\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = " 5";
+            while (!text.empty() && text.front() == ' ') text.remove_prefix(1);   // trim first
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? value : -1) << "\n";
+        }
+      out: "5\n"
+overflow-is-an-error-code:
+  title: "Overflow is an error code, not a wrapped value"
+  text: "`from_chars` reports `std::errc::result_out_of_range` when a number does not fit, and leaves the value unchanged. Check `ec` after every parse, or you will keep using the old value."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "99999999999";
+            int value = 0;
+            std::from_chars(text.data(), text.data() + text.size(), value);   // result ignored
+            std::cout << value << "\n";   // still 0, and nobody noticed
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "99999999999";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            if (r.ec == std::errc::result_out_of_range) std::cout << "out of range\n";
+            else std::cout << value << "\n";
+        }
+      out: "out of range\n"
+stoi-throws:
+  title: "`std::stoi` throws, and accepts trailing junk"
+  text: "`stoi(\"abc\")` throws `invalid_argument` and `stoi(\"99999999999\")` throws `out_of_range`, while `stoi(\"12abc\")` quietly returns 12. Use `from_chars` and check the end pointer when you want strict parsing."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::cout << std::stoi("12abc") << "\n";   // the junk is quietly ignored
+        }
+      out: "12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() && r.ptr == text.data() + text.size() ? "ok" : "rejected") << "\n";
+        }
+      out: "rejected\n"
+string-view-of-temporary:
+  title: "A `string_view` of a temporary dangles"
+  text: "A view of a temporary `std::string` dangles as soon as that temporary dies, at the end of the statement, and reading it is undefined behavior. Keep the string in a named variable."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string_view view = make();   // the temporary string dies at the semicolon
+            std::cout << view << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string text = make();         // something that owns the characters
+            std::string_view view = text;
+            std::cout << view << "\n";
+        }
+      out: "a string that is long enough to live on the heap\n"
+split-keeps-empty-fields:
+  title: "Splitting keeps the empty fields"
+  text: "Splitting \"a,,b\" on a comma gives three fields: \"a\", an empty one, and \"b\". Decide whether empty fields are errors, are skipped, or are real (CSV), and test for it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,,b");
+            std::string piece;
+            int n = 0;
+            while (std::getline(in, piece, ',')) ++n;   // the empty piece counts
+            std::cout << n << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,,b");
+            std::string piece;
+            int n = 0;
+            while (std::getline(in, piece, ','))
+                if (!piece.empty()) ++n;   // skip empty pieces
+            std::cout << n << "\n";
+        }
+      out: "2\n"
+atoi-returns-zero-on-error:
+  title: "`atoi` returns 0 on error"
+  text: "`atoi(\"abc\")` and `atoi(\"0\")` both give 0, so you cannot tell a failure from a zero. Use `std::from_chars` (or `strtol` with an end pointer) and look at the error code."
+  demo:
+    bad:
+      code: |
+        #include <cstdlib>
+        #include <iostream>
+
+        int main() {
+            std::cout << (std::atoi("abc") == std::atoi("0")) << "\n";   // failure and zero look the same
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <cstring>
+        #include <iostream>
+
+        bool parses(const char* s) {
+            int v = 0;
+            return std::from_chars(s, s + std::strlen(s), v).ec == std::errc();
+        }
+
+        int main() {
+            std::cout << (parses("abc") == parses("0")) << "\n";   // the two are told apart
+        }
+      out: "0\n"
+regex-is-slow:
+  title: "`std::regex` is slow, and can be catastrophic"
+  text: "It compiles the pattern at run time, is often 10 to 100 times slower than hand parsing, and a pattern like `(a+)+b` can backtrack exponentially. For simple formats, write a small parser."

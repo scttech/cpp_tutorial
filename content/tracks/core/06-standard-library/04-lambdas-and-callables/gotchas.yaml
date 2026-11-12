@@ -1,0 +1,191 @@
+dangling-capture-by-reference:
+  title: "A lambda can outlive the locals it captured"
+  text: "`[&]` captures by reference, so a lambda that is returned or stored for later refers to variables that no longer exist. Capture by value (`[x]` or `[=]`) when the lambda escapes its scope."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        std::function<int()> make() {
+            int x = 7;
+            return [&] { return x; };   // x is gone when make() returns
+        }
+
+        int main() {
+            auto f = make();
+            std::cout << f() << "\n";
+        }
+      reports: "stack-use-after-return"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        std::function<int()> make() {
+            int x = 7;
+            return [x] { return x; };   // a copy travels with the lambda
+        }
+
+        int main() {
+            auto f = make();
+            std::cout << f() << "\n";
+        }
+      out: "7\n"
+mutable-needed-to-change-a-capture:
+  title: "A by-value capture is const unless the lambda is `mutable`"
+  text: "The call operator of a lambda is `const` by default, so `[n] { ++n; }` does not compile. Add `mutable` to change the lambda's own copy; the original variable is never affected."
+  demo:
+    bad:
+      code: |
+        int main() {
+            int n = 0;
+            auto f = [n] { ++n; };   // the capture is const inside
+            f();
+        }
+      error: "mutable"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n = 0;
+            auto f = [n]() mutable { return ++n; };   // changes the lambda's own copy
+            f();
+            std::cout << f() << " " << n << "\n";
+        }
+      out: "2 0\n"
+copying-a-closure-copies-its-state:
+  title: "Copying a closure copies its captured state"
+  text: "A `mutable` lambda with a counter, once copied, has two independent counters: calls on one do not show in the other. Use `std::ref` (or a pointer) when you mean to share one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            auto f = [n = 0]() mutable { return ++n; };
+            auto g = f;   // a copy with its own counter
+            f();
+            f();
+            std::cout << g() << "\n";   // not 3
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        int main() {
+            auto f = [n = 0]() mutable { return ++n; };
+            auto g = std::ref(f);   // refers to f: one shared counter
+            f();
+            f();
+            std::cout << g() << "\n";
+        }
+      out: "3\n"
+std-function-copies-the-callable:
+  title: "`std::function` copies what you give it"
+  text: "Storing a stateful lambda in a `std::function` copies the lambda, so changes made through the `std::function` do not reach your original. Wrap it in `std::ref` to share the state."
+  demo:
+    bad:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        int main() {
+            auto f = [n = 0]() mutable { return ++n; };
+            std::function<int()> g = f;   // g holds its own copy of f
+            f();
+            f();
+            std::cout << g() << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        int main() {
+            auto f = [n = 0]() mutable { return ++n; };
+            std::function<int()> g = std::ref(f);   // refers to f
+            f();
+            f();
+            std::cout << g() << "\n";
+        }
+      out: "3\n"
+std-function-overhead:
+  title: "`std::function` costs an indirect call"
+  text: "It type-erases the callable, which usually means an indirect call and sometimes a heap allocation, and blocks inlining. In a hot path take the callable as a template parameter instead."
+std-function-needs-copyable-callable:
+  title: "`std::function` requires a copyable callable"
+  text: "A lambda that captures a `unique_ptr` is move-only, so it cannot be stored in a `std::function` (before C++23's `move_only_function`). Capture a `shared_ptr`, or take the callable as a template parameter."
+  demo:
+    bad:
+      code: |
+        #include <functional>
+        #include <memory>
+
+        int main() {
+            std::function<void()> f = [p = std::make_unique<int>(1)] { (void)p; };   // move-only lambda
+        }
+      error: "std::function"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            std::function<void()> f = [p = std::make_shared<int>(1)] { std::cout << *p << "\n"; };
+            f();
+        }
+      out: "1\n"
+capture-this-lifetime:
+  title: "A lambda that captures `this` must not outlive the object"
+  text: "`[this]` stores a raw pointer to the object. If the lambda is stored and called after the object is destroyed, it dangles. Copy the members you need into the lambda, or hold a `shared_ptr`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <string>
+
+        struct Widget {
+            std::string name = "a widget with a name long enough to live on the heap";
+            std::function<std::string()> getter() { return [this] { return name; }; }
+        };
+
+        int main() {
+            auto* w = new Widget;
+            auto get = w->getter();
+            delete w;                        // the lambda still points at it
+            std::cout << get() << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <string>
+
+        struct Widget {
+            std::string name = "a widget with a name long enough to live on the heap";
+            std::function<std::string()> getter() { return [name = name] { return name; }; }   // a copy
+        };
+
+        int main() {
+            auto* w = new Widget;
+            auto get = w->getter();
+            delete w;
+            std::cout << get() << "\n";
+        }
+      out: "a widget with a name long enough to live on the heap\n"
+default-capture-hides-what-is-captured:
+  title: "`[=]` and `[&]` hide what is captured"
+  text: "A default capture grabs whatever the body uses, including `this` (implicitly with `[=]`, deprecated in C++20). Name the captures explicitly, so lifetime problems are visible where they are written."
+handlers-called-out-of-order:
+  title: "Handlers must be called in registration order"
+  text: "Keeping handlers in an `unordered_map`, or sorting them, loses the order in which they were registered. Store them in a `vector` and call them in sequence."

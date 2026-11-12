@@ -1,0 +1,196 @@
+duration-cast-truncates:
+  title: "`duration_cast` truncates toward zero"
+  text: "`duration_cast<seconds>(1500ms)` is 1 second, not 1.5. Use a floating-point duration (`duration<double>`) when you want the fraction, and round explicitly when you want rounding."
+  demo:
+    bad:
+      code: |
+        #include <chrono>
+        #include <iostream>
+
+        int main() {
+            using namespace std::chrono;
+            auto d = 1500ms;
+            std::cout << duration_cast<seconds>(d).count() << "\n";   // the 500 ms are cut off
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <chrono>
+        #include <iostream>
+
+        int main() {
+            using namespace std::chrono;
+            auto d = 1500ms;
+            std::cout << duration<double>(d).count() << "\n";   // a floating-point duration keeps them
+        }
+      out: "1.5\n"
+mixed-unit-arithmetic:
+  title: "Mixed units convert to the finer unit"
+  text: "`1s + 500ms` is a `milliseconds` value of 1500, so printing its `count()` as if it were seconds is a mistake. Convert explicitly, or use a `duration<double>`, before you print the number."
+  demo:
+    bad:
+      code: |
+        #include <chrono>
+        #include <iostream>
+
+        int main() {
+            using namespace std::chrono_literals;
+            auto total = 1s + 500ms;               // the unit is now milliseconds
+            std::cout << total.count() << "\n";    // 1500, not 1.5
+        }
+      out: "1500\n"
+    fix:
+      code: |
+        #include <chrono>
+        #include <iostream>
+
+        int main() {
+            using namespace std::chrono_literals;
+            auto total = 1s + 500ms;
+            std::cout << std::chrono::duration<double>(total).count() << "\n";   // in seconds, on purpose
+        }
+      out: "1.5\n"
+system-clock-goes-backwards:
+  title: "`system_clock` can go backwards"
+  text: "It follows the wall clock, so an NTP correction or a user change can move it back and give negative intervals. Measure durations with `steady_clock`, which never decreases."
+rand-is-bad:
+  title: "`rand()` is a poor generator"
+  text: "Its quality is unspecified, `RAND_MAX` may be only 32767, it has one hidden global state, and `rand() % n` is biased. Use a `<random>` engine such as `std::mt19937` with a distribution."
+distributions-not-portable:
+  title: "Distributions are not portable across libraries"
+  text: "`std::mt19937` produces the same numbers everywhere, but `uniform_int_distribution` and its relatives may turn them into values differently in different standard libraries. For reproducible results write the mapping yourself."
+modulo-bias:
+  title: "`rng() % n` is slightly biased"
+  text: "Unless `n` divides the generator's range evenly, some results come up more often than others. `std::uniform_int_distribution` rejects the surplus values; so can you."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int count[10] = {};
+            for (int r = 0; r < 256; ++r) ++count[r % 10];   // a generator with 256 outcomes, folded into 10
+            std::cout << count[0] << " " << count[9] << "\n";
+        }
+      out: "26 25\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int count[10] = {};
+            for (int r = 0; r < 256; ++r) {
+                if (r >= 250) continue;   // reject the surplus values: 250 is a multiple of 10
+                ++count[r % 10];
+            }
+            std::cout << count[0] << " " << count[9] << "\n";
+        }
+      out: "25 25\n"
+seed-with-time:
+  title: "Seeding with the clock makes runs unrepeatable"
+  text: "A fixed seed gives the same sequence every run, which is what tests and simulations need. Seed from the clock or `random_device` only when you want a different run each time, and log the seed so a bug can be replayed."
+accumulate-int-overflow:
+  title: "Summing into an `int` can overflow"
+  text: "The initial value of `std::accumulate` decides the type, so `0` sums in `int` and overflows quietly (undefined behavior for signed). Start from `0LL`, or from a `double`, for big sums."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            int sum = 0;
+            for (int x : v) sum += x;   // overflows an int
+            std::cout << sum << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            long long sum = 0;   // a wider accumulator
+            for (int x : v) sum += x;
+            std::cout << sum << "\n";
+        }
+      out: "2147483648\n"
+float-equality:
+  title: "Never compare floats with `==`"
+  text: "`0.1 + 0.2 == 0.3` is false, because neither side is exactly representable. Compare with a tolerance, `std::abs(a - b) <= eps`, chosen for the size of the numbers."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double a = 0.1 + 0.2;
+            std::cout << (a == 0.3) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 0.1 + 0.2;
+            std::cout << (std::abs(a - 0.3) < 1e-9) << "\n";   // within a tolerance
+        }
+      out: "1\n"
+nan-comparisons:
+  title: "NaN is not equal to anything, even itself"
+  text: "Every comparison with NaN is false (except `!=`), so `x == x` is false for NaN and a sort containing NaNs breaks its ordering. Test with `std::isnan` first."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double x = std::nan("");
+            std::cout << (x == x) << "\n";   // NaN is not equal to itself
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double x = std::nan("");
+            std::cout << std::isnan(x) << "\n";   // ask for it by name
+        }
+      out: "1\n"
+summation-error:
+  title: "Floating-point sums depend on the order"
+  text: "Adding a tiny number to a huge one loses it entirely, so `(big + small) - big` is not `small`. Sum the smallest numbers first, or use Kahan summation, when the accuracy matters."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            volatile double big = 1e16;
+            double small = 1.0;
+            std::cout << (big + small) - big << "\n";   // the 1.0 was absorbed
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            volatile double big = 1e16;
+            double small = 1.0;
+            std::cout << (big - big) + small << "\n";   // cancel the large terms first
+        }
+      out: "1\n"
+shuffle-not-portable:
+  title: "`std::shuffle` is not reproducible across libraries"
+  text: "With the same engine and seed, different standard libraries may produce different permutations. If results must be identical everywhere, implement Fisher-Yates yourself on top of an engine."

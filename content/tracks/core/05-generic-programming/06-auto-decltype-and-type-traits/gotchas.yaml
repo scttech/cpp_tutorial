@@ -1,0 +1,205 @@
+auto-drops-references:
+  title: "`auto` strips references"
+  text: "`auto x = ref;` makes a copy, so changing `x` does not change what `ref` refers to. Write `auto&` (or `auto&&`) when you want a reference."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = 1;
+            int& r = a;
+            auto x = r;   // a copy
+            x = 5;
+            std::cout << a << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = 1;
+            int& r = a;
+            auto& x = r;   // a reference
+            x = 5;
+            std::cout << a << "\n";
+        }
+      out: "5\n"
+auto-drops-const:
+  title: "`auto` strips top-level `const`"
+  text: "`const int c = 1; auto x = c;` gives a plain, modifiable `int`. Write `const auto x` to keep the const, or `auto&`, which keeps it automatically."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            const int c = 1;
+            auto x = c;   // a plain int
+            std::cout << std::is_const_v<decltype(x)> << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            const int c = 1;
+            const auto x = c;   // const kept on purpose
+            std::cout << std::is_const_v<decltype(x)> << "\n";
+        }
+      out: "1\n"
+decltype-auto-of-parenthesized-name:
+  title: "`decltype((x))` is a reference"
+  text: "`decltype(x)` is the declared type of `x`, but `decltype((x))` (the expression in parentheses) is `T&`. A `decltype(auto)` function that returns `(x)` for a local returns a dangling reference."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            int x = 0;
+            std::cout << std::is_reference_v<decltype((x))> << "\n";   // (x) is an lvalue expression
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            int x = 0;
+            std::cout << std::is_reference_v<decltype(x)> << "\n";     // the declared type of x
+        }
+      out: "0\n"
+top-level-const-only:
+  title: "`remove_const` removes only top-level const"
+  text: "`const int*` is a pointer to a const int; the `const` is not at the top level, so `std::remove_const_t<const int*>` stays `const int*`. Remove the pointer first, then the const."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            using T = std::remove_const_t<const int*>;   // the const is not at the top level
+            std::cout << std::is_same_v<T, int*> << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            using T = std::remove_const_t<std::remove_pointer_t<const int*>>;   // pointer first, then const
+            std::cout << std::is_same_v<T, int> << "\n";
+        }
+      out: "1\n"
+detection-needs-void-t:
+  title: "Detecting a member needs `void_t` or `requires`"
+  text: "To ask \"does `T` have `size_type`?\" the test must make substitution failure quietly false, using a `std::void_t` specialization or a `requires` expression. Naming `T::size_type` directly is a hard error."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        constexpr bool has_size_type = sizeof(typename T::size_type) > 0;   // a hard error for int
+
+        int main() {
+            static_assert(!has_size_type<int>);
+        }
+      error: "size_type"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        template <class T>
+        constexpr bool has_size_type = requires { typename T::size_type; };   // false, not an error
+
+        int main() {
+            std::cout << has_size_type<int> << has_size_type<std::vector<int>> << "\n";
+        }
+      out: "01\n"
+array-decays-to-pointer:
+  title: "An array decays when deduced by value"
+  text: "`auto x = arr;` or a by-value `T` parameter deduces a pointer and loses the size. `auto&` or `T (&)[N]` keeps the array type and its length."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int arr[3] = {1, 2, 3};
+            auto x = arr;   // a pointer
+            std::cout << (sizeof(x) == sizeof(arr)) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int arr[3] = {1, 2, 3};
+            auto& x = arr;   // still an array
+            std::cout << (sizeof(x) == sizeof(arr)) << "\n";
+        }
+      out: "1\n"
+string-literal-is-an-array:
+  title: "A string literal is an array of `const char`"
+  text: "`\"abc\"` has type `const char[4]`, terminator included, and decays to `const char*` as soon as it is copied into an `auto`. Take `const char (&)[N]` to keep the length."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            auto s = "abc";   // decays to const char*
+            std::cout << std::is_array_v<decltype(s)> << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        int main() {
+            auto& s = "abc";  // keeps const char[4]
+            std::cout << std::is_array_v<std::remove_reference_t<decltype(s)>> << "\n";
+        }
+      out: "1\n"
+memcpy-on-non-trivial-types:
+  title: "`memcpy` on non-trivial types is undefined"
+  text: "Copying the bytes of a `std::string` duplicates its internal pointer, so two strings share one buffer and both free it. Use `memcpy` only when `std::is_trivially_copyable_v<T>`, and copy-construct otherwise."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <cstring>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string a(40, 'x');
+            std::string b;
+            std::memcpy(static_cast<void*>(&b), &a, sizeof(a));   // b now shares a's heap buffer
+            std::cout << b.size() << "\n";
+        }                                                          // both free it
+      reports: "AddressSanitizer"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string a(40, 'x');
+            std::string b;
+            b = a;   // copy-assignment knows how to copy a string
+            std::cout << b.size() << "\n";
+        }
+      out: "40\n"

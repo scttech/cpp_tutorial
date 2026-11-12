@@ -1,0 +1,57 @@
+raw-new-instead-of-make-unique:
+  title: "Prefer `make_unique` to `unique_ptr(new T)`"
+  text: "`make_unique<T>(args)` is shorter, never leaks when another argument throws during the call, and never lets a raw pointer be wrapped twice. Use a bare `new` only inside the classes that implement ownership."
+release-without-delete:
+  title: "`release()` gives up ownership, it does not delete"
+  text: "`p.release()` returns the raw pointer and leaves it to you; if you ignore the result, the object leaks. Use `reset()` to delete, and `release()` only when handing ownership to someone else."
+cached-size-breaks-moves:
+  title: "A cached count must move with its data"
+  text: "A tree node that caches `size_` and is moved leaves the source claiming elements it no longer owns unless the move resets it. Keep derived data consistent in every special member, or do not cache it."
+user-declared-destructor-suppresses-moves:
+  title: "A user-declared destructor disables the implicit move"
+  text: "Declaring `~T()` (even `= default`) stops the compiler from generating move operations, so moves silently become copies. Follow the rule of zero: declare none of the special members, or all five."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+        #include <vector>
+
+        struct Widget {
+            std::vector<int> v;
+            ~Widget() {}   // declared by hand: no implicit move any more
+        };
+
+        int main() {
+            Widget a;
+            a.v = {1, 2, 3};
+            Widget b = std::move(a);          // quietly a copy
+            std::cout << a.v.size() << "\n";  // a still has its elements
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+        #include <vector>
+
+        struct Widget {
+            std::vector<int> v;   // rule of zero: declare nothing, get a real move
+        };
+
+        int main() {
+            Widget a;
+            a.v = {1, 2, 3};
+            Widget b = std::move(a);
+            std::cout << a.v.size() << "\n";
+        }
+      out: "0\n"
+erase-loses-a-subtree:
+  title: "Erasing a node must re-attach its children"
+  text: "Deleting a tree node by dropping its `unique_ptr` destroys everything below it. Move the child subtrees (or the successor) into place first, and only then let the node go."
+inorder-vs-preorder:
+  title: "In-order, pre-order and post-order visit in different orders"
+  text: "In-order on a binary search tree gives sorted keys; pre-order visits a node before its children (good for copying a tree); post-order visits children first (good for deleting). Pick the order the task needs."
+shared-instead-of-unique:
+  title: "Default to `unique_ptr`, not `shared_ptr`"
+  text: "`shared_ptr` costs an atomic reference count, hides who really owns the object, and leaks on cycles. Use `unique_ptr` for single ownership and plain references or pointers to borrow."

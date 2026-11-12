@@ -1,0 +1,188 @@
+public-data:
+  title: "Public data lets anyone break the invariant"
+  text: "If `balance` is a public member, any code can set it to -40. Private data forces every change through member functions that can check the rules. In a `struct` members default to public, in a `class` to private."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance = 10;
+        };
+
+        int main() {
+            Account a;
+            a.balance -= 50;   // nothing stops this
+            std::cout << a.balance << "\n";
+        }
+      out: "-40\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        class Account {
+        public:
+            bool withdraw(int amount) {
+                if (amount > balance_) return false;   // the rule lives in one place
+                balance_ -= amount;
+                return true;
+            }
+            int balance() const { return balance_; }
+
+        private:
+            int balance_ = 10;
+        };
+
+        int main() {
+            Account a;
+            a.withdraw(50);
+            std::cout << a.balance() << "\n";
+        }
+      out: "10\n"
+getter-returns-mutable-reference:
+  title: "A getter that returns `T&` hands out the keys"
+  text: "Returning a non-const reference to a member lets callers change it without going through your checks, which defeats encapsulation. Return by value, or `const T&`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        class Account {
+        public:
+            int& balance() { return balance_; }   // a reference into the object
+        private:
+            int balance_ = 10;
+        };
+
+        int main() {
+            Account a;
+            a.balance() = -5;   // bypasses every rule
+            std::cout << a.balance() << "\n";
+        }
+      out: "-5\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        class Account {
+        public:
+            void deposit(int amount) { if (amount > 0) balance_ += amount; }
+            int balance() const { return balance_; }   // a value, not a reference
+        private:
+            int balance_ = 10;
+        };
+
+        int main() {
+            Account a;
+            a.deposit(-5);   // refused
+            std::cout << a.balance() << "\n";
+        }
+      out: "10\n"
+non-const-getter:
+  title: "A getter that is not `const` cannot be used on a `const&`"
+  text: "A getter without `const` cannot be called on a `const Account&`, which is how most functions receive your object. Every function that only reads is `const`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() { return 10; }   // reads only, but is not const
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      error: "const"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() const { return 10; }
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      out: "10\n"
+partial-update-on-failure:
+  title: "A failing operation must not half-apply"
+  text: "If a transfer takes money from one account and then fails before depositing it in the other, the money has vanished. Validate everything first, then change state, or roll back on failure."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            balance -= amount;                                  // changed first ...
+            if (balance < 0) throw std::runtime_error("no");    // ... checked afterwards
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";   // the failed call left its mark
+        }
+      out: "-10\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            if (balance < amount) throw std::runtime_error("no");   // check first
+            balance -= amount;
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";
+        }
+      out: "10\n"
+self-transfer-aliasing:
+  title: "Transferring an account to itself"
+  text: "`transfer(a, a, 5)` makes both references name one account, so code that reads both balances first and then writes them back can create money. Decide what a self-transfer means (usually nothing) and handle it first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        void transfer(int& from, int& to, int amount) {
+            int f = from, t = to;
+            from = f - amount;
+            to = t + amount;      // overwrites the line above when from and to are the same
+        }
+
+        int main() {
+            int x = 10;
+            transfer(x, x, 5);
+            std::cout << x << "\n";   // 5 was created from nothing
+        }
+      out: "15\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        void transfer(int& from, int& to, int amount) {
+            if (&from == &to) return;   // moving money to yourself changes nothing
+            from -= amount;
+            to += amount;
+        }
+
+        int main() {
+            int x = 10;
+            transfer(x, x, 5);
+            std::cout << x << "\n";
+        }
+      out: "10\n"
+invariant-spread-over-several-members:
+  title: "One invariant spread over several members"
+  text: "When a rule involves several fields, such as `size <= capacity`, every function that changes any of them must keep it true. Fewer fields, or one private function that does all the updating, makes that easier."

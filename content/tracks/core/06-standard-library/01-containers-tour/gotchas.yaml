@@ -1,0 +1,133 @@
+map-operator-index-inserts:
+  title: "`map[key]` inserts a default value"
+  text: "Reading `m[key]` creates the entry when it is missing, so a lookup grows the map and the key now \"exists\". Use `find`, `contains` or `at` to look without inserting."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, int> m;
+            if (m["apple"] == 0) {}        // looking, but operator[] inserts
+            std::cout << m.size() << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, int> m;
+            if (m.find("apple") == m.end()) {}   // find looks without inserting
+            std::cout << m.size() << "\n";
+        }
+      out: "0\n"
+unordered-iteration-order:
+  title: "`unordered_map` iterates in no useful order"
+  text: "The order depends on the hash function and the library, and changes when the table grows. Never rely on it: sort the keys, or use `std::map`, when output must be deterministic."
+vector-erase-front-is-linear:
+  title: "Erasing at the front of a vector is O(n)"
+  text: "Every element behind the erased one shifts down, so removing from the front in a loop is quadratic. Use `std::deque` (or `std::queue`), or keep an index of the next element to take."
+linear-search-for-membership:
+  title: "A vector search is O(n); a set is O(log n) or O(1)"
+  text: "`std::find` over a vector for every query is quadratic overall. Use a `std::unordered_set` or `std::set`, or sort once and use `std::binary_search`."
+copying-in-a-list-instead-of-splicing:
+  title: "Moving between lists: `splice`, do not copy"
+  text: "`std::list::splice` relinks nodes in O(1) without copying and without invalidating iterators. Copying the elements one by one into another list allocates a node and copies each element."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        int main() {
+            std::list<Noisy> a, b;
+            a.emplace_back();
+            for (const Noisy& n : a) b.push_back(n);   // a copy per element
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        int main() {
+            std::list<Noisy> a, b;
+            a.emplace_back();
+            b.splice(b.end(), a);   // relinks the node: no copy
+        }
+      out: ""
+sorting-everything-for-top-k:
+  title: "Sorting everything to find the top k is wasteful"
+  text: "`std::partial_sort` finds the k largest in O(n log k), and `std::nth_element` in O(n), against O(n log n) for a full sort. Sort everything only when you need everything in order."
+priority-queue-is-a-max-heap:
+  title: "`priority_queue` pops the largest first"
+  text: "The default `std::priority_queue<int>` is a max-heap: `top()` is the largest. For the smallest first, use `std::priority_queue<int, std::vector<int>, std::greater<int>>`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <queue>
+
+        int main() {
+            std::priority_queue<int> q;
+            q.push(3); q.push(1); q.push(2);
+            std::cout << q.top() << "\n";   // the largest
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <queue>
+        #include <vector>
+
+        int main() {
+            std::priority_queue<int, std::vector<int>, std::greater<int>> q;
+            q.push(3); q.push(1); q.push(2);
+            std::cout << q.top() << "\n";   // the smallest
+        }
+      out: "1\n"
+invalidated-iterators:
+  title: "Containers invalidate iterators differently"
+  text: "A `vector` insertion can invalidate every iterator and reference; `list` and `map` keep them valid (except for erased elements); a rehash invalidates `unordered_map` iterators. Check the rules before you hold one."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"

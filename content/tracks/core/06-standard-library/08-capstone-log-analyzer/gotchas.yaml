@@ -1,0 +1,216 @@
+february-30:
+  title: "Validate the day against the month"
+  text: "\"2024-02-30\" has the right shape but is not a date. Check the day against the length of that month (28 to 31, and leap years), not only against 1 to 31."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        bool valid(int month, int day) { return month >= 1 && month <= 12 && day >= 1 && day <= 31; }
+
+        int main() {
+            std::cout << (valid(2, 30) ? "valid" : "invalid") << "\n";
+        }
+      out: "valid\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        bool valid(int month, int day) {
+            static const int days[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};   // February: 28 (29 in leap years)
+            return month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1];
+        }
+
+        int main() {
+            std::cout << (valid(2, 30) ? "valid" : "invalid") << "\n";
+        }
+      out: "invalid\n"
+leap-years:
+  title: "Leap years: by 4, except centuries, unless by 400"
+  text: "A year is a leap year when it is divisible by 4, except when it is divisible by 100, unless it is also divisible by 400. So 2000 and 2024 are leap years, and 1900 is not."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        bool leap(int y) { return y % 4 == 0; }
+
+        int main() {
+            std::cout << (leap(1900) ? "leap" : "not leap") << "\n";
+        }
+      out: "leap\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        bool leap(int y) { return (y % 4 == 0 && y % 100 != 0) || y % 400 == 0; }
+
+        int main() {
+            std::cout << (leap(1900) ? "leap" : "not leap") << "\n";
+        }
+      out: "not leap\n"
+timestamp-shape:
+  title: "Check the shape of a timestamp before reading numbers"
+  text: "A fixed-width timestamp has digits and separators in fixed places. Check the length and the punctuation first, then parse the numbers, or \"2024-1-5 x\" slips through a parser that only looks for digits."
+crlf-line-endings:
+  title: "Windows lines end in `\\r\\n`"
+  text: "A log written on Windows leaves a trailing `\\r` on every line after `getline`, so the last field fails to parse or compare equal. Strip a trailing `\\r` from each line."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            std::cout << (line == "ERROR") << "\n";   // the \r is still there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // strip it
+            std::cout << (line == "ERROR") << "\n";
+        }
+      out: "1\n"
+blank-lines:
+  title: "Blank lines are not errors"
+  text: "An empty line in a log is usually just a separator. Skip it quietly instead of reporting a malformed record, unless the specification says otherwise."
+code-must-be-whole-number:
+  title: "A status code must be a whole number"
+  text: "\"4o4\" and \"404.5\" are not codes. Parse with `from_chars` and check that the whole token was consumed, not just a numeric prefix."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+tie-breaking:
+  title: "Equal counts need a deterministic tie-break"
+  text: "When two hours or two codes have the same count, the specification says which wins (for example, the earlier one). Implement that rule explicitly instead of relying on iteration order."
+unordered-iteration-order:
+  title: "`unordered_map` iterates in no useful order"
+  text: "The order depends on the hash function and the library, and changes when the table grows. Sort the keys, or use `std::map`, whenever the output order matters."
+string-per-line:
+  title: "A `string` per line allocates for every line"
+  text: "Copying each of 200,000 lines into its own `std::string` allocates 200,000 times. Walk the text with `string_view`s, or read into one reusable buffer."
+views-dangling:
+  title: "`string_view`s into the input die with the input"
+  text: "A record that keeps `string_view` fields is only valid while the text buffer they point into is alive and unchanged. Do not store views into a buffer you reuse, move or free."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string_view view = make();   // the temporary string dies at the semicolon
+            std::cout << view << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string text = make();         // something that owns the characters
+            std::string_view view = text;
+            std::cout << view << "\n";
+        }
+      out: "a string that is long enough to live on the heap\n"
+negative-times-floor-division:
+  title: "Integer division truncates toward zero, not down"
+  text: "`-7 / 2` is -3, not -4. When you bucket a negative value, for example into hours, adjust for the remainder, or the bucket just below zero comes out wrong."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            std::cout << seconds / bucket << "\n";   // truncates toward zero
+        }
+      out: "-3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            int q = seconds / bucket;
+            if (seconds % bucket != 0 && (seconds < 0) != (bucket < 0)) --q;   // round down, not toward zero
+            std::cout << q << "\n";
+        }
+      out: "-4\n"
+empty-log:
+  title: "An empty log must not crash"
+  text: "No lines means no records: report zero counts and no \"peak\" instead of dereferencing an empty container or dividing by zero. Test the empty input first."
+last-line-without-newline:
+  title: "The last line may have no newline"
+  text: "Code that splits on `'\\n'` and ignores the remainder loses a final line that is not terminated. `std::getline` returns it correctly; hand-written splitting must handle it too."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string text = "a\nb";   // no newline after b
+            std::cout << std::count(text.begin(), text.end(), '\n') << "\n";   // counts lines by their newlines
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a\nb");
+            std::string line;
+            int n = 0;
+            while (std::getline(in, line)) ++n;   // the last line counts too
+            std::cout << n << "\n";
+        }
+      out: "2\n"

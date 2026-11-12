@@ -1,0 +1,205 @@
+shallow-copy:
+  title: "Copying a pointer is not copying what it points to"
+  text: "The compiler-generated copy copies the pointer member, so two objects share one buffer: a change shows in both and both free it. Write a real copy constructor, or hold a `std::vector` or `unique_ptr`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;   // copies the pointer, not the int it points to
+            std::cout << *b.p << "\n";
+        }                   // both destructors delete the same int
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}   // a deep copy: its own int
+            Buffer& operator=(const Buffer&) = delete;
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"
+double-free:
+  title: "Two owners free the same memory"
+  text: "When two objects hold the same raw pointer, both destructors `delete` it, which is undefined behavior. Give each object its own copy, or use one owner (`unique_ptr`) and let the others only borrow."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int{1};
+            delete p;
+            delete p;   // freed twice
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            auto p = std::make_unique<int>(1);   // freed exactly once, automatically
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+self-assignment-use-after-free:
+  title: "Self-assignment can free the data it is about to copy"
+  text: "If `operator=` deletes its buffer first and then copies from the source, `a = a` copies from memory it just freed. Guard with `this != &other`, or copy into a new buffer first and swap."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                delete p;                // frees the source as well when o is *this
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                if (this == &o) return *this;   // nothing to do, and nothing to destroy
+                delete p;
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      out: "5\n"
+assignment-leaks-old-buffer:
+  title: "Assignment must release what the object already owns"
+  text: "An `operator=` that allocates a new buffer without deleting the old one leaks it on every assignment. Release the old resource once the copy has succeeded, or use copy-and-swap."
+assignment-returns-by-value:
+  title: "`operator=` returns `T&`, not `T`"
+  text: "Returning the object by value copies it on every assignment, and is not what built-in types do. Return `*this` as a reference, which also makes chains such as `a = b = c` work."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct N {
+            N() = default;
+            N(const N&) { std::cout << "copy\n"; }
+            N operator=(const N&) { return *this; }   // returns a copy
+        };
+
+        int main() {
+            N a, b;
+            a = b;
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct N {
+            N() = default;
+            N(const N&) { std::cout << "copy\n"; }
+            N& operator=(const N&) { return *this; }   // returns the object itself
+        };
+
+        int main() {
+            N a, b;
+            a = b;
+        }
+      out: ""
+missing-null-terminator:
+  title: "A C string needs its terminating `'\\0'`"
+  text: "A buffer that holds \"abc\" needs four bytes. Without the terminator, `strlen`, `printf` and `std::string(const char*)` read past the end. Allocate `size + 1` and write the `'\\0'`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <cstring>
+        #include <iostream>
+
+        int main() {
+            char* s = new char[3];
+            std::memcpy(s, "abc", 3);               // no room for the '\0'
+            std::cout << std::strlen(s) << "\n";    // reads past the end
+            delete[] s;
+        }
+      reports: "heap-buffer-overflow"
+    fix:
+      code: |
+        #include <cstring>
+        #include <iostream>
+
+        int main() {
+            char* s = new char[4];
+            std::memcpy(s, "abc", 4);               // includes the '\0'
+            std::cout << std::strlen(s) << "\n";
+            delete[] s;
+        }
+      out: "3\n"
+append-from-own-buffer:
+  title: "Appending a string to itself reads freed memory"
+  text: "If `append` reallocates and frees the old buffer before copying from its argument, then `s.append(s)` copies from freed memory. Allocate the new buffer, copy both parts into it, and only then free the old one."
+delete-array-mismatch:
+  title: "`new[]` pairs with `delete[]`"
+  text: "Memory from `new char[n]` must be freed with `delete[]`; a plain `delete` is undefined behavior. Prefer `std::vector` or `make_unique<T[]>`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int[4];
+            delete p;   // must be delete[]
+        }
+      reports: "alloc-dealloc-mismatch"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int[4];
+            delete[] p;   // matches new[]
+            std::cout << "freed\n";
+        }
+      out: "freed\n"

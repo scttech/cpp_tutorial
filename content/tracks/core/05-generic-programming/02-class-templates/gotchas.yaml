@@ -1,0 +1,239 @@
+missing-template-prefix-outside-class:
+  title: "Member definitions outside the class need `template<class T>`"
+  text: "Defining `Stack<T>::push` outside the class means repeating the template header: `template <class T> void Stack<T>::push(...)`. Forgetting it gives confusing errors about `T` not being declared."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        struct Stack {
+            void push(T v);
+        };
+
+        void Stack<T>::push(T v) {}   // no template header: what is T?
+
+        int main() {}
+      error: "'T'"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class T>
+        struct Stack {
+            T top = T();
+            void push(T v);
+        };
+
+        template <class T>
+        void Stack<T>::push(T v) { top = v; }   // the header is repeated
+
+        int main() {
+            Stack<int> s;
+            s.push(3);
+            std::cout << s.top << "\n";
+        }
+      out: "3\n"
+missing-typename:
+  title: "Dependent types need `typename`"
+  text: "Inside a template, `C::value_type` depends on a template parameter, so the compiler cannot know it names a type. Write `typename C::value_type` (since C++20 it is optional in many places, but not everywhere)."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        template <class C>
+        auto first(const C& c) {
+            C::value_type x = c[0];   // is C::value_type a type?
+            return x;
+        }
+
+        int main() {
+            std::vector<int> v{4, 5};
+            first(v);
+        }
+      error: "typename"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        template <class C>
+        auto first(const C& c) {
+            typename C::value_type x = c[0];   // typename says: this is a type
+            return x;
+        }
+
+        int main() {
+            std::vector<int> v{4, 5};
+            std::cout << first(v) << "\n";
+        }
+      out: "4\n"
+definitions-in-a-cpp-file:
+  title: "Template definitions belong in the header"
+  text: "The compiler needs a template's body wherever it is instantiated. If the definition lives in a `.cpp`, other files compile but fail at link time with an undefined reference for each instantiation."
+matrix-dimensions-as-runtime-values:
+  title: "Matrix dimensions are template arguments, so they are compile-time"
+  text: "`Matrix<int, n, 3>` with a runtime `n` does not compile, and that is the point: mismatched shapes become compile errors. Use `constexpr` values, or a runtime-sized matrix class when sizes truly vary."
+  demo:
+    bad:
+      code: |
+        template <int R, int C>
+        struct Matrix { int cells[R * C]; };
+
+        int main() {
+            int rows = 2;
+            Matrix<rows, 3> m;   // rows is not a compile-time constant
+            (void)m;
+        }
+      error: "constant expression"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <int R, int C>
+        struct Matrix { int cells[R * C] = {}; };
+
+        int main() {
+            constexpr int rows = 2;
+            Matrix<rows, 3> m;
+            std::cout << sizeof(m.cells) / sizeof(int) << "\n";
+        }
+      out: "6\n"
+uninitialized-elements:
+  title: "Array elements are uninitialized unless you ask"
+  text: "A member `T data[N];` or `std::array<int, 4> a;` holds garbage for built-in types. Value-initialize with `{}` in the declaration or the constructor, so a new matrix starts as zeros."
+heap-storage-for-fixed-size:
+  title: "A fixed-size container should not allocate"
+  text: "Storing the elements of `Matrix<T, R, C>` in a `std::vector` allocates on the heap although the size is known at compile time. `std::array<T, R * C>` lives inside the object, costs no allocation, and can be `constexpr`."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+        #include <vector>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::vector<int> data = std::vector<int>(R * C);   // a heap block, although R * C is known
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 1\n"
+    fix:
+      code: |
+        #include <array>
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::array<int, R * C> data{};   // inside the object: no allocation
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 0\n"
+copies-instead-of-moves:
+  title: "Moving elements in needs `std::move`"
+  text: "A container's `put(T v)` that stores `slot = v;` copies even when the caller passed a temporary. `v` has a name, so it is an lvalue: write `slot = std::move(v);`, and offer `emplace` to build in place."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+            Noisy& operator=(const Noisy&) { std::cout << "copy\n"; return *this; }
+            Noisy& operator=(Noisy&&) noexcept { std::cout << "move\n"; return *this; }
+        };
+
+        template <class T>
+        struct Slot {
+            T value;
+            void put(T v) { value = v; }   // copies, even when v came from a temporary
+        };
+
+        int main() {
+            Slot<Noisy> s;
+            s.put(Noisy{});
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+            Noisy& operator=(const Noisy&) { std::cout << "copy\n"; return *this; }
+            Noisy& operator=(Noisy&&) noexcept { std::cout << "move\n"; return *this; }
+        };
+
+        template <class T>
+        struct Slot {
+            T value;
+            void put(T v) { value = std::move(v); }   // v is ours: move it in
+        };
+
+        int main() {
+            Slot<Noisy> s;
+            s.put(Noisy{});
+        }
+      out: "move\n"
+forgetting-initializer-list-constructor:
+  title: "Provide an `initializer_list` constructor"
+  text: "Without one, `Stack<int> s{1, 2, 3};` does not compile. Add `Stack(std::initializer_list<T>)`, so braces build the container the way they do for `std::vector`."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        struct Stack {
+            explicit Stack(int capacity) { (void)capacity; }
+        };
+
+        int main() {
+            Stack<int> s{1, 2, 3};   // no constructor takes a list
+            (void)s;
+        }
+      error: "Stack"
+    fix:
+      code: |
+        #include <initializer_list>
+        #include <iostream>
+
+        template <class T>
+        struct Stack {
+            std::size_t n = 0;
+            Stack(std::initializer_list<T> items) : n(items.size()) {}
+        };
+
+        int main() {
+            Stack<int> s{1, 2, 3};
+            std::cout << s.n << "\n";
+        }
+      out: "3\n"

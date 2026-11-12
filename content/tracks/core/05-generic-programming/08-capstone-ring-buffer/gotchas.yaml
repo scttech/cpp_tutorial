@@ -1,0 +1,189 @@
+modulo-wraparound:
+  title: "Wrap an index with `%` (or a mask)"
+  text: "`(head + i) % capacity` wraps the index around the end of the storage. Using `head + i` directly reads past the array after the buffer has wrapped once."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int data[4] = {1, 2, 3, 4};
+            int head = 2 + argc;                 // 3
+            std::cout << data[head + 1] << "\n"; // one past the end: no wraparound
+        }
+      reports: "out of bounds"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int data[4] = {1, 2, 3, 4};
+            int head = 2 + argc;
+            std::cout << data[(head + 1) % 4] << "\n";   // wraps to the start
+        }
+      out: "1\n"
+full-vs-empty:
+  title: "Full and empty look the same with only head and tail"
+  text: "When `head == tail`, the buffer could be empty or full. Keep a separate `size_`, or give up one slot, so the two states can be told apart."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        struct Ring {
+            int data[2];
+            std::size_t head = 0, tail = 0;
+            void push(int v) { data[tail] = v; tail = (tail + 1) % 2; }
+            bool empty() const { return head == tail; }   // also true when full
+        };
+
+        int main() {
+            Ring r;
+            r.push(1);
+            r.push(2);   // now full
+            std::cout << "empty: " << r.empty() << "\n";
+        }
+      out: "empty: 1\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        struct Ring {
+            int data[2];
+            std::size_t head = 0, tail = 0, size = 0;   // the count tells them apart
+            void push(int v) { data[tail] = v; tail = (tail + 1) % 2; ++size; }
+            bool empty() const { return size == 0; }
+        };
+
+        int main() {
+            Ring r;
+            r.push(1);
+            r.push(2);
+            std::cout << "empty: " << r.empty() << "\n";
+        }
+      out: "empty: 0\n"
+push-onto-full:
+  title: "Pushing onto a full buffer needs a decision"
+  text: "Overwrite the oldest element, reject the new one, or block: pick one, document it, and test it. Silently writing past the end, or overwriting the wrong side, is the bug."
+pop-from-empty:
+  title: "Popping an empty buffer"
+  text: "`pop()` on an empty buffer must not hand out a stale slot. Return `std::optional`, throw, or assert a documented precondition."
+stale-element-after-clear:
+  title: "`clear()` must reset the indices"
+  text: "After `clear()` the size must be 0 and head and tail consistent, otherwise `front()` still returns an old value and the next push lands in the wrong slot."
+copy-where-move-was-possible:
+  title: "Move elements in; do not copy them"
+  text: "`push(T v)` that stores `data[i] = v;` copies even for a temporary. Store `std::move(v)`, and offer `emplace` so the element can be built in place."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+            Noisy& operator=(const Noisy&) { std::cout << "copy\n"; return *this; }
+            Noisy& operator=(Noisy&&) noexcept { std::cout << "move\n"; return *this; }
+        };
+
+        template <class T>
+        struct Slot {
+            T value;
+            void put(T v) { value = v; }   // copies, even when v came from a temporary
+        };
+
+        int main() {
+            Slot<Noisy> s;
+            s.put(Noisy{});
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+            Noisy& operator=(const Noisy&) { std::cout << "copy\n"; return *this; }
+            Noisy& operator=(Noisy&&) noexcept { std::cout << "move\n"; return *this; }
+        };
+
+        template <class T>
+        struct Slot {
+            T value;
+            void put(T v) { value = std::move(v); }   // v is ours: move it in
+        };
+
+        int main() {
+            Slot<Noisy> s;
+            s.put(Noisy{});
+        }
+      out: "move\n"
+iterator-const-conversion:
+  title: "A `const_iterator` must be constructible from an `iterator`"
+  text: "Algorithms on a `const` buffer need `const_iterator`, and an `iterator` should convert to it implicitly, as the standard containers do, so `begin()` and `cbegin()` mix freely."
+heap-storage-instead-of-array:
+  title: "A fixed-capacity ring needs no heap"
+  text: "A ring buffer of capacity `N` known at compile time can keep its elements in a `std::array` inside the object: no allocation, no failure, and it works in constant expressions."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+        #include <vector>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::vector<int> data = std::vector<int>(R * C);   // a heap block, although R * C is known
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 1\n"
+    fix:
+      code: |
+        #include <array>
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::array<int, R * C> data{};   // inside the object: no allocation
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 0\n"
+n-equals-zero:
+  title: "A capacity of 0 divides by zero"
+  text: "`index % N` with `N == 0` is a division by zero. A `static_assert(N > 0)` inside the class turns that into a compile error at the point of use."
+default-constructible-requirement:
+  title: "Must `T` be default-constructible?"
+  text: "A `T data[N]` member constructs N objects up front, so `T` needs a default constructor and you pay for N constructions. Raw aligned storage lets you construct only the live elements."

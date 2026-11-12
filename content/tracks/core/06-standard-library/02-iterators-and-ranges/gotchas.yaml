@@ -1,0 +1,167 @@
+test-most-capable-category-first:
+  title: "Test the strongest iterator category first"
+  text: "In a hand-written `advance`, test for `random_access_iterator` before `bidirectional_iterator`: every random-access iterator is also bidirectional, so the first branch that matches wins."
+plus-equals-needs-random-access:
+  title: "`it += n` only works on random-access iterators"
+  text: "`std::list` iterators support `++` and `--` only. `it += 5` does not compile for them, while `std::advance(it, 5)` works for every category, in linear time for the weaker ones."
+  demo:
+    bad:
+      code: |
+        #include <list>
+
+        int main() {
+            std::list<int> l{1, 2, 3};
+            auto it = l.begin();
+            it += 2;   // list iterators only step one at a time
+        }
+      error: "+="
+    fix:
+      code: |
+        #include <iostream>
+        #include <iterator>
+        #include <list>
+
+        int main() {
+            std::list<int> l{1, 2, 3};
+            auto it = l.begin();
+            std::advance(it, 2);   // works for every iterator category
+            std::cout << *it << "\n";
+        }
+      out: "3\n"
+stepping-instead-of-jumping:
+  title: "Step with `++` only when you cannot jump"
+  text: "For random-access iterators `it + n` is O(1), but n times `++it` is O(n). `std::advance` and `std::next` choose the fast path for you, so use them in generic code."
+take-while-stops-at-first-failure:
+  title: "`take_while` stops at the first failure"
+  text: "It is not a filter: `take_while(is_even)` over `2, 4, 5, 6` yields `2, 4` and never looks at 6. Use `filter` to keep every element that matches."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <ranges>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{2, 4, 5, 6};
+            for (int x : v | std::views::take_while([](int n) { return n % 2 == 0; })) std::cout << x << " ";
+            std::cout << "\n";   // stops at 5
+        }
+      out: "2 4 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <ranges>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{2, 4, 5, 6};
+            for (int x : v | std::views::filter([](int n) { return n % 2 == 0; })) std::cout << x << " ";
+            std::cout << "\n";   // keeps every even one
+        }
+      out: "2 4 6 \n"
+split-keeps-empty-pieces:
+  title: "Splitting keeps the empty pieces"
+  text: "Splitting \"a,,b\" on a comma gives three pieces: \"a\", an empty one, and \"b\". Filter the empty pieces out when they are not meaningful, or the count will surprise you."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,,b");
+            std::string piece;
+            int n = 0;
+            while (std::getline(in, piece, ',')) ++n;   // the empty piece counts
+            std::cout << n << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,,b");
+            std::string piece;
+            int n = 0;
+            while (std::getline(in, piece, ','))
+                if (!piece.empty()) ++n;   // skip empty pieces
+            std::cout << n << "\n";
+        }
+      out: "2\n"
+view-of-a-temporary-dangles:
+  title: "A view of a temporary range dangles"
+  text: "A view refers to the range it was built from and does not own it. A view over a temporary container dangles at the end of the statement, so keep the range in a variable for as long as you use the view."
+views-are-lazy:
+  title: "Views are lazy: nothing runs until you iterate"
+  text: "`v | views::transform(f)` does not call `f`; each element is computed when it is read, again on every pass. Copy the result into a vector when you need it more than once."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <ranges>
+        #include <vector>
+
+        int main() {
+            int calls = 0;
+            std::vector<int> v{1, 2, 3};
+            auto squares = v | std::views::transform([&](int x) { ++calls; return x * x; });
+            for (int x : squares) (void)x;
+            for (int x : squares) (void)x;   // computed again
+            std::cout << calls << "\n";
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <iterator>
+        #include <ranges>
+        #include <vector>
+
+        int main() {
+            int calls = 0;
+            std::vector<int> v{1, 2, 3};
+            auto squares = v | std::views::transform([&](int x) { ++calls; return x * x; });
+            std::vector<int> result;
+            std::ranges::copy(squares, std::back_inserter(result));   // computed once
+            for (int x : result) (void)x;
+            for (int x : result) (void)x;
+            std::cout << calls << "\n";
+        }
+      out: "3\n"
+insert-invalidates-iterators:
+  title: "An insertion can invalidate your iterators"
+  text: "Inserting into a `vector` can reallocate, so every iterator, pointer and reference into it dangles. Use the iterator that `insert` returns, or an index, and do not keep old iterators across it."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+quadratic-insert-in-the-middle:
+  title: "Inserting in the middle of a vector is O(n)"
+  text: "Each `insert(pos, x)` shifts everything after `pos`. For many insertions, build the result separately, or use a `std::list` when you already hold the position."

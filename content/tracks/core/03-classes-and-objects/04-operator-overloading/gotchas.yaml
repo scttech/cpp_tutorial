@@ -1,0 +1,238 @@
+binary-operator-changes-its-operand:
+  title: "`a + b` must not change `a`"
+  text: "A binary `operator+` that adds into its left operand changes `a` as a side effect of `a + b`. Take the operands by value or `const&` and return a new object; implement `+` in terms of `+=`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct V {
+            int x;
+            V& operator+(const V& o) { x += o.x; return *this; }   // changes the left operand
+        };
+
+        int main() {
+            V a{1}, b{2};
+            V c = a + b;
+            std::cout << a.x << "\n";   // a was changed by a + b
+            (void)c;
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct V {
+            int x;
+            V operator+(const V& o) const { return {x + o.x}; }   // a new object
+        };
+
+        int main() {
+            V a{1}, b{2};
+            V c = a + b;
+            std::cout << a.x << "\n";
+            (void)c;
+        }
+      out: "1\n"
+compound-assignment-returns-copy:
+  title: "`+=` returns `*this` by reference"
+  text: "If `operator+=` returns by value, `(a += b) += c` changes a temporary copy and not `a`. Return `T&` so chains and `a += b` used as an expression work on the real object."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct V {
+            int x;
+            V operator+=(const V& o) { x += o.x; return *this; }   // returns a COPY
+        };
+
+        int main() {
+            V a{1}, b{2};
+            (a += b) += b;                // the second += changes the copy
+            std::cout << a.x << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct V {
+            int x;
+            V& operator+=(const V& o) { x += o.x; return *this; }   // returns the object itself
+        };
+
+        int main() {
+            V a{1}, b{2};
+            (a += b) += b;
+            std::cout << a.x << "\n";
+        }
+      out: "5\n"
+scalar-times-vector-only-one-order:
+  title: "`v * 2` and `2 * v` are two functions"
+  text: "A member `operator*(double)` handles `v * 2` only. For `2 * v` write a free `operator*(double, Vec)`; most code writes both and implements one in terms of the other."
+  demo:
+    bad:
+      code: |
+        struct Vec {
+            double x;
+            Vec operator*(double k) const { return {x * k}; }
+        };
+
+        int main() {
+            Vec v{2};
+            Vec a = v * 3;
+            Vec b = 3 * v;   // no operator*(double, Vec)
+            (void)a;
+            (void)b;
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Vec { double x; };
+
+        Vec operator*(Vec v, double k) { return {v.x * k}; }
+        Vec operator*(double k, Vec v) { return v * k; }   // both orders
+
+        int main() {
+            Vec v{2};
+            std::cout << (v * 3).x << " " << (3 * v).x << "\n";
+        }
+      out: "6 6\n"
+postfix-returns-new-value:
+  title: "Postfix `++` returns the old value"
+  text: "`i++` must return a copy of the object as it was before the increment, while `++i` returns the incremented object by reference. Implement postfix with prefix, and prefer prefix in loops."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n;
+            Counter operator++(int) { ++n; return *this; }   // returns the NEW value
+        };
+
+        int main() {
+            Counter c{5};
+            Counter old = c++;
+            std::cout << old.n << "\n";   // should be the old value, 5
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n;
+            Counter operator++(int) {
+                Counter old = *this;   // remember the old value
+                ++n;
+                return old;
+            }
+        };
+
+        int main() {
+            Counter c{5};
+            Counter old = c++;
+            std::cout << old.n << "\n";
+        }
+      out: "5\n"
+subscript-without-const-overload:
+  title: "`operator[]` needs a const overload too"
+  text: "With only a non-const `operator[]`, a `const Vec&` cannot be indexed. Provide `T& operator[](size_t)` and `const T& operator[](size_t) const`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Vec {
+            int data[2] = {7, 8};
+            int& operator[](int i) { return data[i]; }   // no const overload
+        };
+
+        void show(const Vec& v) { std::cout << v[0] << "\n"; }
+
+        int main() {
+            show(Vec{});
+        }
+      error: "const"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Vec {
+            int data[2] = {7, 8};
+            int& operator[](int i) { return data[i]; }
+            const int& operator[](int i) const { return data[i]; }
+        };
+
+        void show(const Vec& v) { std::cout << v[0] << "\n"; }
+
+        int main() {
+            show(Vec{});
+        }
+      out: "7\n"
+implicit-operator-bool:
+  title: "`operator bool` must be `explicit`"
+  text: "An implicit `operator bool` lets your object take part in arithmetic and comparisons (`handle + 41`, `a == b` as two bools). Write `explicit operator bool() const`: it still works in `if` and with `!`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Handle {
+            bool ok;
+            operator bool() const { return ok; }   // implicit
+        };
+
+        int main() {
+            Handle h{true};
+            std::cout << h + 41 << "\n";   // a Handle used as a number
+        }
+      out: "42\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Handle {
+            bool ok;
+            explicit operator bool() const { return ok; }   // only where a condition is meant
+        };
+
+        int main() {
+            Handle h{true};
+            if (h) std::cout << "valid\n";
+        }
+      out: "valid\n"
+stream-operator-returns-void:
+  title: "`operator<<` must return the stream"
+  text: "If `operator<<` returns `void`, `std::cout << p << \"\\n\"` does not compile: chaining needs the stream back. Take `std::ostream&` and return it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct P { int x, y; };
+
+        void operator<<(std::ostream& os, const P& p) { os << "(" << p.x << ", " << p.y << ")"; }
+
+        int main() {
+            P p{1, 2};
+            std::cout << p << "\n";   // (void) << "\n"
+        }
+      error: "void"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct P { int x, y; };
+
+        std::ostream& operator<<(std::ostream& os, const P& p) { return os << "(" << p.x << ", " << p.y << ")"; }
+
+        int main() {
+            P p{1, 2};
+            std::cout << p << "\n";
+        }
+      out: "(1, 2)\n"

@@ -1,0 +1,187 @@
+remove-does-not-erase:
+  title: "`std::remove` does not shrink the vector"
+  text: "`std::remove` and `remove_if` move the keepers to the front and return the new end, but the size stays the same. Follow them with `erase(new_end, end())`, or use `std::erase`."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 3, 2};
+            std::remove(v.begin(), v.end(), 2);   // result ignored: nothing is erased
+            std::cout << v.size() << "\n";
+        }
+      out: "4\n"
+      warns: "ignoring"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 3, 2};
+            v.erase(std::remove(v.begin(), v.end(), 2), v.end());   // the erase-remove idiom
+            std::cout << v.size() << "\n";
+        }
+      out: "2\n"
+erase-in-a-loop-is-quadratic:
+  title: "Erasing one element at a time in a loop is O(n squared)"
+  text: "Every `erase` shifts the tail of the vector, so erasing many elements one by one is quadratic. One `remove_if` followed by one `erase` does it in a single pass."
+comparator-must-be-strict:
+  title: "A comparator must be a strict weak ordering"
+  text: "A comparator using `<=` or `>=` says an element is \"less than\" itself, which breaks the assumptions of `std::sort`: crashes or out-of-bounds reads, usually only on bigger inputs. Use `<` or `>`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v(100, 1);   // many equal elements
+            std::sort(v.begin(), v.end(), [](int a, int b) { return a <= b; });   // not a strict ordering
+            std::cout << "sorted\n";
+        }
+      reports: "AddressSanitizer"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v(100, 1);
+            std::sort(v.begin(), v.end(), [](int a, int b) { return a < b; });   // strict
+            std::cout << "sorted\n";
+        }
+      out: "sorted\n"
+unique-needs-sorted-input:
+  title: "`unique` removes adjacent duplicates only"
+  text: "`std::unique` compares neighbors, so equal values that are not next to each other survive. Sort first, and, as with `remove`, erase the tail it leaves behind."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 1};
+            v.erase(std::unique(v.begin(), v.end()), v.end());   // no neighbors are equal
+            std::cout << v.size() << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{1, 2, 1};
+            std::sort(v.begin(), v.end());                        // make equal values neighbors
+            v.erase(std::unique(v.begin(), v.end()), v.end());
+            std::cout << v.size() << "\n";
+        }
+      out: "2\n"
+sort-is-not-stable:
+  title: "`std::sort` is not stable"
+  text: "Elements that compare equal may end up in any relative order. Use `std::stable_sort` when equal keys must keep their original order, for example when sorting by one column after another."
+tolower-needs-unsigned-char:
+  title: "`std::tolower` needs an `unsigned char` value"
+  text: "The `<cctype>` functions take an `int` that must be 0 to 255 or EOF, so a negative `char` is undefined behavior. Cast first: `std::tolower(static_cast<unsigned char>(c))`."
+accumulate-with-int-init:
+  title: "`accumulate`'s initial value decides the type"
+  text: "`std::accumulate(v.begin(), v.end(), 0)` sums in `int`, even for a vector of doubles, truncating at every step. Start from `0.0` for doubles, or `0LL` to avoid overflow."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <numeric>
+        #include <vector>
+
+        int main() {
+            std::vector<double> v{0.5, 0.5, 0.5};
+            std::cout << std::accumulate(v.begin(), v.end(), 0) << "\n";   // sums in int
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <numeric>
+        #include <vector>
+
+        int main() {
+            std::vector<double> v{0.5, 0.5, 0.5};
+            std::cout << std::accumulate(v.begin(), v.end(), 0.0) << "\n";   // sums in double
+        }
+      out: "1.5\n"
+binary-search-needs-sorted-input:
+  title: "Binary search needs sorted input"
+  text: "`binary_search`, `lower_bound` and friends assume the range is sorted by the same ordering. On unsorted data they do not fail loudly: they quietly return a wrong answer."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{2, 3, 1};   // not sorted
+            std::cout << std::binary_search(v.begin(), v.end(), 1) << "\n";   // 1 is there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{2, 3, 1};
+            std::sort(v.begin(), v.end());
+            std::cout << std::binary_search(v.begin(), v.end(), 1) << "\n";
+        }
+      out: "1\n"
+empty-input-average:
+  title: "The average of nothing is not zero"
+  text: "Dividing a sum by the size of an empty range is 0/0: NaN for floating point, undefined behavior for integers. Return a defined value, `std::optional`, or reject the input."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int mean(const std::vector<int>& v) {
+            int sum = 0;
+            for (int x : v) sum += x;
+            return sum / static_cast<int>(v.size());   // 0 / 0 for an empty vector
+        }
+
+        int main() {
+            std::cout << mean({}) << "\n";
+        }
+      reports: "division by zero"
+    fix:
+      code: |
+        #include <iostream>
+        #include <optional>
+        #include <vector>
+
+        std::optional<int> mean(const std::vector<int>& v) {
+            if (v.empty()) return std::nullopt;   // nothing to average
+            int sum = 0;
+            for (int x : v) sum += x;
+            return sum / static_cast<int>(v.size());
+        }
+
+        int main() {
+            auto m = mean({});
+            std::cout << (m ? "has a mean" : "no mean") << "\n";
+        }
+      out: "no mean\n"

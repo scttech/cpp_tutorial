@@ -1,0 +1,283 @@
+takes-vector-only:
+  title: "Take any range, not just a `vector`"
+  text: "A template that accepts only `std::vector<T>` cannot be called with an array, a `list` or a `span`. Take a template parameter for the range (or constrain on `std::ranges::input_range`) instead of naming one container."
+  demo:
+    bad:
+      code: |
+        #include <array>
+        #include <vector>
+
+        template <class T>
+        T largest(const std::vector<T>& v) { return v[0]; }   // vectors only
+
+        int main() {
+            std::array<int, 2> a{3, 9};
+            largest(a);
+        }
+      error: "largest"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <array>
+        #include <iostream>
+        #include <iterator>
+
+        template <class Range>
+        auto largest(const Range& r) { return *std::max_element(std::begin(r), std::end(r)); }   // any range
+
+        int main() {
+            std::array<int, 2> a{3, 9};
+            std::cout << largest(a) << "\n";
+        }
+      out: "9\n"
+member-pointer-projection-fails:
+  title: "A member pointer is not a plain callable"
+  text: "`&Person::age` is a pointer to member, which you cannot call as `f(p)`. `std::invoke(f, p)`, or a `std::ranges` projection, treats functions, lambdas and member pointers alike."
+  demo:
+    bad:
+      code: |
+        struct Person { int age; };
+
+        template <class F>
+        int apply(F f, const Person& p) { return f(p); }   // a member pointer cannot be called like this
+
+        int main() {
+            apply(&Person::age, Person{30});
+        }
+      error: "not a function"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+
+        struct Person { int age; };
+
+        template <class F>
+        int apply(F f, const Person& p) { return std::invoke(f, p); }   // handles member pointers too
+
+        int main() {
+            std::cout << apply(&Person::age, Person{30}) << "\n";
+        }
+      out: "30\n"
+key-recomputed-every-iteration:
+  title: "Compute each key once"
+  text: "Calling the projection on the current best element at every comparison doubles the work, and repeats any side effects. Keep the best element and its key in variables, and compute a new key once per element."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int calls = 0;
+        int key(int x) { ++calls; return x; }
+
+        int main() {
+            std::vector<int> v{3, 1, 4, 1, 5};
+            int best = v[0];
+            for (std::size_t i = 1; i < v.size(); ++i)
+                if (key(v[i]) > key(best)) best = v[i];   // two key calls per element
+            std::cout << calls << "\n";
+        }
+      out: "8\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int calls = 0;
+        int key(int x) { ++calls; return x; }
+
+        int main() {
+            std::vector<int> v{3, 1, 4, 1, 5};
+            int best = v[0];
+            int best_key = key(best);                    // computed once
+            for (std::size_t i = 1; i < v.size(); ++i) {
+                int k = key(v[i]);                       // once per element
+                if (k > best_key) { best = v[i]; best_key = k; }
+            }
+            std::cout << calls << "\n";
+        }
+      out: "5\n"
+elements-copied:
+  title: "Take elements by `const&`, not by value"
+  text: "`for (auto x : range)` and `[](auto x)` copy every element, which is slow for strings and impossible for move-only types. Use `const auto&` in loops and lambdas."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        int main() {
+            std::vector<Noisy> v;
+            v.reserve(3);
+            for (int i = 0; i < 3; ++i) v.emplace_back();
+            for (auto n : v) (void)n;   // a copy per element
+        }
+      out: "copy\ncopy\ncopy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        int main() {
+            std::vector<Noisy> v;
+            v.reserve(3);
+            for (int i = 0; i < 3; ++i) v.emplace_back();
+            for (const auto& n : v) (void)n;   // no copies
+        }
+      out: ""
+last-of-equals-wins:
+  title: "With ties, the first maximum or the last?"
+  text: "`std::max_element` returns the first of several equal maxima; a hand-written loop with `>=` returns the last. Decide which one the specification wants, and test with equal elements."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 3, 5};
+            std::size_t best = 0;
+            for (std::size_t i = 1; i < v.size(); ++i)
+                if (v[i] >= v[best]) best = i;   // >= moves to the LAST maximum
+            std::cout << best << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 3, 5};
+            std::size_t best = 0;
+            for (std::size_t i = 1; i < v.size(); ++i)
+                if (v[i] > v[best]) best = i;    // > keeps the FIRST maximum, like std::max_element
+            std::cout << best << "\n";
+        }
+      out: "0\n"
+empty-range:
+  title: "An empty range has no maximum"
+  text: "`*std::max_element(v.begin(), v.end())` on an empty vector dereferences `end()`, which is undefined behavior. Return `std::optional`, throw, or document and enforce a non-empty precondition."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            std::cout << *std::max_element(v.begin(), v.end()) << "\n";   // dereferences end()
+        }
+      reports: "null pointer"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <optional>
+        #include <vector>
+
+        std::optional<int> largest(const std::vector<int>& v) {
+            if (v.empty()) return std::nullopt;
+            return *std::max_element(v.begin(), v.end());
+        }
+
+        int main() {
+            std::vector<int> v;
+            std::cout << (largest(v) ? "has a maximum" : "empty") << "\n";
+        }
+      out: "empty\n"
+comparator-ignored:
+  title: "Use the comparator the caller passed"
+  text: "A `max_by` that accepts a comparator but compares with `<` anyway silently ignores it. Use the comparator in every comparison, and test with `std::greater`."
+  demo:
+    bad:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <vector>
+
+        template <class T, class Compare>
+        T best_of(const std::vector<T>& v, Compare comp) {
+            T best = v[0];
+            for (const T& x : v)
+                if (best < x) best = x;   // ignores comp
+            return best;
+        }
+
+        int main() {
+            std::vector<int> v{3, 1, 9};
+            std::cout << best_of(v, std::greater<int>()) << "\n";   // expected the "best" by greater: 1
+        }
+      out: "9\n"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <vector>
+
+        template <class T, class Compare>
+        T best_of(const std::vector<T>& v, Compare comp) {
+            T best = v[0];
+            for (const T& x : v)
+                if (comp(best, x)) best = x;   // uses the caller's ordering
+            return best;
+        }
+
+        int main() {
+            std::vector<int> v{3, 1, 9};
+            std::cout << best_of(v, std::greater<int>()) << "\n";
+        }
+      out: "1\n"
+requires-operator-greater:
+  title: "Require only `<`, as the standard library does"
+  text: "A template that also uses `>` or `==` forces extra operators onto every type. Express every comparison with `<`: `a > b` is `b < a`, and equivalence is `!(a < b) && !(b < a)`."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        struct Version {
+            int n;
+            bool operator<(const Version& o) const { return n < o.n; }   // only <
+        };
+
+        template <class T>
+        const T& largest(const T& a, const T& b) { return a > b ? a : b; }   // needs > too
+
+        int main() {
+            Version a{1}, b{2};
+            largest(a, b);
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Version {
+            int n;
+            bool operator<(const Version& o) const { return n < o.n; }
+        };
+
+        template <class T>
+        const T& largest(const T& a, const T& b) { return b < a ? a : b; }   // a > b is b < a
+
+        int main() {
+            Version a{1}, b{2};
+            std::cout << largest(a, b).n << "\n";
+        }
+      out: "2\n"

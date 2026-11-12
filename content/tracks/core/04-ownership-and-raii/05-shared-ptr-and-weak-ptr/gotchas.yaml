@@ -1,0 +1,156 @@
+ownership-cycle-leak:
+  title: "Two `shared_ptr`s pointing at each other never free"
+  text: "If A holds a `shared_ptr` to B and B holds one to A, neither count ever reaches zero and both objects leak. Make one direction, usually the back-reference to the parent, a `weak_ptr`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Node {
+            std::shared_ptr<Node> other;
+            ~Node() { std::cout << "freed\n"; }
+        };
+
+        int main() {
+            auto a = std::make_shared<Node>();
+            auto b = std::make_shared<Node>();
+            a->other = b;
+            b->other = a;   // a cycle: neither count ever reaches zero
+        }
+      out: ""
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Node {
+            std::shared_ptr<Node> next;
+            std::weak_ptr<Node> back;   // the way back does not own
+            ~Node() { std::cout << "freed\n"; }
+        };
+
+        int main() {
+            auto a = std::make_shared<Node>();
+            auto b = std::make_shared<Node>();
+            a->next = b;
+            b->back = a;
+        }
+      out: "freed\nfreed\n"
+strong-back-pointer:
+  title: "A child's pointer to its parent should be weak"
+  text: "A parent owns its children with `shared_ptr`; if each child also owns its parent the same way, you have a cycle. The child's link back is an observer: `std::weak_ptr<Parent>`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Node {
+            std::shared_ptr<Node> other;
+            ~Node() { std::cout << "freed\n"; }
+        };
+
+        int main() {
+            auto a = std::make_shared<Node>();
+            auto b = std::make_shared<Node>();
+            a->other = b;
+            b->other = a;   // a cycle: neither count ever reaches zero
+        }
+      out: ""
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Node {
+            std::shared_ptr<Node> next;
+            std::weak_ptr<Node> back;   // the way back does not own
+            ~Node() { std::cout << "freed\n"; }
+        };
+
+        int main() {
+            auto a = std::make_shared<Node>();
+            auto b = std::make_shared<Node>();
+            a->next = b;
+            b->back = a;
+        }
+      out: "freed\nfreed\n"
+dangling-parent:
+  title: "A raw parent pointer can dangle"
+  text: "If a child keeps a raw pointer to its parent and the parent is destroyed first, that pointer dangles. A `weak_ptr` lets the child ask with `lock()` whether the parent is still alive."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Parent { std::string name = "a parent whose name is long enough to live on the heap"; };
+
+        int main() {
+            auto parent = std::make_shared<Parent>();
+            Parent* raw = parent.get();   // a child's raw back pointer
+            parent.reset();               // the parent goes away
+            std::cout << raw->name << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Parent { std::string name = "a parent whose name is long enough to live on the heap"; };
+
+        int main() {
+            auto parent = std::make_shared<Parent>();
+            std::weak_ptr<Parent> back = parent;   // an observing back pointer
+            parent.reset();
+            if (auto p = back.lock()) std::cout << p->name << "\n";
+            else std::cout << "parent is gone\n";
+        }
+      out: "parent is gone\n"
+add-child-creates-a-cycle:
+  title: "Adding an ancestor as a child makes a cycle"
+  text: "`a.add_child(a)`, or adding a node below one of its own descendants, creates a loop: traversals never end and shared ownership never frees. Check that the new child is not an ancestor first."
+detach-destroys-this:
+  title: "Detaching from the parent can destroy the node you are in"
+  text: "If the parent holds the only `shared_ptr` to a node and the node removes itself from the parent's list, it is destroyed while its own member function is still running. Keep a `shared_ptr` to yourself for the call."
+forgot-to-lock-weak-ptr:
+  title: "A `weak_ptr` must be locked before use"
+  text: "`weak_ptr` has no `operator->`: call `lock()` to get a `shared_ptr` (empty if the object is gone) and test it before use. That check is the whole point of a weak reference."
+  demo:
+    bad:
+      code: |
+        #include <memory>
+
+        struct Node { int value = 5; };
+
+        int main() {
+            auto strong = std::make_shared<Node>();
+            std::weak_ptr<Node> weak = strong;
+            int v = weak->value;   // a weak_ptr cannot be dereferenced
+            (void)v;
+        }
+      error: "weak_ptr"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Node { int value = 5; };
+
+        int main() {
+            auto strong = std::make_shared<Node>();
+            std::weak_ptr<Node> weak = strong;
+            if (auto p = weak.lock()) std::cout << p->value << "\n";   // lock, then test
+        }
+      out: "5\n"
+raw-new-instead-of-make-shared:
+  title: "`make_shared` allocates once, `shared_ptr(new T)` twice"
+  text: "`make_shared<T>(...)` allocates the object and its control block together, which is faster and exception-safe. Use `shared_ptr<T>(new T)` only for custom deleters or private constructors."
+reparenting-leaves-old-parent-link:
+  title: "Moving a node must remove it from its old parent"
+  text: "When a node gets a new parent, the old parent's child list still holds it unless you remove it, so the node has two parents and may be visited twice. Detach from the old parent first, then attach."

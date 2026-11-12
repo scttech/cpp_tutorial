@@ -1,0 +1,136 @@
+partial-update-on-failure:
+  title: "A failing operation must not half-apply"
+  text: "If a checkout records the loan and then fails to update the book, the library disagrees with itself. Validate everything first, then change state, or undo what you did when something fails."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            balance -= amount;                                  // changed first ...
+            if (balance < 0) throw std::runtime_error("no");    // ... checked afterwards
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";   // the failed call left its mark
+        }
+      out: "-10\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            if (balance < amount) throw std::runtime_error("no");   // check first
+            balance -= amount;
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";
+        }
+      out: "10\n"
+borrower-vs-returner:
+  title: "Who borrowed it is not necessarily who returns it"
+  text: "A loan belongs to one member. If a different member tries to return the book, the library must refuse instead of closing the loan; check the identity before you change anything."
+off-by-one-due-day:
+  title: "Due dates invite an off-by-one error"
+  text: "Is a book borrowed on day 1 for 14 days due on day 14 or day 15, and is it late on the due day itself? Decide once, write it down, and test the day before, the day, and the day after."
+int-overflow-in-fines:
+  title: "Days late times the rate can overflow"
+  text: "A fine of days times a per-day amount overflows `int` for a book returned absurdly late, which is undefined behavior. Compute in a wider type and cap the result, or reject impossible dates."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int days_late = 99999999 + argc;   // 100000000
+            int fine_cents = days_late * 50;   // 5 * 10^9 does not fit
+            std::cout << fine_cents << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            long long days_late = 99999999 + argc;
+            long long fine_cents = days_late * 50;   // a wider type holds it
+            std::cout << fine_cents << "\n";
+        }
+      out: "5000000000\n"
+validation-order:
+  title: "Check errors in the documented order"
+  text: "When a request is wrong in several ways, the spec says which error is reported first. Test the conditions in exactly that order so the message matches."
+forgotten-const:
+  title: "Read-only operations must be `const`"
+  text: "A query such as `is_available()` that is not `const` cannot be called on a `const Library&`. Mark everything that does not change the object `const` as you write it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() { return 10; }   // reads only, but is not const
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      error: "const"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance() const { return 10; }
+        };
+
+        void show(const Account& a) { std::cout << a.balance() << "\n"; }
+
+        int main() {
+            show(Account{});
+        }
+      out: "10\n"
+state-spread-over-several-places:
+  title: "State kept in several places drifts apart"
+  text: "If a book's availability is stored on the book and also implied by a list of loans, the two will eventually disagree. Keep one source of truth and derive the other from it."
+using-namespace-in-header:
+  title: "Never put `using namespace` in a header"
+  text: "Every file that includes the header inherits the directive, so names clash in code that never asked for them. Qualify names (`std::string`) in headers, and keep `using` for small scopes in `.cpp` files."
+  demo:
+    bad:
+      code: |
+        #include <list>
+
+        using namespace std;   // imagine this line inside a header
+
+        struct list {};        // our own type
+
+        int main() {
+            list l;            // ours, or std::list?
+            (void)l;
+        }
+      error: "ambiguous"
+    fix:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct list { int size = 3; };   // ours; std::list is always written with its prefix
+
+        int main() {
+            list mine;
+            std::list<int> theirs{1, 2};
+            std::cout << mine.size << " " << theirs.size() << "\n";
+        }
+      out: "3 2\n"

@@ -1,0 +1,185 @@
+bool-is-integral:
+  title: "`bool` and `char` satisfy `std::integral`"
+  text: "`std::integral<bool>` is true, so a template constrained with it accepts `true`. Exclude the types that make no sense for your function: `std::integral<T> && !std::same_as<T, bool>`."
+  demo:
+    bad:
+      code: |
+        #include <concepts>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::integral<bool> << "\n";   // bool counts as an integer
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <concepts>
+        #include <iostream>
+
+        template <class T>
+        concept Integer = std::integral<T> && !std::same_as<T, bool>;
+
+        int main() {
+            std::cout << Integer<bool> << Integer<int> << "\n";
+        }
+      out: "01\n"
+number-defined-separately-from-integer:
+  title: "Build related concepts from each other"
+  text: "A `Number` concept written separately from `Integer` does not subsume it, so overloads constrained by both are ambiguous. Define `Number` as `integral || floating_point` and build `Integer` on `integral`."
+ambiguous-overloads:
+  title: "Overloads with unrelated constraints are ambiguous"
+  text: "If two constrained overloads both accept `int` and neither constraint implies the other, the call is ambiguous. Write the more specific constraint as the general one plus something extra, so it wins."
+  demo:
+    bad:
+      code: |
+        #include <concepts>
+        #include <iostream>
+
+        template <class T> requires std::integral<T>
+        void f(T) { std::cout << "integer\n"; }
+
+        template <class T> requires (sizeof(T) >= 4)
+        void f(T) { std::cout << "big\n"; }
+
+        int main() {
+            f(1);   // both fit, neither is more constrained
+        }
+      error: "ambiguous"
+    fix:
+      code: |
+        #include <concepts>
+        #include <iostream>
+
+        template <class T> requires std::integral<T>
+        void f(T) { std::cout << "integer\n"; }
+
+        template <class T> requires std::integral<T> && (sizeof(T) >= 4)
+        void f(T) { std::cout << "big integer\n"; }   // contains the first constraint: it wins
+
+        int main() {
+            f(1);
+        }
+      out: "big integer\n"
+unconstrained-template-accepts-anything:
+  title: "An unconstrained template accepts everything"
+  text: "Without a constraint, `twice(x)` accepts strings and pointers, and fails deep inside the body with a long error. Constrain it (`std::integral`, `std::floating_point`), so the error names the rule."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        T twice(T x) { return x * 2; }
+
+        int main() {
+            twice("hi");   // fails inside the body
+        }
+      error: "operands"
+    fix:
+      code: |
+        #include <concepts>
+        #include <iostream>
+
+        template <std::integral T>
+        T twice(T x) { return x * 2; }
+
+        int main() {
+            std::cout << twice(21) << "\n";
+        }
+      out: "42\n"
+constraint-checks-the-declaration-not-the-body:
+  title: "A concept checks the declaration, not the body"
+  text: "`requires std::integral<T>` says which types may be passed, not that the body is valid for all of them. A type that satisfies the constraint can still break the body; state everything the body needs."
+narrow-printable:
+  title: "A concept that is too narrow rejects valid types"
+  text: "`Printable` defined as `std::is_arithmetic` rejects `std::string`, which prints fine. Define it by what the code does: `requires(std::ostream& os, const T& v) { os << v; }`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <type_traits>
+
+        template <class T>
+        concept Printable = std::is_arithmetic_v<T>;   // too narrow: no strings
+
+        void show(const Printable auto& v) { std::cout << v << "\n"; }
+
+        int main() {
+            show(std::string("hello"));
+        }
+      error: "constraint"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        template <class T>
+        concept Printable = requires(std::ostream& os, const T& v) { os << v; };   // defined by what it must do
+
+        void show(const Printable auto& v) { std::cout << v << "\n"; }
+
+        int main() {
+            show(std::string("hello"));
+        }
+      out: "hello\n"
+empty-sequence-mean:
+  title: "The mean of nothing is not zero"
+  text: "Dividing a sum by the size of an empty range is 0/0: NaN for floating point, undefined behavior for integers. Return `std::optional`, throw, or enforce a non-empty precondition."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int mean(const std::vector<int>& v) {
+            int sum = 0;
+            for (int x : v) sum += x;
+            return sum / static_cast<int>(v.size());   // 0 / 0 for an empty vector
+        }
+
+        int main() {
+            std::cout << mean({}) << "\n";
+        }
+      reports: "division by zero"
+    fix:
+      code: |
+        #include <iostream>
+        #include <optional>
+        #include <vector>
+
+        std::optional<int> mean(const std::vector<int>& v) {
+            if (v.empty()) return std::nullopt;   // nothing to average
+            int sum = 0;
+            for (int x : v) sum += x;
+            return sum / static_cast<int>(v.size());
+        }
+
+        int main() {
+            auto m = mean({});
+            std::cout << (m ? "has a mean" : "no mean") << "\n";
+        }
+      out: "no mean\n"
+integer-truncation:
+  title: "The mean of integers truncates"
+  text: "The mean of `{1, 2}` computed in `int` is 1, not 1.5. Accumulate in a wider type, and divide as `double` when a fractional result is wanted."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int sum = 1 + 2;
+            int count = 2;
+            std::cout << sum / count << "\n";   // integer division
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int sum = 1 + 2;
+            int count = 2;
+            std::cout << static_cast<double>(sum) / count << "\n";
+        }
+      out: "1.5\n"

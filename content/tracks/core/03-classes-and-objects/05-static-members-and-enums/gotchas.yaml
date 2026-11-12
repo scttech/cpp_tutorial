@@ -1,0 +1,224 @@
+unscoped-enum-leaks-names:
+  title: "An unscoped enum leaks its names"
+  text: "`enum Color { Red }` puts `Red` in the enclosing scope, so a second enum with `Red`, or a variable called `Red`, collides. Use `enum class Color { Red }` and write `Color::Red`."
+  demo:
+    bad:
+      code: |
+        enum Color { Red, Green };
+        enum Light { Red, Yellow };   // Red is already taken
+
+        int main() {}
+      error: "Red"
+    fix:
+      code: |
+        #include <iostream>
+
+        enum class Color { Red, Green };
+        enum class Light { Red, Yellow };   // each Red lives in its own scope
+
+        int main() {
+            Color c = Color::Red;
+            Light l = Light::Red;
+            std::cout << (c == Color::Red) << (l == Light::Red) << "\n";
+        }
+      out: "11\n"
+enum-converts-to-int:
+  title: "Unscoped enums convert to `int` silently"
+  text: "`Color c = Red; int x = c * 2;` compiles, and so does comparing two unrelated enums. An `enum class` never converts implicitly; write `static_cast<int>(c)` when you really want the number."
+missing-underlying-type:
+  title: "Give an enum a fixed underlying type"
+  text: "Without `: std::uint8_t` the size of an enum is up to the compiler, which matters when it is stored, serialized or forward-declared. State the type you want."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        enum class Level { Low, High };   // the size is the compiler's choice
+
+        int main() {
+            std::cout << (sizeof(Level) == 1) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        enum class Level : std::uint8_t { Low, High };   // one byte, on purpose
+
+        int main() {
+            std::cout << (sizeof(Level) == 1) << "\n";
+        }
+      out: "1\n"
+static-member-needs-inline:
+  title: "A static data member needs one definition"
+  text: "`static int count;` inside a class only declares it. Without a definition in exactly one `.cpp` file, or `inline static int count = 0;` since C++17, the linker reports an undefined reference."
+  demo:
+    bad:
+      code: |
+        struct Counter {
+            static int count;   // declared, never defined
+        };
+
+        int main() {
+            return Counter::count;
+        }
+      error: "Counter::count"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            inline static int count = 0;   // declaration and definition in one
+        };
+
+        int main() {
+            std::cout << Counter::count << "\n";
+        }
+      out: "0\n"
+per-object-counter:
+  title: "A plain member counts per object, a static one per class"
+  text: "A non-static `count` member exists once for each object, so every object counts only itself. A `static` member is shared by all objects of the class, which is what a class-wide counter needs."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Widget {
+            int made = 0;
+            Widget() { ++made; }   // every object has its own count
+        };
+
+        int main() {
+            Widget a, b;
+            std::cout << a.made << " " << b.made << "\n";
+        }
+      out: "1 1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Widget {
+            inline static int made = 0;   // one count for the whole class
+            Widget() { ++made; }
+        };
+
+        int main() {
+            Widget a, b;
+            std::cout << Widget::made << "\n";
+        }
+      out: "2\n"
+illegal-transition-changes-state:
+  title: "A rejected transition must leave the state alone"
+  text: "A state machine that updates the state first and only then finds the move illegal ends up in the wrong state. Check the transition first, and change the state only when it is allowed."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        enum class S { Idle, Running, Done };
+
+        struct Machine {
+            S state = S::Idle;
+            bool go(S to) {
+                S from = state;
+                state = to;                                      // changed first ...
+                return !(from == S::Idle && to == S::Done);      // ... Idle -> Done is illegal
+            }
+        };
+
+        int main() {
+            Machine m;
+            bool ok = m.go(S::Done);
+            std::cout << ok << " " << (m.state == S::Idle) << "\n";
+        }
+      out: "0 0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        enum class S { Idle, Running, Done };
+
+        struct Machine {
+            S state = S::Idle;
+            bool go(S to) {
+                if (state == S::Idle && to == S::Done) return false;   // check first
+                state = to;
+                return true;
+            }
+        };
+
+        int main() {
+            Machine m;
+            bool ok = m.go(S::Done);
+            std::cout << ok << " " << (m.state == S::Idle) << "\n";
+        }
+      out: "0 1\n"
+switch-default-hides-missing-case:
+  title: "`default:` hides a missing enumerator"
+  text: "With a `default:` label the compiler stops warning when you add an enumerator and forget to handle it. Switch over an `enum class` without `default`, with `-Wswitch` on, so every new value is flagged."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        enum class Color { Red, Green, Blue };
+
+        const char* name(Color c) {
+            switch (c) {
+                case Color::Red: return "red\n";
+                case Color::Green: return "green\n";
+                default: return "other\n";   // Blue lands here, and nothing warns
+            }
+        }
+
+        int main() {
+            std::cout << name(Color::Blue);
+        }
+      out: "other\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        enum class Color { Red, Green, Blue };
+
+        const char* name(Color c) {
+            switch (c) {   // no default: -Wswitch flags a missing enumerator
+                case Color::Red: return "red\n";
+                case Color::Green: return "green\n";
+                case Color::Blue: return "blue\n";
+            }
+            return "?\n";
+        }
+
+        int main() {
+            std::cout << name(Color::Blue);
+        }
+      out: "blue\n"
+static-function-needs-no-object:
+  title: "A static member function has no `this`"
+  text: "A `static` member function is called as `Class::f()` without an object, and for that reason cannot use non-static members. Use it for what belongs to the class as a whole, such as factories."
+  demo:
+    bad:
+      code: |
+        struct Counter {
+            int n = 0;
+            static int next() { return n + 1; }   // there is no object, so no n
+        };
+
+        int main() {}
+      error: "static member function"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n = 0;
+            static int next(const Counter& c) { return c.n + 1; }   // hand it the object
+        };
+
+        int main() {
+            Counter c;
+            std::cout << Counter::next(c) << "\n";
+        }
+      out: "1\n"

@@ -1,0 +1,175 @@
+conflicting-deduced-types:
+  title: "\"Conflicting types for parameter T\""
+  text: "The compiler deduced `T` from two arguments and got two types, such as `int` and `double`. Make the arguments the same type, give the function two type parameters, or name `T` explicitly."
+  demo:
+    bad:
+      code: |
+        template <class T>
+        T larger(T a, T b) { return a > b ? a : b; }
+
+        int main() {
+            larger(1, 2.5);   // T would be int AND double
+        }
+      error: "larger"
+    fix:
+      code: |
+        #include <iostream>
+
+        template <class T>
+        T larger(T a, T b) { return a > b ? a : b; }
+
+        int main() {
+            std::cout << larger<double>(1, 2.5) << "\n";   // say which T you mean
+        }
+      out: "2.5\n"
+missing-typename:
+  title: "Dependent types need `typename`"
+  text: "Inside a template, `C::value_type` depends on a template parameter, so the compiler cannot know it names a type. Write `typename C::value_type`; the error usually says \"missing 'typename'\"."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        template <class C>
+        auto first(const C& c) {
+            C::value_type x = c[0];   // is C::value_type a type?
+            return x;
+        }
+
+        int main() {
+            std::vector<int> v{4, 5};
+            first(v);
+        }
+      error: "typename"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        template <class C>
+        auto first(const C& c) {
+            typename C::value_type x = c[0];   // typename says: this is a type
+            return x;
+        }
+
+        int main() {
+            std::vector<int> v{4, 5};
+            std::cout << first(v) << "\n";
+        }
+      out: "4\n"
+concept-too-narrow:
+  title: "A concept that is too narrow rejects valid types"
+  text: "The message \"constraints not satisfied\" points at the concept, not at your argument. Check that the concept describes what the code needs (`os << v`) rather than a list of type families."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <type_traits>
+
+        template <class T>
+        concept Printable = std::is_arithmetic_v<T>;   // too narrow: no strings
+
+        void show(const Printable auto& v) { std::cout << v << "\n"; }
+
+        int main() {
+            show(std::string("hello"));
+        }
+      error: "constraint"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        template <class T>
+        concept Printable = requires(std::ostream& os, const T& v) { os << v; };   // defined by what it must do
+
+        void show(const Printable auto& v) { std::cout << v << "\n"; }
+
+        int main() {
+            show(std::string("hello"));
+        }
+      out: "hello\n"
+missing-operator-for-std-algorithm:
+  title: "`std::sort` needs `operator<` on your type"
+  text: "The error appears deep inside `<algorithm>`, but the cause is yours: the element type has no `operator<`. Find the first line in your own file in the \"required from here\" notes, then add the operator or pass a comparator."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <vector>
+
+        struct P { int x; };
+
+        int main() {
+            std::vector<P> v(2);
+            std::sort(v.begin(), v.end());   // P has no operator<
+        }
+      error: "operand"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        struct P { int x; };
+
+        int main() {
+            std::vector<P> v{{2}, {1}};
+            std::sort(v.begin(), v.end(), [](const P& a, const P& b) { return a.x < b.x; });
+            std::cout << v[0].x << " " << v[1].x << "\n";
+        }
+      out: "1 2\n"
+class-template-needs-arguments:
+  title: "A class template needs arguments (or deduction)"
+  text: "`std::vector v;` fails, because `vector` is a template and not yet a type. Write `std::vector<int> v;`, or let class template argument deduction infer them from the initializer: `std::vector v{1, 2, 3};`."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        int main() {
+            std::vector v;   // nothing to deduce the element type from
+        }
+      error: "vector"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector v{1, 2, 3};   // deduced as std::vector<int>
+            std::cout << v.size() << "\n";
+        }
+      out: "3\n"
+non-constant-template-argument:
+  title: "A template argument must be a constant expression"
+  text: "`std::array<int, n>` with a runtime `n` fails with \"not a constant expression\". Declare it `constexpr`, or use a container whose size is a run-time value, such as `std::vector`."
+  demo:
+    bad:
+      code: |
+        #include <array>
+
+        int main() {
+            int n = 3;
+            std::array<int, n> a;   // n is not known at compile time
+            (void)a;
+        }
+      error: "constant expression"
+    fix:
+      code: |
+        #include <array>
+        #include <iostream>
+
+        int main() {
+            constexpr int n = 3;
+            std::array<int, n> a{};
+            std::cout << a.size() << "\n";
+        }
+      out: "3\n"
+error-inside-the-library:
+  title: "The error is in the library, the cause is in your call"
+  text: "Template errors are reported where the failing code is, deep inside `<algorithm>` or `<vector>`. Scroll to the \"required from here\" notes: the first one in your own file is the place to look."
+read-the-first-error-first:
+  title: "Read the first error first"
+  text: "One mistake in a template can produce dozens of follow-up errors. Fix the first one and rebuild: most of the rest usually vanish."
