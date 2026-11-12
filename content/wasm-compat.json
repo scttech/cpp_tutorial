@@ -580,6 +580,46 @@
       "mutants": 16,
       "hash": "08819acac5868bf4"
     },
+    "domain.data.csv": {
+      "wasm": true,
+      "mutants": 32,
+      "hash": "bbc603193c5d6493"
+    },
+    "domain.data.interpolation-and-roots": {
+      "wasm": true,
+      "mutants": 40,
+      "hash": "359ce4fe05b84507"
+    },
+    "domain.data.matrix": {
+      "wasm": true,
+      "mutants": 24,
+      "hash": "732a94b8231cdf7c"
+    },
+    "domain.data.sparse-matrices": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "solution builds with diagnostics: test.cpp:135:59: warning: shift count >= width of type [-Wshift-count-overflow] |   135 |     ZTH_EXPECT_FALSE(Csr::from_triplets(3, std::size_t{1} << 40, {}).has_value()); |       |                                                           ^  ~~ | /zth/zth_test.hpp:727:14: note:",
+        "solution fails \"from_triplets refuses what does not fit, and huge dimensions without allocating them\" [fail]: expected Csr::from_triplets(3, std::size_t{1} << 40, {}).has_value() to be false"
+      ],
+      "hash": "41c1914167fe2c53"
+    },
+    "domain.data.stable-statistics": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"percentile-upper-neighbour-wrong\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "7de1d31a02f672b7"
+    },
+    "domain.data.time-series-resampling": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"aggregate-end-inclusive\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "6d84e6b4a26480c6"
+    },
     "domain.embedded.crc": {
       "wasm": true,
       "mutants": 26,
@@ -696,6 +736,36 @@
       ],
       "hash": "5980c33143629dc5"
     },
+    "domain.graphics.kalman-filter": {
+      "wasm": true,
+      "mutants": 32,
+      "hash": "231f4284114c7a6c"
+    },
+    "domain.graphics.pure-pursuit": {
+      "wasm": true,
+      "mutants": 53,
+      "hash": "bf1f7795776932b9"
+    },
+    "domain.graphics.quaternions": {
+      "wasm": true,
+      "mutants": 32,
+      "hash": "5f0a4c59b719ca71"
+    },
+    "domain.graphics.rasterization": {
+      "wasm": true,
+      "mutants": 32,
+      "hash": "9a3354e50236cebe"
+    },
+    "domain.graphics.ray-intersection": {
+      "wasm": true,
+      "mutants": 38,
+      "hash": "98dc1cb2ddb41610"
+    },
+    "domain.graphics.vectors-and-matrices": {
+      "wasm": true,
+      "mutants": 42,
+      "hash": "a5d02273c72ac8a4"
+    },
     "domain.networking.base64": {
       "wasm": true,
       "mutants": 31,
@@ -772,6 +842,42 @@
         "mutant \"record-before-upstream\" passes every test (it is only caught on the server)"
       ],
       "hash": "e378b0feaa3f98a5"
+    },
+    "domain.tooling.argument-parser": {
+      "wasm": false,
+      "reason": "uses a C++ library feature the browser build lacks",
+      "details": [
+        "solution does not build: In file included from main.cpp:9: | ./cli.hpp:352:20: error: call to deleted function 'from_chars' |   352 |     const auto r = std::from_chars(text.data(), text.data() + text.size(), v); |       |                    ^~~~~~~~~~~~~~~"
+      ],
+      "hash": "a09823f561ee68b6"
+    },
+    "domain.tooling.build-graph": {
+      "wasm": true,
+      "mutants": 39,
+      "hash": "22ea7e7b2cc189ed"
+    },
+    "domain.tooling.config-parser": {
+      "wasm": false,
+      "reason": "uses a C++ library feature the browser build lacks",
+      "details": [
+        "solution does not build: In file included from main.cpp:5: | ./config.hpp:445:28: error: call to deleted function 'from_chars' |   445 |             const auto r = std::from_chars(text.data(), text.data() + text.size(), v); |       |                            ^~~~~~~~~~~~~~~"
+      ],
+      "hash": "bd908d347af04472"
+    },
+    "domain.tooling.glob-matcher": {
+      "wasm": true,
+      "mutants": 47,
+      "hash": "6709e12dcc63eb27"
+    },
+    "domain.tooling.myers-diff": {
+      "wasm": true,
+      "mutants": 49,
+      "hash": "1f9902c3b44cf5f8"
+    },
+    "domain.tooling.structured-logger": {
+      "wasm": true,
+      "mutants": 74,
+      "hash": "c762bb5b454428b3"
     }
   }
 }

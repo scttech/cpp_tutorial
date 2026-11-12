@@ -1,0 +1,6 @@
+id: domain.data
+title: "Data and Scientific Computing"
+track: data
+order: 106
+summary: "Numerics that stay correct on real data: a strided matrix library with a cache-blocked multiply, stable statistics, a CSV reader and writer, sparse CSR matrices, interpolation and root finding, and time-series resampling."
+recommends: "Modules 1 to 7 (up to Inheritance and Polymorphism)"

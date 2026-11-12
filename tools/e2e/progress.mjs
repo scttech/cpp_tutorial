@@ -80,10 +80,10 @@ try {
   check(earned.some((t) => t.includes("Hello, World")) && earned.some((t) => t.includes("It Works!")), `earned badges are shown in colour (${earned.map((t) => t.trim()).join(", ")})`);
   const hidden = await page.locator(".badge-card.locked .bname", { hasText: "???" }).count();
   check(hidden >= 3, `hidden badges stay secret until earned (${hidden} shown as ???)`);
-  // the domain badges of domains that are not written yet (Data, Graphics, Tooling) and the all-domains badge wait in one group
+  // every domain exists now, so no badge waits in a 'coming soon' group
   const soonGroups = await page.locator("details.soon").count();
   const soonCards = await page.locator("details.soon .badge-card").count();
-  check(soonGroups === 1 && soonCards === 4, `badges of unwritten domains wait in a single 'coming soon' group (${soonGroups} group, ${soonCards} badges)`);
+  check(soonGroups === 0 && soonCards === 0, `no badge waits in a 'coming soon' group: every domain track exists (${soonGroups} groups, ${soonCards} badges)`);
   check((await page.locator("details.soon .badge-card", { hasText: "Game Dev" }).count()) === 0, "the Game Dev badge of a written domain is not 'coming soon'");
   await page.locator(".badge-card.earned", { hasText: "Hello, World" }).first().click();
   check(((await page.locator(".badge-detail").textContent()) ?? "").includes("Hello, World (and what just happened)"), "badge detail lists the evidence (which lesson counted)");

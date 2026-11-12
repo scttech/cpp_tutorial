@@ -1,0 +1,431 @@
+[
+  {
+    "name": "dup-not-detected",
+    "why": "a repeated name replaces the first",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        if (!g.index_.emplace(t.name, g.names_.size()).second) return fail({ErrorKind::DuplicateTarget, t.name, \"\", {}});",
+        "new": "        g.index_[t.name] = g.names_.size();"
+      }
+    ]
+  },
+  {
+    "name": "dup-wrong-culprit",
+    "why": "the first declaration is reported instead of the second",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "return fail({ErrorKind::DuplicateTarget, t.name, \"\", {}});",
+        "new": "return fail({ErrorKind::DuplicateTarget, targets.front().name, \"\", {}});"
+      }
+    ]
+  },
+  {
+    "name": "unknown-dep-ok",
+    "why": "an undeclared dependency is silently ignored",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (it == g.index_.end()) return fail({ErrorKind::UnknownDependency, g.names_[i], d, {}});",
+        "new": "            if (it == g.index_.end()) continue;"
+      }
+    ]
+  },
+  {
+    "name": "unknown-dep-swapped",
+    "why": "target and missing name are swapped",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "return fail({ErrorKind::UnknownDependency, g.names_[i], d, {}});",
+        "new": "return fail({ErrorKind::UnknownDependency, d, g.names_[i], {}});"
+      }
+    ]
+  },
+  {
+    "name": "dep-listed-twice-counted",
+    "why": "a dependency listed twice counts twice",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (stamp[it->second] == i) continue;   // listed twice\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cycle-self-ignored",
+    "why": "a self-dependency is not a cycle",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (color[w] == 1) {",
+        "new": "            if (color[w] == 1 && w != f.node) {"
+      }
+    ]
+  },
+  {
+    "name": "cycle-finished-node",
+    "why": "reaching a finished node counts as a cycle",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (color[w] == 1) {",
+        "new": "            if (color[w] != 0) {"
+      }
+    ]
+  },
+  {
+    "name": "cycle-includes-prefix",
+    "why": "the cycle includes the path that led to it",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "                for (std::size_t k = position[w]; k < stack.size(); ++k)",
+        "new": "                for (std::size_t k = 0; k < stack.size(); ++k)"
+      }
+    ]
+  },
+  {
+    "name": "cycle-not-closed",
+    "why": "the first node is not repeated at the end",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "                e.cycle.push_back(g.names_[w]);\n                return fail",
+        "new": "                return fail"
+      }
+    ]
+  },
+  {
+    "name": "cycle-position-off",
+    "why": "the cycle starts one node late",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "for (std::size_t k = position[w]; k < stack.size(); ++k)",
+        "new": "for (std::size_t k = position[w] + 1; k < stack.size(); ++k)"
+      }
+    ]
+  },
+  {
+    "name": "cycle-target-wrong",
+    "why": "the cycle error names the last node",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "Error e{ErrorKind::Cycle, g.names_[w], \"\", {}};",
+        "new": "Error e{ErrorKind::Cycle, g.names_[f.node], \"\", {}};"
+      }
+    ]
+  },
+  {
+    "name": "cycle-start-order",
+    "why": "the search starts from the last declared node",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "    for (std::size_t start = 0; start < n; ++start) {\n        if (color[start]) continue;",
+        "new": "    for (std::size_t start = n; start-- > 0;) {\n        if (color[start]) continue;"
+      }
+    ]
+  },
+  {
+    "name": "cycle-dep-order",
+    "why": "dependencies are explored in reverse order",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "const std::size_t w = g.deps_[f.node][f.next++];",
+        "new": "const std::size_t w = g.deps_[f.node][g.deps_[f.node].size() - 1 - f.next++];"
+      }
+    ]
+  },
+  {
+    "name": "cycle-position-not-set",
+    "why": "the path position is never updated",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "                position[w] = stack.size();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cycle-colors-reset",
+    "why": "finished nodes are visited again (exponential on diamonds)",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (f.next == g.deps_[f.node].size()) {\n                color[f.node] = 2;",
+        "new": "            if (f.next == g.deps_[f.node].size()) {\n                color[f.node] = 0;"
+      }
+    ]
+  },
+  {
+    "name": "kahn-fifo",
+    "why": "the ready targets are taken in the order they became ready",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "std::priority_queue<std::size_t, std::vector<std::size_t>, std::greater<std::size_t>> ready;",
+        "new": "std::priority_queue<std::size_t, std::vector<std::size_t>, std::less<std::size_t>> ready;"
+      }
+    ]
+  },
+  {
+    "name": "kahn-skips-sources",
+    "why": "targets without dependencies are never ready",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (remaining[v] == 0) ready.push(v);\n        }\n        while",
+        "new": "            if (remaining[v] == 0 && !deps_[v].empty()) ready.push(v);\n        }\n        while"
+      }
+    ]
+  },
+  {
+    "name": "order-all-reversed",
+    "why": "order() is reversed",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        return names(kahn(std::vector<char>(names_.size(), 1)));\n    }\n\n    OrderResult",
+        "new": "        std::vector<std::size_t> o = kahn(std::vector<char>(names_.size(), 1));\n        std::reverse(o.begin(), o.end());\n        return names(o);\n    }\n\n    OrderResult"
+      }
+    ]
+  },
+  {
+    "name": "reach-goals-only",
+    "why": "dependencies of the goals are not included",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            for (std::size_t d : deps_[v])\n                if (!in[d]) {\n                    in[d] = 1;\n                    stack.push_back(d);\n                }",
+        "new": "            (void)v;"
+      }
+    ]
+  },
+  {
+    "name": "reach-unknown-goal-ok",
+    "why": "unknown goals are skipped silently",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (it == index_.end()) return Error{ErrorKind::UnknownGoal, g, \"\", {}};",
+        "new": "            if (it == index_.end()) continue;"
+      }
+    ]
+  },
+  {
+    "name": "reach-goal-detail",
+    "why": "UnknownGoal names the first goal",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "return Error{ErrorKind::UnknownGoal, g, \"\", {}};",
+        "new": "return Error{ErrorKind::UnknownGoal, goals.front(), \"\", {}};"
+      }
+    ]
+  },
+  {
+    "name": "levels-include-sources",
+    "why": "sources are put in a round of their own",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            if (in[v] && !deps_[v].empty()) rounds[level[v] - 1].push_back(names_[v]);",
+        "new": "            if (in[v] && !deps_[v].empty()) rounds[level[v] - 1].push_back(names_[v]);\n        if (!rounds.empty()) rounds.insert(rounds.begin(), std::vector<std::string>());"
+      }
+    ]
+  },
+  {
+    "name": "levels-shortest-path",
+    "why": "the level is one more than the SHALLOWEST dependency",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            for (std::size_t d : deps_[v]) l = std::max(l, level[d] + 1);",
+        "new": "            l = 1000000;\n            for (std::size_t d : deps_[v]) l = std::min(l, level[d] + 1);"
+      }
+    ]
+  },
+  {
+    "name": "levels-order-inside",
+    "why": "targets inside a round are in build order, not declaration order",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        for (std::size_t v = 0; v < names_.size(); ++v)   // declaration order inside a round\n            if (in[v] && !deps_[v].empty()) rounds[level[v] - 1].push_back(names_[v]);",
+        "new": "        for (std::size_t v : topo)\n            if (in[v] && !deps_[v].empty()) rounds[level[v] - 1].push_back(names_[v]);"
+      }
+    ]
+  },
+  {
+    "name": "levels-unknown-goal-fatal",
+    "why": "one unknown goal empties the result",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        for (const std::string& g : goals)\n            if (contains(g)) known.push_back(g);",
+        "new": "        for (const std::string& g : goals) {\n            if (!contains(g)) return {};\n            known.push_back(g);\n        }"
+      }
+    ]
+  },
+  {
+    "name": "dependents-includes-self",
+    "why": "the target itself is listed",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        std::vector<char> hit(names_.size(), 0);\n        std::vector<std::size_t> stack = {it->second};",
+        "new": "        std::vector<char> hit(names_.size(), 0);\n        hit[it->second] = 1;\n        std::vector<std::size_t> stack = {it->second};"
+      }
+    ]
+  },
+  {
+    "name": "dependents-direct-only",
+    "why": "only direct dependents are returned",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "                if (!hit[r]) {\n                    hit[r] = 1;\n                    stack.push_back(r);\n                }",
+        "new": "                hit[r] = 1;"
+      }
+    ]
+  },
+  {
+    "name": "dependents-declaration-order",
+    "why": "dependents come in declaration order",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        for (std::size_t v : kahn(std::vector<char>(names_.size(), 1)))\n            if (hit[v]) out.push_back(names_[v]);",
+        "new": "        for (std::size_t v = 0; v < names_.size(); ++v)\n            if (hit[v]) out.push_back(names_[v]);"
+      }
+    ]
+  },
+  {
+    "name": "plan-equal-rebuilds",
+    "why": "equal timestamps count as out of date",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "if (rebuilt[d] || (has[v] && mt[d] > mt[v])) need = true;",
+        "new": "if (rebuilt[d] || (has[v] && mt[d] >= mt[v])) need = true;"
+      }
+    ]
+  },
+  {
+    "name": "plan-older-rebuilds",
+    "why": "any difference in timestamps rebuilds",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "if (rebuilt[d] || (has[v] && mt[d] > mt[v])) need = true;",
+        "new": "if (rebuilt[d] || (has[v] && mt[d] != mt[v])) need = true;"
+      }
+    ]
+  },
+  {
+    "name": "plan-ignores-rebuilt",
+    "why": "only timestamps decide, not rebuilt dependencies",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "if (rebuilt[d] || (has[v] && mt[d] > mt[v])) need = true;",
+        "new": "if (has[v] && mt[d] > mt[v]) need = true;"
+      }
+    ]
+  },
+  {
+    "name": "plan-missing-output-ok",
+    "why": "a missing output is assumed up to date",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            bool need = !has[v];",
+        "new": "            bool need = false;"
+      }
+    ]
+  },
+  {
+    "name": "plan-missing-source-ok",
+    "why": "a missing source is ignored",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "                if (!has[v]) return PlanResult{{}, Error{ErrorKind::MissingSource, names_[v], \"\", {}}};",
+        "new": "                if (!has[v]) continue;"
+      }
+    ]
+  },
+  {
+    "name": "plan-missing-source-detail",
+    "why": "MissingSource names the target that needs it",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "return PlanResult{{}, Error{ErrorKind::MissingSource, names_[v], \"\", {}}};",
+        "new": "return PlanResult{{}, Error{ErrorKind::MissingSource, names_[rdeps_[v].empty() ? v : rdeps_[v][0]], \"\", {}}};"
+      }
+    ]
+  },
+  {
+    "name": "plan-all-targets",
+    "why": "targets outside the goals are considered too",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        std::vector<char> in;\n        if (auto e = reachable(goals, in)) return PlanResult{{}, *e};\n        std::vector<char> rebuilt",
+        "new": "        std::vector<char> in;\n        if (auto e = reachable(goals, in)) return PlanResult{{}, *e};\n        in.assign(names_.size(), 1);\n        std::vector<char> rebuilt"
+      }
+    ]
+  },
+  {
+    "name": "plan-mtime-lookup-wrong",
+    "why": "a dependency without a timestamp is treated as time zero",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "            has[v] = it != mtimes.end();\n            if (has[v]) mt[v] = it->second;",
+        "new": "            has[v] = it != mtimes.end() || !deps_[v].empty();\n            if (it != mtimes.end()) mt[v] = it->second;"
+      }
+    ]
+  },
+  {
+    "name": "plan-result-order",
+    "why": "the plan is in declaration order, not build order",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        return result;\n    }\n\nprivate:",
+        "new": "        std::vector<std::string> sorted;\n        for (const std::string& n : names_) if (std::find(result.rebuild.begin(), result.rebuild.end(), n) != result.rebuild.end()) sorted.push_back(n);\n        result.rebuild = sorted;\n        return result;\n    }\n\nprivate:"
+      }
+    ]
+  },
+  {
+    "name": "contains-wrong",
+    "why": "contains() is true for everything declared as a dependency only",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "    bool contains(const std::string& name) const { return index_.count(name) != 0; }",
+        "new": "    bool contains(const std::string& name) const { return index_.count(name) != 0 && !name.empty(); }"
+      }
+    ]
+  },
+  {
+    "name": "deps-reverse",
+    "why": "deps() lists dependencies in reverse",
+    "edits": [
+      {
+        "file": "build.hpp",
+        "old": "        for (std::size_t d : deps_[it->second]) out.push_back(names_[d]);\n        return out;",
+        "new": "        for (std::size_t d : deps_[it->second]) out.insert(out.begin(), names_[d]);\n        return out;"
+      }
+    ]
+  }
+]

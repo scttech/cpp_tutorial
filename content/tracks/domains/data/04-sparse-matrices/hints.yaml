@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "from_triplets: refuse dims above kMaxDimension and any triplet outside the matrix BEFORE allocating; std::stable_sort by (row, col); walk runs of equal (row, col) summing from the first value in order; if the sum != 0.0 push (col, sum) and ++row_ptr_[row + 1]; at the end a prefix sum over row_ptr_. at(): outside -> nullopt; std::lower_bound on col_idx_ between row_ptr_[r] and row_ptr_[r+1]; found -> the value, else 0.0."
+  - level: 2
+    text: "multiply_into: check the sizes, then for each row sum = 0.0; for k in [row_ptr_[r], row_ptr_[r+1]) sum += values_[k] * x[col_idx_[k]]; y[r] = sum (assign, so empty rows and stale contents are handled). multiply_transposed_into: zero y, then y[col_idx_[k]] += values_[k] * x[r] row by row (ascending r gives the same bits as transpose().multiply)."
+  - level: 3
+    text: "transpose by counting: t.row_ptr_ has cols_ + 1 entries; ++t.row_ptr_[col + 1] for every stored column; prefix sum; a copy 'next' of the starts; walk the old rows ascending and put each entry at next[col]++ (store the OLD row as the new column). plus: per row merge two sorted ranges; take the smaller column, or combine on a tie; drop results equal to 0.0; push row_ptr_[r + 1] = values_.size() after each row."
+  - level: 4
+    text: |
+      // plus, one row:
+      // while (i < ie || j < je) {
+      //     if (j >= je || (i < ie && col_idx_[i] < o.col_idx_[j]))      { col = col_idx_[i];   v = alpha * values_[i++]; }
+      //     else if (i >= ie || o.col_idx_[j] < col_idx_[i])             { col = o.col_idx_[j]; v = beta * o.values_[j++]; }
+      //     else { col = col_idx_[i]; v = alpha * values_[i++] + beta * o.values_[j++]; }
+      //     if (v != 0.0) { push col, v }
+      // }

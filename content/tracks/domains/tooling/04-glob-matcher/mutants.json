@@ -1,0 +1,519 @@
+[
+  {
+    "name": "lower-only-upper",
+    "why": "case folding only turns capitals to small letters in sets",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                    t[lower(static_cast<unsigned char>(k))] = true;\n                    t[upper(static_cast<unsigned char>(k))] = true;",
+        "new": "                    t[lower(static_cast<unsigned char>(k))] = true;"
+      }
+    ]
+  },
+  {
+    "name": "fold-literal-missing",
+    "why": "literals are not folded",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        in.c = opt_.ignore_case ? lower(c) : c;",
+        "new": "        in.c = c;"
+      }
+    ]
+  },
+  {
+    "name": "fold-compare-missing",
+    "why": "the path character is not folded",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::Char: ok = (opt_.ignore_case ? detail::lower(c) : c) == in.c; break;",
+        "new": "case Op::Char: ok = c == in.c; break;"
+      }
+    ]
+  },
+  {
+    "name": "fold-non-ascii",
+    "why": "bytes above 0x7F are folded",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "inline unsigned char lower(unsigned char c) { return (c >= 'A' && c <= 'Z') ? static_cast<unsigned char>(c - 'A' + 'a') : c; }",
+        "new": "inline unsigned char lower(unsigned char c) { return (c >= 'A' && c <= 'Z') || c >= 0xC0 ? static_cast<unsigned char>(c | 0x20) : c; }"
+      }
+    ]
+  },
+  {
+    "name": "any-crosses-slash",
+    "why": "? matches a slash",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::Any: ok = c != '/' && !dot_blocked(pos); break;",
+        "new": "case Op::Any: ok = !dot_blocked(pos); break;"
+      }
+    ]
+  },
+  {
+    "name": "star-crosses-slash",
+    "why": "* matches a slash",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::AnyNoSlash: ok = c != '/'; break;",
+        "new": "case Op::AnyNoSlash: ok = true; break;"
+      }
+    ]
+  },
+  {
+    "name": "set-matches-slash",
+    "why": "a negated set matches a slash",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        t[static_cast<unsigned char>('/')] = false;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "any-dot-ok",
+    "why": "? matches a leading dot",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::Any: ok = c != '/' && !dot_blocked(pos); break;",
+        "new": "case Op::Any: ok = c != '/'; break;"
+      }
+    ]
+  },
+  {
+    "name": "set-dot-ok",
+    "why": "a set matches a leading dot",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::Set: ok = sets_[static_cast<std::size_t>(in.x)][c] && !dot_blocked(pos); break;",
+        "new": "case Op::Set: ok = sets_[static_cast<std::size_t>(in.x)][c]; break;"
+      }
+    ]
+  },
+  {
+    "name": "pathstar-dot-ok",
+    "why": "** looks into hidden directories",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "case Op::AnyPath: ok = !dot_blocked(pos); break;",
+        "new": "case Op::AnyPath: ok = true; break;"
+      }
+    ]
+  },
+  {
+    "name": "guard-missing-on-star",
+    "why": "a star may match nothing and let a literal dot through",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        while (i_ < p_.size() && p_[i_] == '*') ++i_;   // a run of stars is one star\n        emit({Op::Guard});\n        star_loop(Op::AnyNoSlash);",
+        "new": "        while (i_ < p_.size() && p_[i_] == '*') ++i_;   // a run of stars is one star\n        star_loop(Op::AnyNoSlash);"
+      }
+    ]
+  },
+  {
+    "name": "guard-missing-on-segloop",
+    "why": "**/ enters hidden directories",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                emit({Op::Guard});\n                star_loop(Op::AnyNoSlash);\n                Inst slash{Op::Char};",
+        "new": "                star_loop(Op::AnyNoSlash);\n                Inst slash{Op::Char};"
+      }
+    ]
+  },
+  {
+    "name": "dot-segment-start-only-at-zero",
+    "why": "the dot rule only applies at the start of the whole path",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "const auto segment_start = [&](std::size_t i) { return i == 0 || s[i - 1] == '/'; };",
+        "new": "const auto segment_start = [&](std::size_t i) { return i == 0; };"
+      }
+    ]
+  },
+  {
+    "name": "dot-option-ignored",
+    "why": "the dot option has no effect",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "const auto dot_blocked = [&](std::size_t i) { return !opt_.dot && i < s.size()",
+        "new": "const auto dot_blocked = [&](std::size_t i) { return i < s.size()"
+      }
+    ]
+  },
+  {
+    "name": "dot-after-any-char",
+    "why": "the dot rule applies after every character",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "const auto segment_start = [&](std::size_t i) { return i == 0 || s[i - 1] == '/'; };",
+        "new": "const auto segment_start = [&](std::size_t i) { return true; };"
+      }
+    ]
+  },
+  {
+    "name": "double-star-always",
+    "why": "** crosses segments even inside a word",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            const bool left_ok = i_ == 0 || p_[i_ - 1] == '/';",
+        "new": "            const bool left_ok = true;"
+      }
+    ]
+  },
+  {
+    "name": "double-star-left-unchecked-slash",
+    "why": "** after a slash is not recognised",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            const bool left_ok = i_ == 0 || p_[i_ - 1] == '/';",
+        "new": "            const bool left_ok = i_ == 0;"
+      }
+    ]
+  },
+  {
+    "name": "double-star-end-zero",
+    "why": "a/** also matches \"a/\"",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                    const int first = emit({Op::AnyPath});\n                    Inst again{Op::Split};\n                    again.x = first;\n                    again.y = pc() + 1;\n                    emit(again);",
+        "new": "                    star_loop(Op::AnyPath);"
+      }
+    ]
+  },
+  {
+    "name": "double-star-end-needs-two",
+    "why": "a/** needs at least two characters",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                    const int first = emit({Op::AnyPath});\n                    Inst again{Op::Split};",
+        "new": "                    emit({Op::AnyPath});\n                    const int first = emit({Op::AnyPath});\n                    Inst again{Op::Split};"
+      }
+    ]
+  },
+  {
+    "name": "double-star-mid-needs-one",
+    "why": "a/**/x needs at least one directory",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                const int l = emit({Op::Split});\n                prog_[static_cast<std::size_t>(l)].x = pc();\n                emit({Op::Guard});\n                star_loop(Op::AnyNoSlash);\n                Inst slash{Op::Char};\n                slash.c = '/';\n                emit(slash);\n                Inst back{Op::Jmp};\n                back.x = l;\n                emit(back);\n                prog_[static_cast<std::size_t>(l)].y = pc();",
+        "new": "                emit({Op::Guard});\n                star_loop(Op::AnyNoSlash);\n                Inst slash{Op::Char};\n                slash.c = '/';\n                emit(slash);\n                const int l = emit({Op::Split});\n                prog_[static_cast<std::size_t>(l)].x = pc() - 4;\n                prog_[static_cast<std::size_t>(l)].y = pc();"
+      }
+    ]
+  },
+  {
+    "name": "double-star-alone-needs-one",
+    "why": "** alone does not match the empty path",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                if (i_ == 0) {\n                    star_loop(Op::AnyPath);   // \"**\": everything",
+        "new": "                if (i_ == 0) {\n                    emit({Op::AnyPath});\n                    star_loop(Op::AnyPath);   // \"**\": everything"
+      }
+    ]
+  },
+  {
+    "name": "star-run-multiple",
+    "why": "every star of a run is its own loop",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        while (i_ < p_.size() && p_[i_] == '*') ++i_;   // a run of stars is one star",
+        "new": "        ++i_;"
+      }
+    ]
+  },
+  {
+    "name": "double-star-consumes-slash-twice",
+    "why": "**/ swallows the slash after it and one more",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                i_ += 3;\n                return true;",
+        "new": "                i_ += 3;\n                if (i_ < p_.size() && p_[i_] == '/') ++i_;\n                return true;"
+      }
+    ]
+  },
+  {
+    "name": "set-first-bracket-closes",
+    "why": "a ] right after [ closes the set",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            if (c == ']' && !first) break;",
+        "new": "            if (c == ']') break;"
+      }
+    ]
+  },
+  {
+    "name": "set-negation-chars",
+    "why": "^ does not negate",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "if (j < p_.size() && (p_[j] == '!' || p_[j] == '^')) {",
+        "new": "if (j < p_.size() && (p_[j] == '!')) {"
+      }
+    ]
+  },
+  {
+    "name": "set-range-inclusive-high",
+    "why": "a range excludes its last character",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                for (unsigned k = c; k <= hi; ++k) t[k] = true;",
+        "new": "                for (unsigned k = c; k < hi; ++k) t[k] = true;"
+      }
+    ]
+  },
+  {
+    "name": "set-range-reversed-ok",
+    "why": "a reversed range is silently empty",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                if (hi < c) return fail(range_start, \"the range is reversed\");",
+        "new": "                if (hi < c) { j = next; continue; }"
+      }
+    ]
+  },
+  {
+    "name": "set-range-error-position",
+    "why": "the reversed-range error points at the set",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "return fail(range_start, \"the range is reversed\");",
+        "new": "return fail(open, \"the range is reversed\");"
+      }
+    ]
+  },
+  {
+    "name": "set-trailing-dash-range",
+    "why": "[a-] is a range up to the bracket",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            if (j + 2 < p_.size() && p_[j + 1] == '-' && p_[j + 2] != ']') {",
+        "new": "            if (j + 2 < p_.size() && p_[j + 1] == '-') {"
+      }
+    ]
+  },
+  {
+    "name": "set-unterminated-position",
+    "why": "an unterminated set is reported at the end",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "if (j >= p_.size()) return fail(open, \"the set is never closed\");\n            unsigned char c",
+        "new": "if (j >= p_.size()) return fail(p_.size(), \"the set is never closed\");\n            unsigned char c"
+      }
+    ]
+  },
+  {
+    "name": "set-escape-ignored",
+    "why": "a backslash in a set is an ordinary member",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            if (c == '\\\\') {\n                if (j + 1 >= p_.size()) return fail(open, \"the set is never closed\");\n                c = static_cast<unsigned char>(p_[++j]);\n            }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "set-negation-after-fold",
+    "why": "case folding is applied after negation",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        if (opt_.ignore_case)\n            for (unsigned k = 0; k < 256; ++k)\n                if (t[k]) {\n                    t[lower(static_cast<unsigned char>(k))] = true;\n                    t[upper(static_cast<unsigned char>(k))] = true;\n                }\n        if (negate)\n            for (bool& b : t) b = !b;",
+        "new": "        if (negate)\n            for (bool& b : t) b = !b;\n        if (opt_.ignore_case)\n            for (unsigned k = 0; k < 256; ++k)\n                if (t[k]) {\n                    t[lower(static_cast<unsigned char>(k))] = true;\n                    t[upper(static_cast<unsigned char>(k))] = true;\n                }"
+      }
+    ]
+  },
+  {
+    "name": "escape-trailing-ok",
+    "why": "a trailing backslash is a literal backslash",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                if (i_ + 1 >= p_.size()) return fail(i_, \"a pattern cannot end with a backslash\");\n                literal(static_cast<unsigned char>(p_[i_ + 1]));\n                i_ += 2;",
+        "new": "                if (i_ + 1 >= p_.size()) { literal('\\\\'); ++i_; continue; }\n                literal(static_cast<unsigned char>(p_[i_ + 1]));\n                i_ += 2;"
+      }
+    ]
+  },
+  {
+    "name": "escape-error-position",
+    "why": "the backslash error points one byte too far",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "return fail(i_, \"a pattern cannot end with a backslash\");",
+        "new": "return fail(i_ + 1, \"a pattern cannot end with a backslash\");"
+      }
+    ]
+  },
+  {
+    "name": "brace-last-alternative-lost",
+    "why": "the last alternative is dropped",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            prog_[static_cast<std::size_t>(split)].y = split + 1;   // the last alternative: no further choice",
+        "new": "            prog_[static_cast<std::size_t>(split)].y = pc();   // the last alternative: no further choice"
+      }
+    ]
+  },
+  {
+    "name": "brace-unclosed-position",
+    "why": "an unterminated brace is reported at the end",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "if (i_ >= p_.size()) return fail(open, \"the brace is never closed\");",
+        "new": "if (i_ >= p_.size()) return fail(p_.size(), \"the brace is never closed\");"
+      }
+    ]
+  },
+  {
+    "name": "brace-depth-off-by-one",
+    "why": "braces nest only 31 levels",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "if (depth >= 32) return fail(open, \"braces are nested too deeply\");",
+        "new": "if (depth >= 31) return fail(open, \"braces are nested too deeply\");"
+      }
+    ]
+  },
+  {
+    "name": "brace-depth-unlimited",
+    "why": "there is no nesting limit",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        if (depth >= 32) return fail(open, \"braces are nested too deeply\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "brace-comma-outside",
+    "why": "a comma outside braces ends the pattern",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            if (depth > 0 && (c == ',' || c == '}')) break;",
+        "new": "            if (c == ',' || c == '}') break;"
+      }
+    ]
+  },
+  {
+    "name": "brace-empty-alternative",
+    "why": "an empty alternative is an error",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            if (!seq(depth + 1)) return false;\n            ends.push_back(emit({Op::Jmp}));",
+        "new": "            if (!seq(depth + 1)) return false;\n            if (prog_.back().op == Op::Split) return fail(open, \"empty alternative\");\n            ends.push_back(emit({Op::Jmp}));"
+      }
+    ]
+  },
+  {
+    "name": "brace-jumps-wrong",
+    "why": "the alternatives jump back to the start",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        for (int e : ends) prog_[static_cast<std::size_t>(e)].x = pc();",
+        "new": "        for (int e : ends) prog_[static_cast<std::size_t>(e)].x = pc() - 1;"
+      }
+    ]
+  },
+  {
+    "name": "match-prefix-only",
+    "why": "a match at any position of the path counts",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        for (std::size_t pos = 0; pos < s.size() && !cur.empty(); ++pos) {",
+        "new": "        for (std::size_t pos = 0; pos < s.size() && !cur.empty(); ++pos) {\n            for (int pc0 : cur)\n                if (prog_[static_cast<std::size_t>(pc0)].op == Op::Match) return true;"
+      }
+    ]
+  },
+  {
+    "name": "match-no-visited-mark",
+    "why": "program locations are not deduplicated",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                if (mark[static_cast<std::size_t>(pc)] == gen) continue;\n                mark[static_cast<std::size_t>(pc)] = gen;",
+        "new": "                if (stack.size() > 1000000) continue;"
+      }
+    ]
+  },
+  {
+    "name": "match-end-state-lost",
+    "why": "epsilon moves after the last character are not followed",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "                if (ok) add(next, pc + 1, pos + 1);",
+        "new": "                if (ok && pos + 1 < s.size()) add(next, pc + 1, pos + 1);\n                else if (ok) next.push_back(pc + 1);"
+      }
+    ]
+  },
+  {
+    "name": "match-allocates-per-char",
+    "why": "a fresh vector is allocated for every character",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "            ++gen;\n            next.clear();",
+        "new": "            ++gen;\n            next = std::vector<int>();"
+      }
+    ]
+  },
+  {
+    "name": "check-ignores-sets",
+    "why": "unterminated sets are not reported",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "if (j >= p_.size()) return fail(open, \"the set is never closed\");\n            unsigned char c",
+        "new": "if (j >= p_.size()) { i_ = p_.size(); return true; }\n            unsigned char c"
+      }
+    ]
+  },
+  {
+    "name": "compile-invalid-ok",
+    "why": "compile accepts invalid patterns",
+    "edits": [
+      {
+        "file": "glob.hpp",
+        "old": "        detail::Compiler c(pattern, options);\n        if (!c.run()) return std::nullopt;\n        Glob g;",
+        "new": "        detail::Compiler c(pattern, options);\n        c.run();\n        Glob g;"
+      }
+    ]
+  }
+]

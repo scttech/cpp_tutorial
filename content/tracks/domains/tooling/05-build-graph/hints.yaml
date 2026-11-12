@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Store names_ (declaration order), index_ (name -> id), deps_[i] and rdeps_[i] (ids). make(): emplace every name into index_ (a failed emplace = DuplicateTarget); then for each target in order resolve its dependencies (missing -> UnknownDependency with the target and the missing name; skip a dependency already listed for this target using a per-target stamp); fill deps_ and rdeps_. Everything after make() can assume a DAG."
+  - level: 2
+    text: "Cycle search with an explicit stack of frames {node, next dependency index}: colour 0 = unvisited, 1 = on the path, 2 = done; position[node] = its index in the stack. Start from every node in declaration order. Take the next dependency w of the top frame: colour 1 -> the cycle is stack[position[w] .. top] followed by w again; colour 0 -> push it; colour 2 -> ignore. When a frame has no more dependencies mark it 2 and pop."
+  - level: 3
+    text: "kahn(in): remaining[v] = deps_[v].size() for the members; a std::priority_queue<size_t, vector<size_t>, greater<size_t>> of ready ids; pop the smallest, append it, and for each dependent r in rdeps_[v] that is a member decrement remaining[r] and push it at zero. order_for / plan / levels first mark the goals and everything they depend on (iterative stack), then run kahn on the marked set. levels: level[v] = 0 for sources, else 1 + max(level[d]); group the non-sources by level, in declaration order. plan: in kahn order, sources must have an mtime (else MissingSource); a non-source is rebuilt if it has no mtime, or any dependency is rebuilt, or any dependency's mtime is greater than its own."
+  - level: 4
+    text: |
+      // plan(), the core:
+      // for (size_t v : kahn(in)) {
+      //     const bool has = mtimes.count(names_[v]);   (fetch the time too)
+      //     if (deps_[v].empty()) { if (!has) return MissingSource(names_[v]); continue; }
+      //     bool need = !has;
+      //     for (size_t d : deps_[v]) if (rebuilt[d] || (has && mt[d] > mt[v])) need = true;
+      //     if (need) { rebuilt[v] = 1; result.rebuild.push_back(names_[v]); }
+      // }

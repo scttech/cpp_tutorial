@@ -1,0 +1,354 @@
+[
+  {
+    "name": "line-no-sort",
+    "why": "the endpoints are not sorted along the major axis",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    if (x1 < x0) {\n        std::swap(x0, x1);\n        std::swap(y0, y1);\n    }\n",
+        "new": "    if (x1 < x0) {\n        x1 = x1;\n    }\n"
+      }
+    ]
+  },
+  {
+    "name": "line-rounds-down",
+    "why": "the minor coordinate is rounded down instead of half up",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "y0 : y0 + sy * ((2 * k * DY + DX) / (2 * DX));",
+        "new": "y0 : y0 + sy * ((2 * k * DY) / (2 * DX));"
+      }
+    ]
+  },
+  {
+    "name": "line-rounds-up-always",
+    "why": "the minor coordinate is rounded up",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "y0 : y0 + sy * ((2 * k * DY + DX) / (2 * DX));",
+        "new": "y0 : y0 + sy * ((2 * k * DY + 2 * DX - 1) / (2 * DX));"
+      }
+    ]
+  },
+  {
+    "name": "line-misses-last-pixel",
+    "why": "the last pixel is not drawn",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 k_lo = std::max<i64>(0, -x0), k_hi = std::min<i64>(DX, major_size - 1 - x0);",
+        "new": "const i64 k_lo = std::max<i64>(0, -x0), k_hi = std::min<i64>(DX - 1, major_size - 1 - x0);"
+      }
+    ]
+  },
+  {
+    "name": "line-misses-first-pixel",
+    "why": "the first pixel is skipped",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 k_lo = std::max<i64>(0, -x0), k_hi",
+        "new": "const i64 k_lo = std::max<i64>(1, -x0), k_hi"
+      }
+    ]
+  },
+  {
+    "name": "line-sign-of-slope",
+    "why": "the minor direction is always positive",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    const i64 sy = y1 >= y0 ? 1 : -1;",
+        "new": "    const i64 sy = 1;"
+      }
+    ]
+  },
+  {
+    "name": "line-clip-low-off-by-one",
+    "why": "the first visible column is skipped",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 k_lo = std::max<i64>(0, -x0), k_hi",
+        "new": "const i64 k_lo = std::max<i64>(0, 1 - x0), k_hi"
+      }
+    ]
+  },
+  {
+    "name": "line-clip-high-off-by-one",
+    "why": "the last visible column is skipped",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "k_hi = std::min<i64>(DX, major_size - 1 - x0);",
+        "new": "k_hi = std::min<i64>(DX, major_size - 2 - x0);"
+      }
+    ]
+  },
+  {
+    "name": "line-clip-high-writes-outside",
+    "why": "the right edge of the canvas is one pixel too far",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "k_hi = std::min<i64>(DX, major_size - 1 - x0);",
+        "new": "k_hi = std::min<i64>(DX, major_size - x0);"
+      }
+    ]
+  },
+  {
+    "name": "line-minor-low-unclipped",
+    "why": "rows above the canvas are drawn",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        if (y >= 0 && y < minor_size) put(x0 + k, y);",
+        "new": "        if (y < minor_size) put(x0 + k, y);"
+      }
+    ]
+  },
+  {
+    "name": "line-minor-high-unclipped",
+    "why": "rows below the canvas are drawn",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        if (y >= 0 && y < minor_size) put(x0 + k, y);",
+        "new": "        if (y >= 0 && y <= minor_size) put(x0 + k, y);"
+      }
+    ]
+  },
+  {
+    "name": "line-steep-not-swapped",
+    "why": "steep lines are treated as shallow",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    if (adx >= ady) detail::walk",
+        "new": "    if (true) detail::walk"
+      }
+    ]
+  },
+  {
+    "name": "line-canvas-dims-swapped",
+    "why": "width and height are swapped for steep lines",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "else detail::walk(a.y, a.x, b.y, b.x, c.height(), c.width(),",
+        "new": "else detail::walk(a.y, a.x, b.y, b.x, c.width(), c.height(),"
+      }
+    ]
+  },
+  {
+    "name": "line-32-bit-arithmetic",
+    "why": "the products are computed in 32 bits",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        const i64 y = DX == 0 ? y0 : y0 + sy * ((2 * k * DY + DX) / (2 * DX));",
+        "new": "        const i64 y = DX == 0 ? y0 : y0 + sy * static_cast<i64>(static_cast<std::int32_t>(2 * k * DY + DX) / static_cast<std::int32_t>(2 * DX));"
+      }
+    ]
+  },
+  {
+    "name": "line-limit-unchecked",
+    "why": "huge coordinates are not refused",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    if (!detail::in_range(a, kMaxLineCoord) || !detail::in_range(b, kMaxLineCoord)) return false;\n    if (c.width() <= 0 || c.height() <= 0) return true;\n    const i64 dx",
+        "new": "    if (c.width() <= 0 || c.height() <= 0) return true;\n    const i64 dx"
+      }
+    ]
+  },
+  {
+    "name": "line-limit-off-by-one",
+    "why": "the largest allowed coordinate is refused",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "inline bool in_range(Point p, int limit) { return p.x >= -limit && p.x <= limit && p.y >= -limit && p.y <= limit; }",
+        "new": "inline bool in_range(Point p, int limit) { return p.x > -limit && p.x < limit && p.y > -limit && p.y < limit; }"
+      }
+    ]
+  },
+  {
+    "name": "line-single-point-divides",
+    "why": "a single point divides by zero",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 y = DX == 0 ? y0 : y0 + sy",
+        "new": "const i64 y = y0 + sy"
+      }
+    ]
+  },
+  {
+    "name": "line-whole-length",
+    "why": "the whole line is walked, not just the visible part",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 k_lo = std::max<i64>(0, -x0), k_hi = std::min<i64>(DX, major_size - 1 - x0);\n    for (i64 k = k_lo; k <= k_hi; ++k) {\n        const i64 y",
+        "new": "for (i64 k = 0; k <= DX; ++k) {\n        if (x0 + k < 0 || x0 + k >= major_size) continue;\n        const i64 y"
+      }
+    ]
+  },
+  {
+    "name": "triangle-no-winding-fix",
+    "why": "a negative area is not corrected",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    if (area2 < 0) std::swap(v1, v2);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "triangle-centre-offset",
+    "why": "pixels are sampled at their corners",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 cx = 16 * px + 8, cy = 16 * py + 8;",
+        "new": "const i64 cx = 16 * px, cy = 16 * py;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-all-edges-own",
+    "why": "every edge owns its boundary (shared edges are drawn twice)",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        owns[e] = (b.y < a.y) || (b.y == a.y && b.x > a.x);",
+        "new": "        owns[e] = true;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-no-edge-owns",
+    "why": "no edge owns its boundary (cracks)",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        owns[e] = (b.y < a.y) || (b.y == a.y && b.x > a.x);",
+        "new": "        owns[e] = false;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-rule-reversed",
+    "why": "the owning rule is the mirror image (still antisymmetric, but not the top-left rule)",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        owns[e] = (b.y < a.y) || (b.y == a.y && b.x > a.x);",
+        "new": "        owns[e] = (b.y > a.y) || (b.y == a.y && b.x < a.x);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-rule-not-antisymmetric",
+    "why": "the rule gives horizontal edges to both sides",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "        owns[e] = (b.y < a.y) || (b.y == a.y && b.x > a.x);",
+        "new": "        owns[e] = (b.y < a.y) || (b.y == a.y);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-bbox-too-small",
+    "why": "the last column is never visited",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 px_hi = std::min<i64>(c.width() - 1, detail::floor_div(max_x - 8, 16));",
+        "new": "const i64 px_hi = std::min<i64>(c.width() - 1, detail::floor_div(max_x - 8, 16) - 1);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-bbox-rows",
+    "why": "the last row is never visited",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 py_hi = std::min<i64>(c.height() - 1, detail::floor_div(max_y - 8, 16));",
+        "new": "const i64 py_hi = std::min<i64>(c.height() - 1, detail::floor_div(max_y - 8, 16) - 1);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-canvas-clip-missing",
+    "why": "the bounding box is not clipped to the canvas",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    const i64 px_hi = std::min<i64>(c.width() - 1, detail::floor_div(max_x - 8, 16));",
+        "new": "    const i64 px_hi = detail::floor_div(max_x - 8, 16);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-canvas-clip-width-height",
+    "why": "the vertical clip uses the width",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "const i64 py_hi = std::min<i64>(c.height() - 1, detail::floor_div(max_y - 8, 16));",
+        "new": "const i64 py_hi = std::min<i64>(c.width() - 1, detail::floor_div(max_y - 8, 16));"
+      }
+    ]
+  },
+  {
+    "name": "triangle-32-bit-edge",
+    "why": "the edge function is computed in 32 bits",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "                const i64 w = (static_cast<i64>(b.x) - a.x) * (cy - a.y) - (static_cast<i64>(b.y) - a.y) * (cx - a.x);",
+        "new": "                const i64 w = static_cast<std::int32_t>((b.x - a.x) * static_cast<std::int32_t>(cy - a.y) - (b.y - a.y) * static_cast<std::int32_t>(cx - a.x));"
+      }
+    ]
+  },
+  {
+    "name": "triangle-limit-unchecked",
+    "why": "huge vertices are accepted",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    if (!detail::in_range(v0, kMaxSubpixel) || !detail::in_range(v1, kMaxSubpixel) || !detail::in_range(v2, kMaxSubpixel)) return false;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "triangle-draws-twice",
+    "why": "every pixel is plotted twice",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "            if (inside) c.plot(static_cast<int>(px), static_cast<int>(py), color);",
+        "new": "            if (inside) { c.plot(static_cast<int>(px), static_cast<int>(py), color); c.plot(static_cast<int>(px), static_cast<int>(py), color); }"
+      }
+    ]
+  },
+  {
+    "name": "triangle-whole-canvas",
+    "why": "every pixel of the canvas is tested",
+    "edits": [
+      {
+        "file": "raster.hpp",
+        "old": "    const i64 px_lo = std::max<i64>(0, -detail::floor_div(-(min_x - 8), 16));   // ceil((min_x - 8) / 16)\n    const i64 px_hi = std::min<i64>(c.width() - 1, detail::floor_div(max_x - 8, 16));\n    const i64 py_lo = std::max<i64>(0, -detail::floor_div(-(min_y - 8), 16));\n    const i64 py_hi = std::min<i64>(c.height() - 1, detail::floor_div(max_y - 8, 16));",
+        "new": "    (void)min_x; (void)max_x; (void)min_y; (void)max_y;\n    const i64 px_lo = 0, px_hi = c.width() - 1, py_lo = 0, py_hi = c.height() - 1;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,442 @@
+[
+  {
+    "name": "table-size-not-checked",
+    "why": "a one-point table is accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (xs.size() < 2 || xs.size() != ys.size()) return false;",
+        "new": "if (xs.size() < 1 || xs.size() != ys.size()) return false;"
+      }
+    ]
+  },
+  {
+    "name": "table-lengths-not-compared",
+    "why": "xs and ys may differ in length",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (xs.size() < 2 || xs.size() != ys.size()) return false;",
+        "new": "if (xs.size() < 2 || ys.size() < 2) return false;"
+      }
+    ]
+  },
+  {
+    "name": "table-equal-xs-accepted",
+    "why": "equal neighbouring x are accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (i > 0 && !(xs[i] > xs[i - 1])) return false;",
+        "new": "if (i > 0 && !(xs[i] >= xs[i - 1])) return false;"
+      }
+    ]
+  },
+  {
+    "name": "table-nan-accepted",
+    "why": "a NaN y is accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (!std::isfinite(xs[i]) || !std::isfinite(ys[i])) return false;",
+        "new": "if (!std::isfinite(xs[i]) || std::isinf(ys[i])) return false;"
+      }
+    ]
+  },
+  {
+    "name": "segment-last-knot-overflow",
+    "why": "the last knot is not clamped into the last segment",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    return k == 0 ? 0 : std::min(k - 1, xs.size() - 2);",
+        "new": "    return k == 0 ? 0 : k - 1;"
+      }
+    ]
+  },
+  {
+    "name": "segment-linear-scan",
+    "why": "the segment is found by scanning",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    const std::size_t k = static_cast<std::size_t>(std::upper_bound(xs.begin(), xs.end(), x) - xs.begin());",
+        "new": "    std::size_t k = 0;\n    while (k < xs.size() && xs[k] <= x) ++k;"
+      }
+    ]
+  },
+  {
+    "name": "interp-overflowing-blend",
+    "why": "the blend is y0 + t (y1 - y0)",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        return ys_[i] * (1.0 - t) + ys_[i + 1] * t;",
+        "new": "        return ys_[i] + t * (ys_[i + 1] - ys_[i]);"
+      }
+    ]
+  },
+  {
+    "name": "interp-extrapolates",
+    "why": "values outside the table are extrapolated",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (!(x >= xs_.front() && x <= xs_.back())) return std::nullopt;   // also catches NaN",
+        "new": "        if (std::isnan(x)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "interp-nan-passes",
+    "why": "NaN passes the range check",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (!(x >= xs_.front() && x <= xs_.back())) return std::nullopt;   // also catches NaN",
+        "new": "        if (x < xs_.front() || x > xs_.back()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "interp-end-exclusive",
+    "why": "the last knot is outside the table",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (!(x >= xs_.front() && x <= xs_.back())) return std::nullopt;   // also catches NaN",
+        "new": "        if (!(x >= xs_.front() && x < xs_.back())) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "interp-t-uses-wrong-width",
+    "why": "t is divided by the first segment width",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        const double t = (x - xs_[i]) / (xs_[i + 1] - xs_[i]);\n        return ys_[i] * (1.0 - t)",
+        "new": "        const double t = (x - xs_[i]) / (xs_[1] - xs_[0]);\n        return ys_[i] * (1.0 - t)"
+      }
+    ]
+  },
+  {
+    "name": "spline-end-slope-wrong",
+    "why": "the system has a wrong boundary: m[n-1] is left to the solver",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        for (std::size_t i = n - 2; i >= 1; --i) m[i] = dp[i] - cp[i] * m[i + 1];   // back substitution; m[0] = m[n-1] = 0",
+        "new": "        for (std::size_t i = n - 2; i >= 1; --i) m[i] = dp[i] - cp[i] * m[i + 1];\n        m[0] = m[1] / 2.0;"
+      }
+    ]
+  },
+  {
+    "name": "spline-rhs-sign",
+    "why": "the right-hand side has the wrong sign",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "const double rhs = 6.0 * ((ys[i + 1] - ys[i]) / h1 - (ys[i] - ys[i - 1]) / h0);",
+        "new": "const double rhs = 6.0 * ((ys[i] - ys[i - 1]) / h0 - (ys[i + 1] - ys[i]) / h1);"
+      }
+    ]
+  },
+  {
+    "name": "spline-uniform-spacing",
+    "why": "the system assumes equal spacing",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "            const double h0 = xs[i] - xs[i - 1], h1 = xs[i + 1] - xs[i];\n            const double diag",
+        "new": "            const double h0 = xs[1] - xs[0], h1 = xs[1] - xs[0];\n            const double diag"
+      }
+    ]
+  },
+  {
+    "name": "spline-forward-sweep-drops-dp",
+    "why": "the forward sweep forgets the previous right-hand side",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "dp[i] = (i == 1 ? rhs : rhs - h0 * dp[i - 1]) / denom;",
+        "new": "dp[i] = rhs / denom;"
+      }
+    ]
+  },
+  {
+    "name": "spline-eval-drops-cubic-term",
+    "why": "the evaluation drops the (m h / 6) correction",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "(ys_[i] / h - m_[i] * h / 6.0) * a + (ys_[i + 1] / h - m_[i + 1] * h / 6.0) * b;",
+        "new": "(ys_[i] / h) * a + (ys_[i + 1] / h) * b;"
+      }
+    ]
+  },
+  {
+    "name": "spline-derivative-sign",
+    "why": "the derivative has the wrong sign on the second term",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "+ (ys_[i + 1] - ys_[i]) / h - h * (m_[i + 1] - m_[i]) / 6.0;",
+        "new": "+ (ys_[i + 1] - ys_[i]) / h + h * (m_[i + 1] - m_[i]) / 6.0;"
+      }
+    ]
+  },
+  {
+    "name": "spline-derivative-outside",
+    "why": "derivative() accepts any x",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    std::optional<double> derivative(double x) const {\n        if (!(x >= xs_.front() && x <= xs_.back())) return std::nullopt;",
+        "new": "    std::optional<double> derivative(double x) const {\n        if (std::isnan(x)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "bisect-sorted-brackets",
+    "why": "a > b is not swapped",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    if (a > b) std::swap(a, b);\n    const double fa0 = f(a), fb0 = f(b);",
+        "new": "    const double fa0 = f(a), fb0 = f(b);"
+      }
+    ]
+  },
+  {
+    "name": "bisect-negative-tol",
+    "why": "a negative tolerance is accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (!std::isfinite(a) || !std::isfinite(b) || !(tol >= 0.0)) return std::nullopt;\n    if (a > b) std::swap(a, b);\n    const double fa0",
+        "new": "if (!std::isfinite(a) || !std::isfinite(b)) return std::nullopt;\n    if (a > b) std::swap(a, b);\n    const double fa0"
+      }
+    ]
+  },
+  {
+    "name": "bisect-end-root-missed",
+    "why": "an exact root at an end is not recognised",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    if (fa0 == 0.0) return Root{a, 0};\n    if (fb0 == 0.0) return Root{b, 0};\n    if ((fa0 < 0.0) == (fb0 < 0.0)) return std::nullopt;",
+        "new": "    if ((fa0 < 0.0) == (fb0 < 0.0)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "bisect-no-sign-check",
+    "why": "same-sign ends are searched anyway",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    if ((fa0 < 0.0) == (fb0 < 0.0)) return std::nullopt;\n    const double scale",
+        "new": "    const double scale"
+      }
+    ]
+  },
+  {
+    "name": "bisect-nonfinite-ends",
+    "why": "non-finite end values are accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    if (!std::isfinite(fa0) || !std::isfinite(fb0)) return std::nullopt;\n    if (fa0 == 0.0) return Root{a, 0};",
+        "new": "    if (fa0 == 0.0) return Root{a, 0};"
+      }
+    ]
+  },
+  {
+    "name": "bisect-overflowing-midpoint",
+    "why": "the midpoint is (a + b) / 2",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        const double m = std::midpoint(a, b);\n        const double fm = f(m);",
+        "new": "        const double m = (a + b) / 2.0;\n        const double fm = f(m);"
+      }
+    ]
+  },
+  {
+    "name": "bisect-wrong-half",
+    "why": "the wrong half is kept",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if ((fm < 0.0) == low_is_negative) a = m;\n        else b = m;",
+        "new": "        if ((fm < 0.0) == low_is_negative) b = m;\n        else a = m;"
+      }
+    ]
+  },
+  {
+    "name": "bisect-nan-midpoint-ok",
+    "why": "a NaN value at the midpoint is ignored",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (!std::isfinite(fm)) return std::nullopt;\n        if (fm == 0.0) return Root{m, i};",
+        "new": "        if (fm == 0.0) return Root{m, i};"
+      }
+    ]
+  },
+  {
+    "name": "bisect-tol-zero-loops",
+    "why": "tol = 0 never stops early (only max_iter ends it)",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (b - a <= 2.0 * tol || next == a || next == b) {",
+        "new": "        if (b - a <= 2.0 * tol) {"
+      }
+    ]
+  },
+  {
+    "name": "bisect-pole-accepted",
+    "why": "a pole is returned as a root",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "            if (!std::isfinite(fx) || std::fabs(fx) > scale) return std::nullopt;   // a pole, not a root",
+        "new": "            (void)fx;"
+      }
+    ]
+  },
+  {
+    "name": "bisect-iterations-off",
+    "why": "the iteration count starts at 0",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    for (int i = 1; i <= max_iter; ++i) {\n        const double m = std::midpoint(a, b);",
+        "new": "    for (int i = 0; i < max_iter; ++i) {\n        const double m = std::midpoint(a, b);"
+      }
+    ]
+  },
+  {
+    "name": "newton-absolute-tolerance",
+    "why": "the stopping rule is purely absolute",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "if (std::fabs(step) <= tol * std::max(1.0, std::fabs(x))) return Root{x, i + 1};",
+        "new": "if (std::fabs(step) <= tol) return Root{x, i + 1};"
+      }
+    ]
+  },
+  {
+    "name": "newton-root-at-start",
+    "why": "f(x0) == 0 is not recognised",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (fx == 0.0) return Root{x, i};\n        const double d = df(x);",
+        "new": "        const double d = df(x);"
+      }
+    ]
+  },
+  {
+    "name": "newton-sign",
+    "why": "the step is added instead of subtracted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        x -= step;\n        if (!std::isfinite(x))",
+        "new": "        x += step;\n        if (!std::isfinite(x))"
+      }
+    ]
+  },
+  {
+    "name": "newton-too-few-iterations",
+    "why": "max_iter counts down from a smaller number",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    for (int i = 0; i < max_iter; ++i) {\n        const double fx = f(x);\n        if (!std::isfinite(fx)) return std::nullopt;",
+        "new": "    for (int i = 0; i < max_iter / 10; ++i) {\n        const double fx = f(x);\n        if (!std::isfinite(fx)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-always-newton",
+    "why": "the bracket test is dropped: plain Newton with a bracket on paper",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        const bool newton_leaves = !std::isfinite(d) || d == 0.0 || ((x - xh) * d - fx) * ((x - xl) * d - fx) > 0.0;\n        if (newton_leaves || std::fabs(2.0 * fx) > std::fabs(dxold * d)) {",
+        "new": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-always-bisects",
+    "why": "it never takes the Newton step",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (newton_leaves || std::fabs(2.0 * fx) > std::fabs(dxold * d)) {",
+        "new": "        if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-no-halving-test",
+    "why": "the step may be longer than the previous one",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (newton_leaves || std::fabs(2.0 * fx) > std::fabs(dxold * d)) {",
+        "new": "        if (newton_leaves) {"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-zero-derivative-newton",
+    "why": "a zero derivative does not force a bisection",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "const bool newton_leaves = !std::isfinite(d) || d == 0.0 || ((x - xh)",
+        "new": "const bool newton_leaves = ((x - xh)"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-bracket-not-updated",
+    "why": "the bracket is not narrowed",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "        if (fx < 0.0) xl = x;\n        else xh = x;\n    }\n    return std::nullopt;",
+        "new": "    }\n    return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-orientation",
+    "why": "the bracket orientation is reversed",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "double xl = fa < 0.0 ? a : b, xh = fa < 0.0 ? b : a;",
+        "new": "double xl = fa < 0.0 ? b : a, xh = fa < 0.0 ? a : b;"
+      }
+    ]
+  },
+  {
+    "name": "safe-newton-no-sign-check",
+    "why": "same-sign ends are accepted",
+    "edits": [
+      {
+        "file": "numerics.hpp",
+        "old": "    if ((fa < 0.0) == (fb < 0.0)) return std::nullopt;\n    double xl",
+        "new": "    double xl"
+      }
+    ]
+  }
+]

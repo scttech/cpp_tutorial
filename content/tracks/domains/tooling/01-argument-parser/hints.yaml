@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Keep per-option state in the Parsed object: one slot per declared option (name, default, the list of values given; a flag stores an empty string per occurrence). count = values.size(); value() = last given, else the default, else nullopt. A helper 'record(index, value)' appends one occurrence and returns DuplicateOption if the option is not repeatable and already has one. parse() walks the arguments with an index (so an option can consume the next argument by doing ++i) and collects positionals in a vector."
+  - level: 2
+    text: "Per argument: positional if only_positional is set, or it is shorter than 2 characters (\"\" and \"-\"), or it does not start with '-', or it looks like a negative number (digits with one optional '.') and no digit short option exists. \"--\" alone sets only_positional. Starting with \"--\": split at the first '=', find the option (exact match first, then a unique prefix; two candidates = ambiguous), Flag with '=' -> UnexpectedValue, Value with '=' -> the text after it, Value without -> the next argument or MissingValue. Otherwise a short cluster: loop over the letters; a Flag is recorded and the loop continues; a Value option takes the rest of the cluster (or the next argument) and the loop stops."
+  - level: 3
+    text: "After the loop: for each required option with no occurrences return MissingRequiredOption (\"--\" + long name). Then assign positionals in declaration order: a variadic one takes everything that is left, a plain one takes the next; an empty assignment for a required one is MissingPositional (its name); leftovers are TooManyPositionals (the first one). Help: left = \"  \" + (\"-x, \" or four spaces) + \"--long\" + (\" \" + value_name); if left.size() > 28 put the text on the next line after 30 spaces, otherwise pad left with spaces to width 30. Append \" [default: D]\", \" (repeatable)\", \" (required)\" to the text in that order."
+  - level: 4
+    text: |
+      // to_int:
+      // if (text.empty() || text.front() == '+') return std::nullopt;
+      // long long v = 0;
+      // const auto r = std::from_chars(text.data(), text.data() + text.size(), v, 10);
+      // if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return std::nullopt;   // overflow, junk, or trailing characters
+      // return (v < min || v > max) ? std::nullopt : std::optional<long long>(v);

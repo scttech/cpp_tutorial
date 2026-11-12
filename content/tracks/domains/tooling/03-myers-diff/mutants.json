@@ -1,0 +1,541 @@
+[
+  {
+    "name": "split-drops-last",
+    "why": "a last line without a newline is dropped",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (nl == std::string_view::npos) {\n            out.emplace_back(text.substr(start));\n            break;\n        }",
+        "new": "        if (nl == std::string_view::npos) break;"
+      }
+    ]
+  },
+  {
+    "name": "split-strips-newline",
+    "why": "the newline is not kept in the line",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        out.emplace_back(text.substr(start, nl - start + 1));",
+        "new": "        out.emplace_back(text.substr(start, nl - start));"
+      }
+    ]
+  },
+  {
+    "name": "split-empty-lines-lost",
+    "why": "empty lines are skipped",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        out.emplace_back(text.substr(start, nl - start + 1));\n        start = nl + 1;",
+        "new": "        if (nl > start) out.emplace_back(text.substr(start, nl - start + 1));\n        start = nl + 1;"
+      }
+    ]
+  },
+  {
+    "name": "join-adds-newline",
+    "why": "join_lines adds a newline after every line",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    for (const std::string& l : lines) out += l;",
+        "new": "    for (const std::string& l : lines) out += l + \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "trim-suffix-overlaps-prefix",
+    "why": "the suffix may reuse lines of the prefix",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    while (suf < n - pre && suf < m - pre && a[n - 1 - suf] == b[m - 1 - suf]) ++suf;",
+        "new": "    while (suf < n && suf < m && a[n - 1 - suf] == b[m - 1 - suf]) ++suf;"
+      }
+    ]
+  },
+  {
+    "name": "trim-prefix-too-eager",
+    "why": "the prefix is trimmed past the first difference",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    while (pre < n && pre < m && a[pre] == b[pre]) ++pre;",
+        "new": "    while (pre < n && pre < m && (a[pre] == b[pre] || (pre + 1 < n && pre + 1 < m && a[pre + 1] == b[pre + 1]))) ++pre;"
+      }
+    ]
+  },
+  {
+    "name": "myers-tie-break-swapped",
+    "why": "the comparison between the two neighbours is reversed",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (k == -d || (k != d && v[static_cast<std::size_t>(off + k - 1)] < v[static_cast<std::size_t>(off + k + 1)])) x = v[static_cast<std::size_t>(off + k + 1)];\n                else x = v[static_cast<std::size_t>(off + k - 1)] + 1;\n                long y = x - k;\n                while (x < N && y < M && a[pre",
+        "new": "if (k == -d || (k != d && v[static_cast<std::size_t>(off + k - 1)] > v[static_cast<std::size_t>(off + k + 1)])) x = v[static_cast<std::size_t>(off + k + 1)];\n                else x = v[static_cast<std::size_t>(off + k - 1)] + 1;\n                long y = x - k;\n                while (x < N && y < M && a[pre"
+      }
+    ]
+  },
+  {
+    "name": "myers-no-snake",
+    "why": "the snake of equal lines is not followed",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "                while (x < N && y < M && a[pre + static_cast<std::size_t>(x)] == b[pre + static_cast<std::size_t>(y)]) {\n                    ++x;\n                    ++y;\n                }\n                v[static_cast<std::size_t>(off + k)] = x;\n                if (x >= N && y >= M) {\n                    found = d;",
+        "new": "                v[static_cast<std::size_t>(off + k)] = x;\n                if (x >= N && y >= M) {\n                    found = d;"
+      }
+    ]
+  },
+  {
+    "name": "myers-finish-too-early",
+    "why": "the search stops when either file is used up",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "                v[static_cast<std::size_t>(off + k)] = x;\n                if (x >= N && y >= M) {\n                    found = d;",
+        "new": "                v[static_cast<std::size_t>(off + k)] = x;\n                if (x >= N || y >= M) {\n                    found = d;"
+      }
+    ]
+  },
+  {
+    "name": "myers-edge-diagonal",
+    "why": "the lower edge diagonal compares with a neighbour that does not exist",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (k == -d || (k != d && v[static_cast<std::size_t>(off + k - 1)] < v[static_cast<std::size_t>(off + k + 1)])) x = v[static_cast<std::size_t>(off + k + 1)];\n                else x = v[static_cast<std::size_t>(off + k - 1)] + 1;\n                long y = x - k;\n                while (x < N && y < M && a[pre",
+        "new": "if (k != d && v[static_cast<std::size_t>(off + k - 1)] < v[static_cast<std::size_t>(off + k + 1)]) x = v[static_cast<std::size_t>(off + k + 1)];\n                else x = v[static_cast<std::size_t>(off + k - 1)] + 1;\n                long y = x - k;\n                while (x < N && y < M && a[pre"
+      }
+    ]
+  },
+  {
+    "name": "myers-snapshot-missing",
+    "why": "the history of v is not saved",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            if (found < 0) snapshots.emplace_back(v.begin() + (off - d), v.begin() + (off + d + 1));",
+        "new": "            if (found < 0) snapshots.emplace_back(static_cast<std::size_t>(2 * d + 1), 0L);"
+      }
+    ]
+  },
+  {
+    "name": "backtrack-down-flipped",
+    "why": "the backtracking chooses the wrong previous diagonal",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            const bool down = (k == -d || (k != d && at(k - 1) < at(k + 1)));",
+        "new": "            const bool down = (k == -d || (k != d && at(k - 1) > at(k + 1)));"
+      }
+    ]
+  },
+  {
+    "name": "backtrack-equal-missed",
+    "why": "the diagonal moves before the edit are not emitted",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            while (x > prev_x && y > prev_y) {\n                middle.push_back({Op::Equal, pre + static_cast<std::size_t>(x - 1), pre + static_cast<std::size_t>(y - 1)});\n                --x;\n                --y;\n            }\n            if (down)",
+        "new": "            x = prev_x + (down ? 0 : 1);\n            y = prev_y + (down ? 1 : 0);\n            if (down)"
+      }
+    ]
+  },
+  {
+    "name": "insert-index-wrong",
+    "why": "an Insert carries the index of the next B line",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (down) middle.push_back({Op::Insert, pre + static_cast<std::size_t>(prev_x), pre + static_cast<std::size_t>(prev_y)});",
+        "new": "if (down) middle.push_back({Op::Insert, pre + static_cast<std::size_t>(prev_x), pre + static_cast<std::size_t>(prev_y) + 1});"
+      }
+    ]
+  },
+  {
+    "name": "no-reverse",
+    "why": "the backtracked script is not reversed",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        std::reverse(middle.begin(), middle.end());\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "inserts-before-deletes",
+    "why": "insertions come first in a block of changes",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        for (std::size_t k = 0; k < dels; ++k) script.push_back({Op::Delete, a0 + k, b0});\n        for (std::size_t k = 0; k < ins; ++k) script.push_back({Op::Insert, a0 + dels, b0 + k});",
+        "new": "        for (std::size_t k = 0; k < ins; ++k) script.push_back({Op::Insert, a0, b0 + k});\n        for (std::size_t k = 0; k < dels; ++k) script.push_back({Op::Delete, a0 + k, b0 + ins});"
+      }
+    ]
+  },
+  {
+    "name": "block-delete-index",
+    "why": "deletions in a block do not carry the right B index",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "script.push_back({Op::Delete, a0 + k, b0});",
+        "new": "script.push_back({Op::Delete, a0 + k, b0 + k});"
+      }
+    ]
+  },
+  {
+    "name": "block-insert-index",
+    "why": "insertions in a block do not carry the right A index",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "script.push_back({Op::Insert, a0 + dels, b0 + k});",
+        "new": "script.push_back({Op::Insert, a0, b0 + k});"
+      }
+    ]
+  },
+  {
+    "name": "suffix-indices-wrong",
+    "why": "the trimmed suffix carries the A indices for both files",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "script.push_back({Op::Equal, a.size() - suf + s, b.size() - suf + s});",
+        "new": "script.push_back({Op::Equal, a.size() - suf + s, a.size() - suf + s});"
+      }
+    ]
+  },
+  {
+    "name": "prefix-not-added",
+    "why": "the trimmed prefix is lost",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    for (std::size_t i = 0; i < pre; ++i) script.push_back({Op::Equal, i, i});\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "distance-off-by-one",
+    "why": "distance() is one too large",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            if (x >= N && y >= M) return static_cast<std::size_t>(d);\n        }\n    return static_cast<std::size_t>(maxd);",
+        "new": "            if (x >= N && y >= M) return static_cast<std::size_t>(d) + 1;\n        }\n    return static_cast<std::size_t>(maxd);"
+      }
+    ]
+  },
+  {
+    "name": "distance-equal-not-zero",
+    "why": "distance() of equal inputs is not zero",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    if (N == 0 && M == 0) return 0;\n    const long maxd",
+        "new": "    if (N == 0 && M == 0) return 1;\n    const long maxd"
+      }
+    ]
+  },
+  {
+    "name": "distance-keeps-history",
+    "why": "distance() builds the whole script",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    const detail::Trimmed t = detail::trim(a, b);\n    const long N = static_cast<long>(a.size() - t.prefix - t.suffix), M = static_cast<long>(b.size() - t.prefix - t.suffix);\n    if (N == 0 && M == 0) return 0;",
+        "new": "    { std::size_t c = 0; for (const Edit& e : diff(a, b)) c += e.op != Op::Equal; return c; }\n    const detail::Trimmed t = detail::trim(a, b);\n    const long N = static_cast<long>(a.size() - t.prefix - t.suffix), M = static_cast<long>(b.size() - t.prefix - t.suffix);\n    if (N == 0 && M == 0) return 0;"
+      }
+    ]
+  },
+  {
+    "name": "range-count-one-comma",
+    "why": "a count of 1 is written with a comma",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    if (count != 1) s += \",\" + std::to_string(count);",
+        "new": "    s += \",\" + std::to_string(count);"
+      }
+    ]
+  },
+  {
+    "name": "range-zero-start",
+    "why": "an empty range points at the next line",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    std::string s = std::to_string(count == 0 ? start : start + 1);",
+        "new": "    std::string s = std::to_string(start + 1);"
+      }
+    ]
+  },
+  {
+    "name": "range-zero-count-comma",
+    "why": "an empty range loses its ,0",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    if (count != 1) s += \",\" + std::to_string(count);",
+        "new": "    if (count > 1) s += \",\" + std::to_string(count);"
+      }
+    ]
+  },
+  {
+    "name": "hunk-merge-threshold-low",
+    "why": "changes 2 * context lines apart are split",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (hi + gap == edits.size() || gap > 2 * context) {",
+        "new": "if (hi + gap == edits.size() || gap >= 2 * context) {"
+      }
+    ]
+  },
+  {
+    "name": "hunk-merge-threshold-high",
+    "why": "changes 2 * context + 1 lines apart are merged",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (hi + gap == edits.size() || gap > 2 * context) {",
+        "new": "if (hi + gap == edits.size() || gap > 2 * context + 1) {"
+      }
+    ]
+  },
+  {
+    "name": "hunk-leading-context-too-long",
+    "why": "one line too much leading context",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "while (lo > hunk_floor && lead < context && edits[lo - 1].op == Op::Equal) {",
+        "new": "while (lo > hunk_floor && lead <= context && edits[lo - 1].op == Op::Equal) {"
+      }
+    ]
+  },
+  {
+    "name": "hunk-trailing-context-too-long",
+    "why": "the trailing context is the whole gap",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "                hi += std::min(gap, context);\n                break;",
+        "new": "                hi += gap;\n                break;"
+      }
+    ]
+  },
+  {
+    "name": "hunk-header-order",
+    "why": "new and old ranges are swapped in the header",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "out += \"@@ -\" + detail::range(edits[lo].a, a_count) + \" +\" + detail::range(edits[lo].b, b_count) + \" @@\\n\";",
+        "new": "out += \"@@ -\" + detail::range(edits[lo].b, b_count) + \" +\" + detail::range(edits[lo].a, a_count) + \" @@\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "hunk-count-includes-inserts",
+    "why": "the old count includes inserted lines",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            if (edits[k].op != Op::Insert) ++a_count;",
+        "new": "            ++a_count;"
+      }
+    ]
+  },
+  {
+    "name": "unified-header-every-hunk",
+    "why": "the --- and +++ lines are repeated before every hunk",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (out.empty()) out += \"--- \"",
+        "new": "        if (true) out += \"--- \""
+      }
+    ]
+  },
+  {
+    "name": "unified-headers-swapped",
+    "why": "the file names are swapped",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "out += \"--- \" + std::string(name_a) + \"\\n+++ \" + std::string(name_b) + \"\\n\";",
+        "new": "out += \"--- \" + std::string(name_b) + \"\\n+++ \" + std::string(name_a) + \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "unified-no-marker",
+    "why": "the no-newline marker is never written",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    if (line.empty() || line.back() != '\\n') out += \"\\n\\\\ No newline at end of file\\n\";",
+        "new": "    if (line.empty() || line.back() != '\\n') out += \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "unified-marker-deleted-only",
+    "why": "the marker is only written after deleted lines",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    if (line.empty() || line.back() != '\\n') out += \"\\n\\\\ No newline at end of file\\n\";",
+        "new": "    if ((line.empty() || line.back() != '\\n') && prefix == '-') out += \"\\n\\\\ No newline at end of file\\n\";\n    else if (line.empty() || line.back() != '\\n') out += \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "unified-prefixes",
+    "why": "inserted lines are written with a minus",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            else detail::put_line(out, '+', b[e.b]);",
+        "new": "            else detail::put_line(out, '-', b[e.b]);"
+      }
+    ]
+  },
+  {
+    "name": "unified-context-prefix",
+    "why": "context lines have no leading space",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (e.op == Op::Equal) detail::put_line(out, ' ', a[e.a]);",
+        "new": "if (e.op == Op::Equal) { out += a[e.a]; }"
+      }
+    ]
+  },
+  {
+    "name": "patch-context-not-checked",
+    "why": "context lines are not compared",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "if (old_left == 0 || pos >= a.size() || a[pos] != text) return std::nullopt;",
+        "new": "if (old_left == 0 || pos >= a.size()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "patch-new-start-unchecked",
+    "why": "the new-file start in the header is not verified",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (b_idx != out.size()) return std::nullopt;   // the header says where the hunk lands in the new file",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "patch-marker-ignored",
+    "why": "the no-newline marker is skipped without effect",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "                if (text.empty() || text.back() != '\\n') return std::nullopt;\n                text.pop_back();\n                ++i;",
+        "new": "                ++i;"
+      }
+    ]
+  },
+  {
+    "name": "patch-trailing-garbage-ok",
+    "why": "text after the last hunk is ignored",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (i < p.size() && p[i].compare(0, 2, \"@@\") != 0) return std::nullopt;       // text after the hunk",
+        "new": "        while (i < p.size() && p[i].compare(0, 2, \"@@\") != 0) ++i;"
+      }
+    ]
+  },
+  {
+    "name": "patch-empty-line-not-context",
+    "why": "a completely empty line is an error",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            if (line == \"\\n\") {\n                kind = ' ';\n                text = \"\\n\";\n            }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "patch-header-overflow",
+    "why": "numbers in headers wrap around",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (v > (static_cast<std::size_t>(-1) - digit) / 10) return false;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "patch-zero-start-with-count",
+    "why": "line 0 is accepted for a non-empty range",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        if (a_count > 0 && a_start == 0) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "patch-header-text-after",
+    "why": "text after the closing @@ is refused",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    return line.substr(p, 3) == \" @@\";",
+        "new": "    return line.substr(p) == \" @@\";"
+      }
+    ]
+  },
+  {
+    "name": "patch-plus-lines-lost",
+    "why": "inserted lines are not added to the output",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "            } else if (kind == '+') {\n                if (new_left == 0) return std::nullopt;\n                --new_left;\n                out.push_back(text);",
+        "new": "            } else if (kind == '+') {\n                if (new_left == 0) return std::nullopt;\n                --new_left;"
+      }
+    ]
+  },
+  {
+    "name": "patch-tail-lost",
+    "why": "lines after the last hunk are dropped",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "    while (pos < a.size()) out.push_back(a[pos++]);\n    return out;",
+        "new": "    return out;"
+      }
+    ]
+  },
+  {
+    "name": "patch-head-lost",
+    "why": "lines before the first hunk are dropped",
+    "edits": [
+      {
+        "file": "diff.hpp",
+        "old": "        while (pos < a_idx) out.push_back(a[pos++]);",
+        "new": "        pos = a_idx;"
+      }
+    ]
+  }
+]

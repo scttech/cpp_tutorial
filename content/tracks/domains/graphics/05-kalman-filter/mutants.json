@@ -1,0 +1,354 @@
+[
+  {
+    "name": "cv-f-wrong",
+    "why": "the dt term is missing from F",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "    m.F = Mat<2>{{1.0, dt, 0.0, 1.0}};",
+        "new": "    m.F = Mat<2>{{1.0, 1.0, 0.0, 1.0}};"
+      }
+    ]
+  },
+  {
+    "name": "cv-q-dt-powers",
+    "why": "Q uses the wrong powers of dt",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "m.Q = Mat<2>{{q * dt4 / 4.0, q * dt3 / 2.0, q * dt3 / 2.0, q * dt2}};",
+        "new": "m.Q = Mat<2>{{q * dt3 / 4.0, q * dt2 / 2.0, q * dt2 / 2.0, q * dt}};"
+      }
+    ]
+  },
+  {
+    "name": "cv-q-asymmetric",
+    "why": "Q is not symmetric",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "m.Q = Mat<2>{{q * dt4 / 4.0, q * dt3 / 2.0, q * dt3 / 2.0, q * dt2}};",
+        "new": "m.Q = Mat<2>{{q * dt4 / 4.0, q * dt3 / 2.0, 0.0, q * dt2}};"
+      }
+    ]
+  },
+  {
+    "name": "symmetrize-missing",
+    "why": "the covariance is not symmetrised",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        for (std::size_t j = 0; j < N; ++j) r(i, j) = 0.5 * (m(i, j) + m(j, i));",
+        "new": "        for (std::size_t j = 0; j < N; ++j) r(i, j) = m(i, j);"
+      }
+    ]
+  },
+  {
+    "name": "make-nonfinite-ok",
+    "why": "a non-finite initial state is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        if (!is_finite(x0) || !is_finite(P0)) return std::nullopt;",
+        "new": "        if (!is_finite(P0)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "make-negative-variance-ok",
+    "why": "a negative variance is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "            if (P0(i, i) < 0.0) return std::nullopt;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "make-asymmetric-ok",
+    "why": "an asymmetric covariance is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "                if (std::fabs(P0(i, j) - P0(j, i)) > 1e-12 * (1.0 + largest)) return std::nullopt;",
+        "new": "                ;"
+      }
+    ]
+  },
+  {
+    "name": "make-absolute-symmetry-tolerance",
+    "why": "the symmetry tolerance is absolute",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "if (std::fabs(P0(i, j) - P0(j, i)) > 1e-12 * (1.0 + largest)) return std::nullopt;",
+        "new": "if (std::fabs(P0(i, j) - P0(j, i)) > 1e-12) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "make-stores-unsymmetrised",
+    "why": "the stored covariance is the raw input",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        k.P_ = detail::symmetrized(P0);",
+        "new": "        k.P_ = P0;"
+      }
+    ]
+  },
+  {
+    "name": "predict-covariance-transposed",
+    "why": "P = F^T P F",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "P_ = detail::symmetrized(F * P_ * transposed(F) + Q);",
+        "new": "P_ = detail::symmetrized(transposed(F) * P_ * F + Q);"
+      }
+    ]
+  },
+  {
+    "name": "predict-no-process-noise",
+    "why": "Q is not added",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "P_ = detail::symmetrized(F * P_ * transposed(F) + Q);",
+        "new": "P_ = detail::symmetrized(F * P_ * transposed(F));"
+      }
+    ]
+  },
+  {
+    "name": "predict-state-not-moved",
+    "why": "the state is not propagated",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        x_ = F * x_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "predict-nonfinite-ok",
+    "why": "a non-finite F or Q is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        if (!is_finite(F) || !is_finite(Q)) return false;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "predict-returns-false",
+    "why": "predict reports failure",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        P_ = detail::symmetrized(F * P_ * transposed(F) + Q);\n        return true;",
+        "new": "        P_ = detail::symmetrized(F * P_ * transposed(F) + Q);\n        return false;"
+      }
+    ]
+  },
+  {
+    "name": "update-nan-measurement-ok",
+    "why": "NaN readings are accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "|| !std::isfinite(z) || !(R > 0.0)",
+        "new": "|| !(R > 0.0)"
+      }
+    ]
+  },
+  {
+    "name": "update-zero-r-ok",
+    "why": "R = 0 is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "|| !(R > 0.0) || !std::isfinite(R)",
+        "new": "|| !(R >= 0.0) || !std::isfinite(R)"
+      }
+    ]
+  },
+  {
+    "name": "update-negative-r-ok",
+    "why": "a negative R is accepted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "|| !(R > 0.0) || !std::isfinite(R)",
+        "new": "|| !std::isfinite(R)"
+      }
+    ]
+  },
+  {
+    "name": "update-nan-gate-ok",
+    "why": "a NaN gate disables the check silently",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": " || !(gate >= 0.0)) return std::nullopt;",
+        "new": ") return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "update-s-without-r",
+    "why": "the innovation variance forgets R",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        const double s = dot(H, PH) + R;",
+        "new": "        const double s = dot(H, PH);"
+      }
+    ]
+  },
+  {
+    "name": "update-innovation-sign",
+    "why": "the innovation has the wrong sign",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        const double y = z - dot(H, x_);",
+        "new": "        const double y = dot(H, x_) - z;"
+      }
+    ]
+  },
+  {
+    "name": "update-gate-inclusive",
+    "why": "a reading exactly at the gate is rejected",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        if (nis > gate) return std::nullopt;",
+        "new": "        if (nis >= gate) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "update-gate-ignored",
+    "why": "the gate is ignored",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        if (nis > gate) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "update-gate-after-state",
+    "why": "a rejected reading has already moved the state",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        if (nis > gate) return std::nullopt;\n        Vec<N> K;\n        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i] / s;\n        for (std::size_t i = 0; i < N; ++i) x_[i] += K[i] * y;",
+        "new": "        Vec<N> K;\n        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i] / s;\n        for (std::size_t i = 0; i < N; ++i) x_[i] += K[i] * y;\n        if (nis > gate) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "update-nis-without-square",
+    "why": "the NIS is y / s",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        const double nis = y * y / s;",
+        "new": "        const double nis = std::fabs(y) / s;"
+      }
+    ]
+  },
+  {
+    "name": "update-gain-not-divided",
+    "why": "the gain is not divided by S",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i] / s;",
+        "new": "        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i];"
+      }
+    ]
+  },
+  {
+    "name": "update-gain-uses-r",
+    "why": "the gain divides by R instead of S",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i] / s;",
+        "new": "        for (std::size_t i = 0; i < N; ++i) K[i] = PH[i] / R;"
+      }
+    ]
+  },
+  {
+    "name": "update-short-form",
+    "why": "the short covariance update P = (I - KH) P",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        P_ = detail::symmetrized(A * P_ * transposed(A) + outer(K, K) * R);",
+        "new": "        P_ = detail::symmetrized(A * P_);"
+      }
+    ]
+  },
+  {
+    "name": "update-joseph-without-symmetrising",
+    "why": "the covariance is not symmetrised after the update",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        P_ = detail::symmetrized(A * P_ * transposed(A) + outer(K, K) * R);",
+        "new": "        P_ = A * P_ * transposed(A) + outer(K, K) * R;"
+      }
+    ]
+  },
+  {
+    "name": "update-joseph-no-krk",
+    "why": "the K R K^T term is missing",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        P_ = detail::symmetrized(A * P_ * transposed(A) + outer(K, K) * R);",
+        "new": "        P_ = detail::symmetrized(A * P_ * transposed(A));"
+      }
+    ]
+  },
+  {
+    "name": "update-joseph-a-transposed",
+    "why": "A and A^T are swapped",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "P_ = detail::symmetrized(A * P_ * transposed(A) + outer(K, K) * R);",
+        "new": "P_ = detail::symmetrized(transposed(A) * P_ * A + outer(K, K) * R);"
+      }
+    ]
+  },
+  {
+    "name": "update-a-uses-h-k",
+    "why": "A = I - H K^T (the transposed outer product)",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        const Mat<N> A = identity<N>() - outer(K, H);",
+        "new": "        const Mat<N> A = identity<N>() - outer(H, K);"
+      }
+    ]
+  },
+  {
+    "name": "update-state-gain-sign",
+    "why": "the correction is subtracted",
+    "edits": [
+      {
+        "file": "kalman.hpp",
+        "old": "        for (std::size_t i = 0; i < N; ++i) x_[i] += K[i] * y;",
+        "new": "        for (std::size_t i = 0; i < N; ++i) x_[i] -= K[i] * y;"
+      }
+    ]
+  }
+]

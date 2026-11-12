@@ -1,0 +1,20 @@
+ladder:
+  - level: 1
+    text: "A View stores (ptr, rows, cols, row_stride, col_stride). operator()(r, c) is p_[r * rs_ + c * cs_]. transposed() is View(p_, cols_, rows_, cs_, rs_): swap the shape AND the strides. A plain Matrix is a View with row_stride = cols and col_stride = 1. block() keeps the strides of its parent and only moves the pointer: p_ + r0 * rs_ + c0 * cs_."
+  - level: 2
+    text: "block() bounds without overflow: if (r0 > rows_ || c0 > cols_ || nr > rows_ - r0 || nc > cols_ - c0) return nullopt. Never write r0 + nr <= rows_. For an empty window (nr == 0 or nc == 0) return View(p_, nr, nc, rs_, cs_) so you never form a pointer past the end of the data. from_rows: all rows must have the first row's length; an empty list is a valid 0 x 0 matrix."
+  - level: 3
+    text: "multiply: nullopt if a.cols() != b.rows(); Matrix<T> c(a.rows(), b.cols()); for i, for j: T acc{}; for k ascending: acc += a(i, k) * b(k, j); c(i, j) = acc. multiply_blocked: three tile loops ii, kk, jj (ii += block ...), each tile end = start + std::min(block, extent - start); inside, i, k, j loops doing c(i, j) += a(i, k) * b(k, j). Keep kk ascending so each (i, j) still adds k = 0, 1, 2, ... in order."
+  - level: 4
+    text: |
+      // for (std::size_t ii = 0; ii < n; ii += block) {
+      //     const std::size_t ie = ii + std::min(block, n - ii);      // never ii + block
+      //     for (std::size_t kk = 0; kk < K; kk += block) {
+      //         const std::size_t ke = kk + std::min(block, K - kk);
+      //         for (std::size_t jj = 0; jj < m; jj += block) {
+      //             const std::size_t je = jj + std::min(block, m - jj);
+      //             for (i = ii; i < ie; ++i) for (k = kk; k < ke; ++k) for (j = jj; j < je; ++j)
+      //                 c(i, j) += a(i, k) * b(k, j);
+      //         }
+      //     }
+      // }

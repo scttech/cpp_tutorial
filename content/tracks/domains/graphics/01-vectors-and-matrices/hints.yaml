@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Mat4 stores 16 doubles column-major: at(r, c) is m[c * 4 + r], so write the translation with at(0, 3), at(1, 3), at(2, 3). Everything else is written with at(), never with raw indices, and every operation reads exactly like the textbook (row vectors never appear). Product: r(i, j) = sum over k of a(i, k) * b(k, j)."
+  - level: 2
+    text: "length: if any component is NaN return NaN; m = max |component|; if m is 0 or infinite return m; otherwise divide the components by m, then return m * sqrt(sum of squares). normalized = nullopt unless the length is finite and > 0. angle_between = atan2(length(cross(a, b)), dot(a, b)) after checking both vectors have a length. Rodrigues' rotation: with unit axis u, c = cos, s = sin, t = 1 - c: R(0,0) = t u.x u.x + c, R(0,1) = t u.x u.y - s u.z, R(0,2) = t u.x u.z + s u.y, and so on (the antisymmetric terms flip sign across the diagonal)."
+  - level: 3
+    text: "look_at: f = normalize(target - eye); s = normalize(cross(f, up)); u = cross(s, f); rows are s, u, -f; the last column is (-dot(s, eye), -dot(u, eye), dot(f, eye)). perspective: f = 1 / tan(fov / 2); (0,0) = f / aspect; (1,1) = f; (2,2) = (far + near) / (near - far); (2,3) = 2 far near / (near - far); (3,2) = -1; everything else 0. The inverse: cofactor(r, c) is the signed determinant of the 3x3 left when row r and column c are removed; determinant = sum over c of m(0, c) * cofactor(0, c); inverse(i, j) = cofactor(j, i) / det."
+  - level: 4
+    text: |
+      // transform_point:
+      // x = at(0,0)*p.x + at(0,1)*p.y + at(0,2)*p.z + at(0,3);   // same for y (row 1), z (row 2), w (row 3)
+      // if (w == 0.0 || !std::isfinite(w)) return std::nullopt;
+      // return Vec3{x / w, y / w, z / w};
+      // transform_direction: the same without the "+ at(r, 3)" and without the division.

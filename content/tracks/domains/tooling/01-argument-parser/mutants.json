@@ -1,0 +1,750 @@
+[
+  {
+    "name": "describe-no-detail",
+    "why": "a message forgets the culprit",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        case ErrorKind::MissingValue: return \"option '\" + e.detail + \"' needs a value\";",
+        "new": "        case ErrorKind::MissingValue: return \"option needs a value\";"
+      }
+    ]
+  },
+  {
+    "name": "describe-same-text",
+    "why": "two kinds share a message",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        case ErrorKind::UnexpectedValue: return \"option '\" + e.detail + \"' does not take a value\";",
+        "new": "        case ErrorKind::UnexpectedValue: return \"option '\" + e.detail + \"' needs a value\";"
+      }
+    ]
+  },
+  {
+    "name": "count-from-default",
+    "why": "a default counts as an occurrence",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        return s ? s->values.size() : 0;",
+        "new": "        return s ? s->values.size() + (s->default_value ? 1 : 0) : 0;"
+      }
+    ]
+  },
+  {
+    "name": "value-first-wins",
+    "why": "value() reports the first given value",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (!s->values.empty()) return std::string_view(s->values.back());",
+        "new": "        if (!s->values.empty()) return std::string_view(s->values.front());"
+      }
+    ]
+  },
+  {
+    "name": "value-ignores-default",
+    "why": "defaults are not reported",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (s->default_value) return std::string_view(*s->default_value);\n        return std::nullopt;",
+        "new": "        return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "values-reversed",
+    "why": "values() returns them in reverse order",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            for (const std::string& v : s->values) out.push_back(v);\n        return out;",
+        "new": "            for (auto it = s->values.rbegin(); it != s->values.rend(); ++it) out.push_back(*it);\n        return out;"
+      }
+    ]
+  },
+  {
+    "name": "check-empty-long-name",
+    "why": "an empty long name is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (o.long_name.empty()) return \"an option has an empty long name\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "check-dash-name",
+    "why": "a long name starting with a dash is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "o.long_name.front() == '-' || ",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "check-eq-name",
+    "why": "a long name with '=' is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "|| o.long_name.find('=') != std::string::npos ",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "check-space-name",
+    "why": "a long name with a space is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "|| o.long_name.find(' ') != std::string::npos) return",
+        "new": ") return"
+      }
+    ]
+  },
+  {
+    "name": "check-bad-short",
+    "why": "'-' as a short name is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (o.short_name == '-' || o.short_name == ' ' || o.short_name == '=')",
+        "new": "if (o.short_name == ' ' || o.short_name == '=')"
+      }
+    ]
+  },
+  {
+    "name": "check-equals-short",
+    "why": "'=' as a short name is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (o.short_name == '-' || o.short_name == ' ' || o.short_name == '=')",
+        "new": "if (o.short_name == '-' || o.short_name == ' ')"
+      }
+    ]
+  },
+  {
+    "name": "check-flag-default",
+    "why": "a flag with a default is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (o.kind == Kind::Flag && (o.default_value || !o.value_name.empty())) return",
+        "new": "            if (o.kind == Kind::Flag && !o.value_name.empty()) return"
+      }
+    ]
+  },
+  {
+    "name": "check-required-default",
+    "why": "a required option with a default is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (o.required && o.default_value) return",
+        "new": "            if (false) return"
+      }
+    ]
+  },
+  {
+    "name": "check-duplicate-long",
+    "why": "duplicate long names are accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (options_[j].long_name == o.long_name) return",
+        "new": "                if (false) return"
+      }
+    ]
+  },
+  {
+    "name": "check-duplicate-short",
+    "why": "duplicate short names are accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (o.short_name != 0 && options_[j].short_name == o.short_name) return",
+        "new": "                if (false) return"
+      }
+    ]
+  },
+  {
+    "name": "check-two-zero-shorts",
+    "why": "two options without a short name are reported as duplicates",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (o.short_name != 0 && options_[j].short_name == o.short_name) return",
+        "new": "if (options_[j].short_name == o.short_name) return"
+      }
+    ]
+  },
+  {
+    "name": "check-variadic-not-last",
+    "why": "a variadic positional may come first",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (p.variadic && i + 1 != positionals_.size()) return",
+        "new": "            if (false) return"
+      }
+    ]
+  },
+  {
+    "name": "check-required-after-optional",
+    "why": "a required positional may follow an optional one",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (p.required && seen_optional) return",
+        "new": "            if (false) return"
+      }
+    ]
+  },
+  {
+    "name": "check-positional-empty",
+    "why": "an empty positional name is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (p.name.empty()) return \"a positional argument has an empty name\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-dashdash-kept",
+    "why": "the \"--\" is kept as a positional",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (a == \"--\") {\n                only_positional = true;\n                continue;\n            }",
+        "new": "            if (a == \"--\") {\n                only_positional = true;\n                out.positionals_.emplace_back(a);\n                continue;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "parse-dashdash-twice-dropped",
+    "why": "a second \"--\" is dropped too",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (only_positional || a.size() < 2 || a[0] != '-' || (looks_numeric(a) && !digit_short)) {\n                out.positionals_.emplace_back(a);\n                continue;\n            }",
+        "new": "            if (only_positional && a == \"--\") continue;\n            if (only_positional || a.size() < 2 || a[0] != '-' || (looks_numeric(a) && !digit_short)) {\n                out.positionals_.emplace_back(a);\n                continue;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "parse-dashdash-no-effect",
+    "why": "options are still recognised after \"--\"",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (a == \"--\") {\n                only_positional = true;\n                continue;\n            }",
+        "new": "            if (a == \"--\") {\n                continue;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "parse-single-dash-option",
+    "why": "a lone \"-\" is an unknown option",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "a.size() < 2 || a[0] != '-'",
+        "new": "a.empty() || a[0] != '-'"
+      }
+    ]
+  },
+  {
+    "name": "parse-negative-number-option",
+    "why": "negative numbers are options",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": " || (looks_numeric(a) && !digit_short)) {",
+        "new": ") {"
+      }
+    ]
+  },
+  {
+    "name": "parse-digit-short-ignored",
+    "why": "a digit short option is ignored when deciding about numbers",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "(looks_numeric(a) && !digit_short)",
+        "new": "(looks_numeric(a))"
+      }
+    ]
+  },
+  {
+    "name": "numeric-needs-digit",
+    "why": "a lone \"-.\" counts as a number",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        return digits > 0 && i == a.size();",
+        "new": "        return i == a.size();"
+      }
+    ]
+  },
+  {
+    "name": "numeric-trailing-junk",
+    "why": "\"-5x\" counts as a number",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        return digits > 0 && i == a.size();",
+        "new": "        return digits > 0;"
+      }
+    ]
+  },
+  {
+    "name": "long-no-equals-split",
+    "why": "the value of --name=value is not split off",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                const std::string_view typed = a.substr(0, eq);",
+        "new": "                const std::string_view typed = a;"
+      }
+    ]
+  },
+  {
+    "name": "long-equals-last",
+    "why": "the LAST = splits the value",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                const std::size_t eq = a.find('=');",
+        "new": "                const std::size_t eq = a.rfind('=');"
+      }
+    ]
+  },
+  {
+    "name": "long-exact-after-prefix",
+    "why": "a prefix match is tried before the exact one",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        for (std::size_t i = 0; i < options_.size(); ++i)\n            if (options_[i].long_name == name) return i;   // an exact match wins over any prefix match\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "long-prefix-unchecked-ambiguity",
+    "why": "the first of several prefix matches is taken",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (found) {\n                    ambiguous = true;\n                    return std::nullopt;\n                }\n                found = i;",
+        "new": "                if (!found) found = i;"
+      }
+    ]
+  },
+  {
+    "name": "long-empty-name-matches",
+    "why": "an empty name matches every option",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (!name.empty() && options_[i].long_name.compare(0, name.size(), name) == 0) {",
+        "new": "if (options_[i].long_name.compare(0, name.size(), name) == 0) {"
+      }
+    ]
+  },
+  {
+    "name": "long-flag-with-value-ok",
+    "why": "a value given to a flag is ignored",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                    if (eq != std::string_view::npos) return fail(ErrorKind::UnexpectedValue, std::string(typed));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "long-value-takes-nothing-when-dashed",
+    "why": "a next argument that starts with a dash is not taken as a value",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                    if (i + 1 >= args.size()) return fail(ErrorKind::MissingValue, std::string(typed));",
+        "new": "                    if (i + 1 >= args.size() || (args[i + 1].size() > 1 && args[i + 1][0] == '-')) return fail(ErrorKind::MissingValue, std::string(typed));"
+      }
+    ]
+  },
+  {
+    "name": "long-missing-value-silent",
+    "why": "a missing value is not reported",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                    if (i + 1 >= args.size()) return fail(ErrorKind::MissingValue, std::string(typed));\n                    if (auto e = record(*idx, std::string(args[++i]))) return Result{std::nullopt, *e};",
+        "new": "                    if (i + 1 >= args.size()) continue;\n                    if (auto e = record(*idx, std::string(args[++i]))) return Result{std::nullopt, *e};"
+      }
+    ]
+  },
+  {
+    "name": "unknown-long-detail-with-value",
+    "why": "the detail of an unknown --name=value includes the value",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (!idx) return fail(ErrorKind::UnknownOption, std::string(typed));",
+        "new": "                if (!idx) return fail(ErrorKind::UnknownOption, std::string(a));"
+      }
+    ]
+  },
+  {
+    "name": "short-unknown-detail",
+    "why": "the detail of an unknown short option is the whole cluster",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (!idx) return fail(ErrorKind::UnknownOption, std::string(\"-\") + a[k]);",
+        "new": "                if (!idx) return fail(ErrorKind::UnknownOption, std::string(a));"
+      }
+    ]
+  },
+  {
+    "name": "short-cluster-stops-at-flag",
+    "why": "only the first letter of a cluster is read",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (options_[*idx].kind == Kind::Flag) {\n                    if (auto e = record(*idx, \"\")) return Result{std::nullopt, *e};\n                    continue;\n                }",
+        "new": "                if (options_[*idx].kind == Kind::Flag) {\n                    if (auto e = record(*idx, \"\")) return Result{std::nullopt, *e};\n                    break;\n                }"
+      }
+    ]
+  },
+  {
+    "name": "short-value-continues-cluster",
+    "why": "after a value option the rest of the cluster is scanned as flags too",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (auto e = record(*idx, std::move(value))) return Result{std::nullopt, *e};\n                break;",
+        "new": "                if (auto e = record(*idx, std::move(value))) return Result{std::nullopt, *e};\n                continue;"
+      }
+    ]
+  },
+  {
+    "name": "short-equals-stripped",
+    "why": "a leading = in an attached short value is dropped",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (k + 1 < a.size()) value = std::string(a.substr(k + 1));",
+        "new": "                if (k + 1 < a.size()) value = std::string(a.substr(k + 1 + (a[k + 1] == '=' ? 1 : 0)));"
+      }
+    ]
+  },
+  {
+    "name": "short-attached-ignored",
+    "why": "an attached value is not used",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (k + 1 < a.size()) value = std::string(a.substr(k + 1));\n                else if (i + 1 < args.size())",
+        "new": "                if (i + 1 < args.size())"
+      }
+    ]
+  },
+  {
+    "name": "short-missing-value-detail",
+    "why": "MissingValue names the long option for a short one",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                else return fail(ErrorKind::MissingValue, std::string(\"-\") + a[k]);",
+        "new": "                else return fail(ErrorKind::MissingValue, \"--\" + options_[*idx].long_name);"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-allowed",
+    "why": "repeating a non-repeatable option is silently allowed",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (!options_[idx].repeatable && !slot.values.empty()) return Error{ErrorKind::DuplicateOption, \"--\" + options_[idx].long_name};\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "duplicate-always",
+    "why": "every option is treated as non-repeatable",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (!options_[idx].repeatable && !slot.values.empty())",
+        "new": "if (!slot.values.empty())"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-detail-typed",
+    "why": "DuplicateOption names the short form",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "return Error{ErrorKind::DuplicateOption, \"--\" + options_[idx].long_name};",
+        "new": "return Error{ErrorKind::DuplicateOption, options_[idx].short_name ? std::string(\"-\") + options_[idx].short_name : \"--\" + options_[idx].long_name};"
+      }
+    ]
+  },
+  {
+    "name": "required-not-checked",
+    "why": "required options are not enforced",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (options_[i].required && out.slots_[i].values.empty()) return fail(ErrorKind::MissingRequiredOption, \"--\" + options_[i].long_name);",
+        "new": "            (void)i;"
+      }
+    ]
+  },
+  {
+    "name": "required-after-positionals",
+    "why": "missing positionals are reported before missing required options",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        for (std::size_t i = 0; i < options_.size(); ++i)\n            if (options_[i].required && out.slots_[i].values.empty()) return fail(ErrorKind::MissingRequiredOption, \"--\" + options_[i].long_name);\n\n        std::size_t next = 0;",
+        "new": "        std::size_t next = 0;"
+      }
+    ]
+  },
+  {
+    "name": "variadic-takes-one",
+    "why": "a variadic positional takes only one argument",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                while (next < out.positionals_.size()) mine.push_back(out.positionals_[next++]);",
+        "new": "                if (next < out.positionals_.size()) mine.push_back(out.positionals_[next++]);"
+      }
+    ]
+  },
+  {
+    "name": "missing-required-positional-ok",
+    "why": "a missing required positional is accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (mine.empty() && p.required) return fail(ErrorKind::MissingPositional, p.name);",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "too-many-ignored",
+    "why": "extra positionals are ignored",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (next < out.positionals_.size()) return fail(ErrorKind::TooManyPositionals, out.positionals_[next]);",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "too-many-detail-last",
+    "why": "TooManyPositionals names the last extra argument",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "return fail(ErrorKind::TooManyPositionals, out.positionals_[next]);",
+        "new": "return fail(ErrorKind::TooManyPositionals, out.positionals_.back());"
+      }
+    ]
+  },
+  {
+    "name": "usage-no-options-marker",
+    "why": "[options] is always shown",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (!options_.empty()) s += \" [options]\";",
+        "new": "        s += \" [options]\";"
+      }
+    ]
+  },
+  {
+    "name": "usage-variadic-dots",
+    "why": "the dots of a variadic positional are missing",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "            if (p.variadic) s += \"...\";",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "usage-optional-brackets",
+    "why": "optional positionals use angle brackets",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "s += p.required ? \"<\" + p.name + \">\" : \"[\" + p.name + \"]\";",
+        "new": "s += \"<\" + p.name + \">\";"
+      }
+    ]
+  },
+  {
+    "name": "help-column-28",
+    "why": "the text starts one column too early",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        return left + std::string(30 - left.size(), ' ') + text + \"\\n\";",
+        "new": "        return left + std::string(29 - left.size(), ' ') + text + \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "help-long-left-same-line",
+    "why": "a long left part is not wrapped",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (left.size() > 28) return left + \"\\n\" + std::string(30, ' ') + text + \"\\n\";\n",
+        "new": "        if (left.size() > 28) return left + \" \" + text + \"\\n\";\n"
+      }
+    ]
+  },
+  {
+    "name": "help-wrap-threshold",
+    "why": "the wrap threshold is off by one",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "        if (left.size() > 28) return",
+        "new": "        if (left.size() > 29) return"
+      }
+    ]
+  },
+  {
+    "name": "help-notes-order",
+    "why": "the notes are in the wrong order",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (o.default_value) text += \" [default: \" + *o.default_value + \"]\";\n                if (o.repeatable) text += \" (repeatable)\";\n                if (o.required) text += \" (required)\";",
+        "new": "                if (o.required) text += \" (required)\";\n                if (o.repeatable) text += \" (repeatable)\";\n                if (o.default_value) text += \" [default: \" + *o.default_value + \"]\";"
+      }
+    ]
+  },
+  {
+    "name": "help-no-short-indent",
+    "why": "options without a short name are not aligned",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                left += o.short_name != 0 ? std::string(\"-\") + o.short_name + \", \" : \"    \";",
+        "new": "                left += o.short_name != 0 ? std::string(\"-\") + o.short_name + \", \" : \"\";"
+      }
+    ]
+  },
+  {
+    "name": "help-value-name-missing",
+    "why": "the value name is not shown",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "                if (o.kind == Kind::Value) left += \" \" + o.value_name;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "to-int-trailing",
+    "why": "trailing characters are accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return std::nullopt;\n    if (v < min",
+        "new": "if (r.ec != std::errc()) return std::nullopt;\n    if (v < min"
+      }
+    ]
+  },
+  {
+    "name": "to-int-no-range",
+    "why": "the range is ignored",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "    if (v < min || v > max) return std::nullopt;\n    return v;",
+        "new": "    return v;"
+      }
+    ]
+  },
+  {
+    "name": "to-int-range-exclusive",
+    "why": "the range is exclusive",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "    if (v < min || v > max) return std::nullopt;\n    return v;",
+        "new": "    if (v <= min || v >= max) return std::nullopt;\n    return v;"
+      }
+    ]
+  },
+  {
+    "name": "to-int-clamps-overflow",
+    "why": "overflow is clamped instead of rejected",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "    if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return std::nullopt;\n    if (v < min",
+        "new": "    if (r.ec == std::errc::result_out_of_range) return text.front() == '-' ? min : max;\n    if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return std::nullopt;\n    if (v < min"
+      }
+    ]
+  },
+  {
+    "name": "to-double-inf",
+    "why": "infinity and NaN are accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "r.ptr != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;",
+        "new": "r.ptr != text.data() + text.size()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "to-double-trailing",
+    "why": "trailing characters are accepted for doubles",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "if (r.ec != std::errc() || r.ptr != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;",
+        "new": "if (r.ec != std::errc() || !std::isfinite(v)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "to-double-overflow-ok",
+    "why": "out-of-range doubles are accepted",
+    "edits": [
+      {
+        "file": "cli.hpp",
+        "old": "    if (r.ec != std::errc() || r.ptr != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;\n    return v;",
+        "new": "    if (r.ec == std::errc::result_out_of_range) return v;\n    if (r.ec != std::errc() || r.ptr != text.data() + text.size() || !std::isfinite(v)) return std::nullopt;\n    return v;"
+      }
+    ]
+  }
+]

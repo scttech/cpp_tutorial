@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Small pieces first. iso8601: days = ms / 86400000, rem = ms % 86400000; if rem < 0 { rem += 86400000; --days; }. Then civil-from-days: z = days + 719468; era = (z >= 0 ? z : z - 146096) / 146097; doe = z - era * 146097; yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; y = yoe + era * 400; doy = doe - (365 * yoe + yoe / 4 - yoe / 100); mp = (5 * doy + 2) / 153; d = doy - (153 * mp + 2) / 5 + 1; m = mp < 10 ? mp + 3 : mp - 9; if (m <= 2) ++y. Years outside 0..9999 give \"\". Hand-format with zero padding."
+  - level: 2
+    text: "sanitize_utf8: ASCII bytes pass. For a lead byte pick (need, lower, upper): C2..DF -> (1, 80, BF); E0..EF -> (2, 80, BF) with lower = A0 after E0 and upper = 9F after ED; F0..F4 -> (3, 80, BF) with lower = 90 after F0 and upper = 8F after F4; anything else (80..C1, F5..FF) -> one U+FFFD and move on one byte. Then check the continuation bytes one by one against [lower, upper] (the range is 80..BF after the first). On failure or end of input write ONE U+FFFD for the bytes accepted so far and continue AT the byte that broke the sequence (do not skip it). escape_json = sanitize, then switch on each byte: quote, backslash, \\b \\f \\n \\r \\t, other < 0x20 as \\u00 + two lower-case hex digits."
+  - level: 3
+    text: "to_json: fields_fragment first: for each field rename ts/level/msg to _ts/_level/_msg, look the key up in an unordered_map<string_view, index> (the keys live in a reserved vector<string> so the views stay valid); an existing key only updates its value pointer. Values: Int via to_chars; Double: not finite -> null, else to_chars (shortest) and append \".0\" if the text has no '.', 'e' or 'E'. Logger: a shared Core (sink, clock, options, last key, last record, last time, suppressed count) behind a shared_ptr so children share it; log(): level filter first, then read the clock once, build all fields (context + call), build the key (level, message, fields fragment); suppress if same key and now - last_time < window; otherwise write the pending summary (last record with timestamp now and an extra Int field \"repeated\"), then the record."
+  - level: 4
+    text: |
+      // fit(): shorten to max bytes
+      // clean = sanitize_utf8(message); cuts = byte offsets of every code point start (bytes that are not 10xxxxxx), plus clean.size()
+      // render(rec, k) = assemble(rec, clean.substr(0, cuts[k]) + "\xE2\x80\xA6", fields_fragment(rec.fields))
+      // while (render(work, 0).size() > max && !work.fields.empty()) work.fields.pop_back();
+      // if (render(work, 0).size() > max) return render(work, 0);                    // nothing fits: the shortest form
+      // binary search the largest k in [0, points-1] with render(work, k).size() <= max   (k = 0 fits)

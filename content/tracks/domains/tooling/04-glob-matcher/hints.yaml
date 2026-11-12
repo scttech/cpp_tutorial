@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Compile the pattern into a vector of instructions (Char c, Any, AnyNoSlash, AnyPath, Set k, Split x y, Jmp x, Guard, Match). A Compiler class holds the pattern, an index i_, the program and the sets. seq(depth) loops over the pattern: '\\\\' -> Char of the next byte (error at the backslash if there is none); '?' -> Any; '*' -> see below; '[' -> a set; '{' -> alternatives; anything else -> Char. Inside braces (depth > 0) stop at ',' or '}'."
+  - level: 2
+    text: "A star: Guard, then L: Split(body, out); body: AnyNoSlash; Jmp L; out. A run of stars is one star. '**' is special only when it is a whole segment (preceded by the start or '/', followed by the end or '/'): alone -> a loop of AnyPath; after a '/' at the end -> AnyPath followed by Split(back to it, out) (one or more); followed by '/' -> consume '**/' and compile a loop: L: Split(body, out); body: Guard, a loop of AnyNoSlash, Char '/', Jmp L. Alternatives {A,B,C}: for each alternative emit Split(next instruction, <patched later>), the body, and a Jmp whose target is patched to the end; the last alternative's Split just falls through."
+  - level: 3
+    text: "Sets: after '[' read an optional '!' or '^', then members until a ']' that is not the first member; a backslash makes the next byte literal; a-b is a range if the '-' is followed by something other than ']' (error 'reversed' at the range's first byte when b < a). Store a std::array<bool, 256>; for ignore_case also set the other case of each letter; negate by flipping every entry; ALWAYS clear the entry for '/'. Matching: a state list `cur`; add(list, pc, pos) follows Jmp/Split/Guard with an explicit stack and a visited mark per program counter (use a generation number); for each path byte build `next` from the instructions in `cur` whose condition holds, calling add(next, pc + 1, pos + 1). Accept if Match is in the final list."
+  - level: 4
+    text: |
+      // the dot rule, in two helpers (s is the path):
+      // segment_start(i) = i == 0 || s[i-1] == '/'
+      // dot_blocked(i)   = !opt.dot && i < s.size() && s[i] == '.' && segment_start(i)
+      // Guard: continue only if !dot_blocked(pos).   Any / Set / AnyPath: consume only if !dot_blocked(pos).
+      // AnyNoSlash (the body of a star, after the guard) needs no check: it is never at the start of a segment.

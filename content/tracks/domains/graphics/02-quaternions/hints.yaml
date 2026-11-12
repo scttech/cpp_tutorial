@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Hamilton product: w = a.w b.w - a.x b.x - a.y b.y - a.z b.z; x = a.w b.x + a.x b.w + a.y b.z - a.z b.y; y = a.w b.y - a.x b.z + a.y b.w + a.z b.x; z = a.w b.z + a.x b.y - a.y b.x + a.z b.w. from_axis_angle: unit axis, then (cos(r/2), sin(r/2) * axis). norm: std::hypot(std::hypot(w, x), std::hypot(y, z)). normalized divides each component by the norm; inverse divides the conjugate by norm, then by norm again."
+  - level: 2
+    text: "rotate: u = (x, y, z); t = 2 * cross(u, v); return v + t * w + cross(u, t). to_matrix with xx = x*x, xy = x*y, wx = w*x, ...: row 0 = (1 - 2(yy + zz), 2(xy - wz), 2(xz + wy)); row 1 = (2(xy + wz), 1 - 2(xx + zz), 2(yz - wx)); row 2 = (2(xz - wy), 2(yz + wx), 1 - 2(xx + yy)). angle_between: r = conjugate(a) * b; 2 * atan2(length of (r.x, r.y, r.z), |r.w|)."
+  - level: 3
+    text: "slerp: d = dot(a, b); if d < 0 flip b and d; clamp d to at most 1; if d > 0.9995 return normalized(a * (1 - t) + b * t); else theta = acos(d), s = sin(theta), result = a * (sin((1 - t) theta) / s) + b * (sin(t theta) / s). from_matrix (after validating: finite, m * m^T within 1e-6 of I, determinant >= 0): tr = m0 + m4 + m8. If tr > 0: s = 2 sqrt(tr + 1), w = s / 4, x = (m7 - m5) / s, y = (m2 - m6) / s, z = (m3 - m1) / s. Otherwise pick the largest diagonal element and use the matching formula; finally normalise and make w >= 0."
+  - level: 4
+    text: |
+      // largest diagonal is m[0] (the x axis):
+      // s = 2 * sqrt(1 + m[0] - m[4] - m[8]);                    // s = 4 x
+      // q = { (m[7] - m[5]) / s, s / 4, (m[1] + m[3]) / s, (m[2] + m[6]) / s };
+      // largest is m[4] (y):  s = 2 * sqrt(1 + m[4] - m[0] - m[8]);  q = { (m[2] - m[6]) / s, (m[1] + m[3]) / s, s / 4, (m[5] + m[7]) / s };
+      // largest is m[8] (z):  s = 2 * sqrt(1 + m[8] - m[0] - m[4]);  q = { (m[3] - m[1]) / s, (m[2] + m[6]) / s, (m[5] + m[7]) / s, s / 4 };

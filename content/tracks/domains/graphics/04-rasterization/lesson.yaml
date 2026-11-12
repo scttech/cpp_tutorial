@@ -1,0 +1,15 @@
+id: domain.graphics.rasterization
+title: "Lines and Triangles: Rasterization"
+module: domain.graphics
+type: challenge
+estimatedMinutes: 95
+concepts: [rasterization, bresenham, edge-functions, top-left-rule, clipping, fixed-point, integer-arithmetic, floor-division, watertight-meshes, overdraw]
+prerequisites: []
+files:
+  editable: [raster.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [one-formula-per-pixel, sort-the-endpoints, clip-without-changing-pixels, pixel-centres, top-left-rule, floor-division-of-negatives, orientation, no-overflow-in-edge-functions]

@@ -1,0 +1,293 @@
+[
+  {
+    "name": "variance-sum-of-squares",
+    "why": "the variance is computed from the sum of squares (cancels)",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        m2_ += delta * (x - mean_);",
+        "new": "        sq_ += x * x;\n        sx_ += x;\n        m2_ = sq_ - sx_ * sx_ / static_cast<double>(n_);"
+      },
+      {
+        "file": "stats.hpp",
+        "old": "    double mean_ = 0, m2_ = 0, min_ = 0, max_ = 0;",
+        "new": "    double mean_ = 0, m2_ = 0, min_ = 0, max_ = 0, sq_ = 0, sx_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "welford-old-mean-twice",
+    "why": "m2 uses the old mean in both factors",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        m2_ += delta * (x - mean_);",
+        "new": "        m2_ += delta * delta;"
+      }
+    ]
+  },
+  {
+    "name": "variance-divides-by-n",
+    "why": "the sample variance divides by n",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "std::optional<double>(m2_ / static_cast<double>(n_ - 1))",
+        "new": "std::optional<double>(m2_ / static_cast<double>(n_))"
+      }
+    ]
+  },
+  {
+    "name": "variance-one-value-zero",
+    "why": "one value has a variance of 0",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "std::optional<double> variance() const { return n_ >= 2 ?",
+        "new": "std::optional<double> variance() const { return n_ >= 1 ?"
+      }
+    ]
+  },
+  {
+    "name": "population-divides-by-n-minus-1",
+    "why": "the population variance divides by n - 1",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "std::optional<double>(m2_ / static_cast<double>(n_)) : std::nullopt; }\n    std::optional<double> stddev",
+        "new": "std::optional<double>(m2_ / static_cast<double>(n_ - 1)) : std::nullopt; }\n    std::optional<double> stddev"
+      }
+    ]
+  },
+  {
+    "name": "min-starts-at-zero",
+    "why": "min and max start at 0 instead of the first value",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        if (n_ == 1 || x < min_) min_ = x;\n        if (n_ == 1 || x > max_) max_ = x;",
+        "new": "        if (x < min_) min_ = x;\n        if (x > max_) max_ = x;"
+      }
+    ]
+  },
+  {
+    "name": "nan-accepted",
+    "why": "NaN readings are accepted",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        if (!std::isfinite(x)) return false;\n        ++n_;",
+        "new": "        if (std::isinf(x)) return false;\n        ++n_;"
+      }
+    ]
+  },
+  {
+    "name": "infinity-accepted",
+    "why": "infinite readings are accepted",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        if (!std::isfinite(x)) return false;\n        ++n_;",
+        "new": "        if (std::isnan(x)) return false;\n        ++n_;"
+      }
+    ]
+  },
+  {
+    "name": "merge-forgets-mean-gap",
+    "why": "merge omits the between-group term",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "m2_ += o.m2_ + delta * delta * (na * nb / n);",
+        "new": "m2_ += o.m2_;"
+      }
+    ]
+  },
+  {
+    "name": "merge-mean-unweighted",
+    "why": "merge averages the two means without weights",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "mean_ += delta * (nb / n);",
+        "new": "mean_ += delta * 0.5;"
+      }
+    ]
+  },
+  {
+    "name": "merge-into-empty-divides",
+    "why": "merge into an empty Running does not copy",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        if (n_ == 0) {\n            *this = o;\n            return;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "merge-skips-extremes",
+    "why": "merge forgets min and max",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        min_ = std::min(min_, o.min_);\n        max_ = std::max(max_, o.max_);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "kahan-classic",
+    "why": "classic Kahan: assumes the running sum is the larger one",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        if (std::fabs(sum_) >= std::fabs(x)) comp_ += (sum_ - t) + x;   // the low bits of x were lost\n        else comp_ += (x - t) + sum_;                                   // the low bits of the running sum were lost",
+        "new": "        comp_ += (sum_ - t) + x;"
+      }
+    ]
+  },
+  {
+    "name": "compensation-never-added",
+    "why": "value() forgets the compensation",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "double value() const { return sum_ + comp_; }",
+        "new": "double value() const { return sum_; }"
+      }
+    ]
+  },
+  {
+    "name": "cov-uses-new-mean-twice",
+    "why": "the co-moment uses the new x mean",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "        c_ += dx * (y - my_);",
+        "new": "        c_ += (x - mx_) * (y - my_);"
+      }
+    ]
+  },
+  {
+    "name": "cov-divides-by-n",
+    "why": "covariance divides by n",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "std::optional<double>(c_ / static_cast<double>(n_ - 1))",
+        "new": "std::optional<double>(c_ / static_cast<double>(n_))"
+      }
+    ]
+  },
+  {
+    "name": "correlation-product-overflows",
+    "why": "the two sums of squares are multiplied before the root",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "c_ / (std::sqrt(m2x_) * std::sqrt(m2y_))",
+        "new": "c_ / std::sqrt(m2x_ * m2y_)"
+      }
+    ]
+  },
+  {
+    "name": "correlation-not-clamped",
+    "why": "correlation is not clamped",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "return std::clamp(r, -1.0, 1.0);",
+        "new": "return r;"
+      }
+    ]
+  },
+  {
+    "name": "correlation-zero-variance-nan",
+    "why": "correlation of a constant series is 0/0",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": " || !(m2x_ > 0) || !(m2y_ > 0)) return std::nullopt;",
+        "new": ") return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "percentile-accepts-over-100",
+    "why": "p above 100 is accepted",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "if (data.empty() || !(p >= 0.0 && p <= 100.0)) return std::nullopt;",
+        "new": "if (data.empty() || !(p >= 0.0)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "percentile-accepts-nan-p",
+    "why": "a NaN p is accepted",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "!(p >= 0.0 && p <= 100.0)",
+        "new": "(p < 0.0 || p > 100.0)"
+      }
+    ]
+  },
+  {
+    "name": "percentile-nearest-rank",
+    "why": "rounds to the nearest rank instead of interpolating",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "    return a * (1.0 - f) + b * f;",
+        "new": "    return f < 0.5 ? a : b;"
+      }
+    ]
+  },
+  {
+    "name": "percentile-overflowing-lerp",
+    "why": "a + f * (b - a) overflows",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "    return a * (1.0 - f) + b * f;",
+        "new": "    return a + f * (b - a);"
+      }
+    ]
+  },
+  {
+    "name": "percentile-nan-data-ok",
+    "why": "NaN data is not refused",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "    for (double d : data)\n        if (std::isnan(d)) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "percentile-upper-neighbour-wrong",
+    "why": "the upper neighbour is taken from the wrong place (v[lo+1] after nth_element)",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "const double b = *std::min_element(v.begin() + static_cast<std::ptrdiff_t>(lo) + 1, v.end());",
+        "new": "const double b = v[lo + 1];"
+      }
+    ]
+  },
+  {
+    "name": "percentile-sorts-everything",
+    "why": "sorts the copy",
+    "edits": [
+      {
+        "file": "stats.hpp",
+        "old": "    std::nth_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(lo), v.end());",
+        "new": "    std::sort(v.begin(), v.end());"
+      }
+    ]
+  }
+]

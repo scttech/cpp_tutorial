@@ -1,0 +1,271 @@
+[
+  {
+    "name": "transposed-swaps-shape-only",
+    "why": "transposed() swaps the shape but not the strides",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "View transposed() const { return View(p_, cols_, rows_, cs_, rs_); }",
+        "new": "View transposed() const { return View(p_, cols_, rows_, rs_, cs_); }"
+      }
+    ]
+  },
+  {
+    "name": "transposed-swaps-strides-only",
+    "why": "transposed() swaps the strides but not the shape",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "View transposed() const { return View(p_, cols_, rows_, cs_, rs_); }",
+        "new": "View transposed() const { return View(p_, rows_, cols_, cs_, rs_); }"
+      }
+    ]
+  },
+  {
+    "name": "index-swapped",
+    "why": "operator() multiplies the wrong stride",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "return p_[r * rs_ + c * cs_]; }",
+        "new": "return p_[r * cs_ + c * rs_]; }"
+      }
+    ]
+  },
+  {
+    "name": "block-strides-reset",
+    "why": "a block gets plain strides instead of its parent's",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "        return View(p_ + r0 * rs_ + c0 * cs_, nr, nc, rs_, cs_);",
+        "new": "        return View(p_ + r0 * rs_ + c0 * cs_, nr, nc, nc, 1);"
+      }
+    ]
+  },
+  {
+    "name": "block-offset-swapped",
+    "why": "the origin is computed with the strides swapped",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "p_ + r0 * rs_ + c0 * cs_",
+        "new": "p_ + r0 * cs_ + c0 * rs_"
+      }
+    ]
+  },
+  {
+    "name": "block-rows-bound-off-by-one",
+    "why": "a window that touches the last row is refused",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "nr > rows_ - r0 ||",
+        "new": "nr >= rows_ - r0 ||"
+      }
+    ]
+  },
+  {
+    "name": "block-overflowing-check",
+    "why": "the bounds are checked with r0 + nr, which wraps around",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "if (r0 > rows_ || c0 > cols_ || nr > rows_ - r0 || nc > cols_ - c0) return std::nullopt;",
+        "new": "if (r0 > rows_ || c0 > cols_ || r0 + nr > rows_ || c0 + nc > cols_) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "block-cols-unchecked",
+    "why": "the column extent is not checked",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": " || nc > cols_ - c0) return std::nullopt;",
+        "new": ") return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "block-corner-not-checked",
+    "why": "an empty window with a corner outside is accepted",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "if (r0 > rows_ || c0 > cols_ || nr",
+        "new": "if (nr"
+      }
+    ]
+  },
+  {
+    "name": "block-empty-refused",
+    "why": "empty windows are refused",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "        if (nr == 0 || nc == 0) return View(p_, nr, nc, rs_, cs_);   // never form a pointer outside the data\n",
+        "new": "        if (nr == 0 || nc == 0) return std::nullopt;\n"
+      }
+    ]
+  },
+  {
+    "name": "from-rows-accepts-ragged",
+    "why": "rows of different lengths are accepted",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "            if (r.size() != width) return std::nullopt;",
+        "new": "            if (r.size() < width) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "identity-all-ones",
+    "why": "identity is all ones",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "        for (std::size_t i = 0; i < n; ++i) m(i, i) = T{1};",
+        "new": "        for (std::size_t i = 0; i < n; ++i) for (std::size_t j = 0; j < n; ++j) m(i, j) = T{1};"
+      }
+    ]
+  },
+  {
+    "name": "to-matrix-transposes",
+    "why": "to_matrix swaps the indices",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "        for (std::size_t j = 0; j < v.cols(); ++j) m(i, j) = v(i, j);\n    return m;",
+        "new": "        for (std::size_t j = 0; j < v.cols(); ++j) m(i, j) = v(j % v.rows(), i % v.cols());\n    return m;"
+      }
+    ]
+  },
+  {
+    "name": "multiply-no-shape-check",
+    "why": "multiply does not check the shapes",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "    if (a.cols() != b.rows()) return std::nullopt;\n    Matrix<T> c(a.rows(), b.cols());\n    for (std::size_t i = 0; i < a.rows(); ++i)\n        for (std::size_t j = 0; j < b.cols(); ++j) {",
+        "new": "    Matrix<T> c(a.rows(), b.cols());\n    for (std::size_t i = 0; i < a.rows(); ++i)\n        for (std::size_t j = 0; j < b.cols(); ++j) {"
+      }
+    ]
+  },
+  {
+    "name": "multiply-skips-last-term",
+    "why": "the last term of every sum is dropped",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "            for (std::size_t k = 0; k < a.cols(); ++k) acc += a(i, k) * b(k, j);",
+        "new": "            for (std::size_t k = 0; k + 1 < a.cols(); ++k) acc += a(i, k) * b(k, j);"
+      }
+    ]
+  },
+  {
+    "name": "multiply-transposed-result",
+    "why": "the result is stored transposed",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "            c(i, j) = acc;",
+        "new": "            if (i < c.cols() && j < c.rows()) c(j, i) = acc; else c(i, j) = acc;"
+      }
+    ]
+  },
+  {
+    "name": "multiply-copies-operands",
+    "why": "multiply copies an operand into a Matrix first",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "    Matrix<T> c(a.rows(), b.cols());\n    for (std::size_t i = 0; i < a.rows(); ++i)\n        for (std::size_t j = 0; j < b.cols(); ++j) {\n            T acc{};",
+        "new": "    Matrix<T> c(a.rows(), b.cols());\n    const Matrix<T> ca = to_matrix(a);\n    (void)ca;\n    for (std::size_t i = 0; i < a.rows(); ++i)\n        for (std::size_t j = 0; j < b.cols(); ++j) {\n            T acc{};"
+      }
+    ]
+  },
+  {
+    "name": "multiply-does-the-work-twice",
+    "why": "every product is computed twice",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "            for (std::size_t k = 0; k < a.cols(); ++k) acc += a(i, k) * b(k, j);",
+        "new": "            for (std::size_t k = 0; k < a.cols(); ++k) { const T twice = a(i, k) * b(k, j); acc += twice; (void)(a(i, k) * b(k, j)); }"
+      }
+    ]
+  },
+  {
+    "name": "blocked-block-zero-ok",
+    "why": "block == 0 is silently replaced by 1",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "    if (block == 0 || a.cols() != b.rows()) return std::nullopt;\n    const std::size_t n",
+        "new": "    if (a.cols() != b.rows()) return std::nullopt;\n    if (block == 0) block = 1;\n    const std::size_t n"
+      }
+    ]
+  },
+  {
+    "name": "blocked-edge-tiles-dropped",
+    "why": "the partial tile at the end of a row of tiles is skipped",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "        const std::size_t ie = ii + std::min(block, n - ii);   // the last tile may be smaller",
+        "new": "        if (n - ii < block) break;\n        const std::size_t ie = ii + std::min(block, n - ii);   // never ii + block: that can wrap around"
+      }
+    ]
+  },
+  {
+    "name": "blocked-k-edge-dropped",
+    "why": "the partial tile in the k direction is skipped",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "            const std::size_t ke = kk + std::min(block, K - kk);",
+        "new": "            if (K - kk < block && kk > 0) break;\n            const std::size_t ke = kk + std::min(block, K - kk);"
+      }
+    ]
+  },
+  {
+    "name": "blocked-j-edge-dropped",
+    "why": "the partial tile in the j direction is skipped",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "                const std::size_t je = jj + std::min(block, m - jj);",
+        "new": "                if (m - jj < block && jj > 0) break;\n                const std::size_t je = jj + std::min(block, m - jj);"
+      }
+    ]
+  },
+  {
+    "name": "blocked-k-descending-inside-tile",
+    "why": "inside a tile the k loop runs backwards (a different addition order)",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "for (std::size_t k = kk; k < ke; ++k)",
+        "new": "for (std::size_t k = ke; k-- > kk;)"
+      }
+    ]
+  },
+  {
+    "name": "blocked-is-the-textbook-loop",
+    "why": "one huge tile and the i, j, k order: a column walk through b",
+    "edits": [
+      {
+        "file": "matrix.hpp",
+        "old": "                for (std::size_t i = ii; i < ie; ++i)\n                    for (std::size_t k = kk; k < ke; ++k)\n                        for (std::size_t j = jj; j < je; ++j) c(i, j) += a(i, k) * b(k, j);",
+        "new": "                for (std::size_t i = ii; i < ie; ++i)\n                    for (std::size_t j = jj; j < je; ++j)\n                        for (std::size_t k = kk; k < ke; ++k) c(i, j) += a(i, k) * b(k, j);"
+      },
+      {
+        "file": "matrix.hpp",
+        "old": "    Matrix<T> c(n, m);\n    for (std::size_t ii",
+        "new": "    Matrix<T> c(n, m);\n    block = std::max<std::size_t>(block, std::max(n, std::max(K, m)));\n    for (std::size_t ii"
+      }
+    ]
+  }
+]

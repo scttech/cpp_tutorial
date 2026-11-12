@@ -1,4 +1,4 @@
-// UI checks for the domain challenge tracks (Games, Finance, Systems): the home page shows them apart from the course, recommends but does not lock,
+// UI checks for the domain challenge tracks (Games, Finance, Systems, Embedded, Data, Networking, Graphics, Tooling): the home page shows them apart from the course, recommends but does not lock,
 // reference solutions pass through the real UI (including a thread/TSan challenge), and finishing a domain at the Works tier earns its badge.
 //   usage: node domains.mjs        env: APP_URL (default http://localhost:5173), SHOTS (screenshot dir)
 import { createSuite } from "./lib.mjs";
@@ -25,6 +25,18 @@ const SOME_NETWORKING = [
   ["domain.networking.http-parser", "networking/01-http-request-parser", "HTTP request parser"],
   ["domain.networking.base64", "networking/04-base64-hex", "Base64 and hex"],
 ];
+const SOME_DATA = [
+  ["domain.data.stable-statistics", "data/02-stable-statistics", "Numerically stable statistics"],
+  ["domain.data.csv", "data/03-csv", "CSV reader and writer"],
+];
+const SOME_GRAPHICS = [
+  ["domain.graphics.vectors-and-matrices", "graphics/01-vectors-and-matrices", "Vector and matrix math"],
+  ["domain.graphics.rasterization", "graphics/04-rasterization", "Rasterization"],
+];
+const SOME_TOOLING = [
+  ["domain.tooling.argument-parser", "tooling/01-argument-parser", "Argument parser"],
+  ["domain.tooling.build-graph", "tooling/05-build-graph", "Build dependency graph"],
+];
 const SOME_SYSTEMS = [
   ["domain.systems.lru-cache", "systems/01-lru-cache", "LRU cache"],
   ["domain.systems.timer-wheel", "systems/07-timer-wheel", "Timer wheel"],
@@ -41,11 +53,15 @@ try {
   const domain = (title) => page.locator("section.module").filter({ has: page.locator("h2", { hasText: title }) });
   const games = domain("Games"), finance = domain("Finance and Trading"), systems = domain("Systems and Infrastructure");
   const embedded = domain("Embedded Systems"), networking = domain("Networking and Parsing");
+  const data = domain("Data and Scientific Computing"), graphics = domain("Graphics and Robotics"), tooling = domain("Developer Tooling");
   check((await games.locator(".lesson-list a").count()) === 6, "Games lists six challenges");
   check((await finance.locator(".lesson-list a").count()) === 6, "Finance lists six challenges");
   check((await systems.locator(".lesson-list a").count()) === 7, "Systems lists seven challenges");
   check((await embedded.locator(".lesson-list a").count()) === 6, "Embedded lists six challenges");
   check((await networking.locator(".lesson-list a").count()) === 6, "Networking lists six challenges");
+  check((await data.locator(".lesson-list a").count()) === 6, "Data lists six challenges");
+  check((await graphics.locator(".lesson-list a").count()) === 6, "Graphics lists six challenges");
+  check((await tooling.locator(".lesson-list a").count()) === 6, "Tooling lists six challenges");
   check(/Recommended first/.test((await games.textContent()) ?? ""), "each domain recommends the course modules to do first");
 
   // the course sections come before the domain sections, and the domains are not mixed into the course
@@ -77,14 +93,20 @@ try {
   for (const [id, dir, label] of SOME_SYSTEMS) await solve(page, id, dir, label);
   for (const [id, dir, label] of SOME_EMBEDDED) await solve(page, id, dir, label);
   for (const [id, dir, label] of SOME_NETWORKING) await solve(page, id, dir, label);
+  for (const [id, dir, label] of SOME_DATA) await solve(page, id, dir, label);
+  for (const [id, dir, label] of SOME_GRAPHICS) await solve(page, id, dir, label);
+  for (const [id, dir, label] of SOME_TOOLING) await solve(page, id, dir, label);
   await page.goto(`${APP}/#/`);
   check(!/module complete/.test((await finance.locator("h2").textContent()) ?? ""), "two of six Finance challenges do not complete the track");
   check(!/module complete/.test((await systems.locator("h2").textContent()) ?? ""), "two of seven Systems challenges do not complete the track");
+  check(!/module complete/.test((await data.locator("h2").textContent()) ?? "") && !/module complete/.test((await graphics.locator("h2").textContent()) ?? "") && !/module complete/.test((await tooling.locator("h2").textContent()) ?? ""),
+    "two of six Data, Graphics and Tooling challenges do not complete those tracks");
   await page.goto(`${APP}/#/profile`);
   check((await page.locator(".badge-card.earned", { hasText: "Quant" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Systems Hacker" }).count()) === 0,
     "no Quant or Systems Hacker badge before those tracks are finished");
-  check((await page.locator("details.soon .badge-card", { hasText: "Data Wrangler" }).count()) === 1, "the Data Wrangler badge (a domain that is not written yet) waits in 'coming soon'");
-  check((await page.locator("details.soon .badge-card", { hasText: "Embedded Engineer" }).count()) === 0, "the Embedded Engineer badge is available now: its domain exists");
+  check((await page.locator("details.soon").count()) === 0, "all eight domains exist: no badge waits in a 'coming soon' group");
+  check((await page.locator(".badge-card.earned", { hasText: "Data Wrangler" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Graphics Guru" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Toolsmith" }).count()) === 0,
+    "two of six challenges in Data, Graphics or Tooling earn no domain badge yet");
   check((await page.locator(".badge-card.earned", { hasText: "Embedded Engineer" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Protocol Wizard" }).count()) === 0,
     "no Embedded Engineer or Protocol Wizard badge before those tracks are finished");
   await page.close();

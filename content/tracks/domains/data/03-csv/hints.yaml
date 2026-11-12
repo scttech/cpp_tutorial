@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Reader state: text_, pos_, line_ (physical, starts at 1), delivered_. next() reads one record into the caller's vector: for each field, k indexes a slot (emplace_back if k >= size, then clear() the string, never assign a new one). Two field shapes: quoted (starts with '\"') and unquoted (runs to the delimiter or a record end). A record end is '\\n' or '\\r' followed by '\\n'; a lone '\\r' is data. After the record: fields.resize(k)."
+  - level: 2
+    text: "Quoted: remember the line where the quote opened; loop: end of text -> UnterminatedQuote (with that line); '\"' followed by '\"' -> push one quote, skip both; '\"' otherwise -> closed; '\\n' -> ++line_ and push it like any character. After the closing quote the next character must be the delimiter, a record end or the end of the text, else TextAfterClosingQuote. Unquoted: any '\"' is QuoteInUnquotedField. After a delimiter ALWAYS read another field (that is what makes \"a,\" two fields)."
+  - level: 3
+    text: "At the start of the text skip a BOM when the first three bytes are EF BB BF. next(): return false at the end of text; a record that is one unquoted empty field is dropped when skip_empty_lines. For rectangular, remember the first record's width (std::optional) and report RaggedRecord with the line where the record STARTED. write(): needs_quotes = contains the delimiter, '\"', '\\r' or '\\n', or (empty and the only field of the row), or (the first field of the output and starts with the BOM bytes). Double every '\"' inside quotes; skip rows with no fields; end each record with \"\\r\\n\" or \"\\n\"."
+  - level: 4
+    text: |
+      // after reading one field (quoted or not):
+      // ++k;
+      // if (pos_ >= text_.size()) return true;            // the record (and the text) ends here
+      // if (text_[pos_] == options_.delimiter) { ++pos_; continue; }   // another field follows, possibly empty
+      // pos_ += text_[pos_] == '\r' ? 2 : 1;   // the record end: "\r\n" or "\n"
+      // ++line_;
+      // return true;

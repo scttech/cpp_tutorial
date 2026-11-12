@@ -1,0 +1,816 @@
+[
+  {
+    "name": "level-parse-case-sensitive",
+    "why": "level names must be lower case",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    for (char c : text) t.push_back((c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c);",
+        "new": "    for (char c : text) t.push_back(c);"
+      }
+    ]
+  },
+  {
+    "name": "level-parse-warning",
+    "why": "\"warning\" is not accepted",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (t == \"warning\") return Level::Warn;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "level-parse-prefix",
+    "why": "a prefix is enough",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (t == level_name(l)) return l;",
+        "new": "        if (!t.empty() && level_name(l).substr(0, t.size()) == t) return l;"
+      }
+    ]
+  },
+  {
+    "name": "level-name-warn",
+    "why": "Warn is called \"warning\"",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        case Level::Warn: return \"warn\";",
+        "new": "        case Level::Warn: return \"warning\";"
+      }
+    ]
+  },
+  {
+    "name": "time-truncating-division",
+    "why": "negative times are divided with truncation",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (rem < 0) {   // floor division: -1 ms is the last millisecond of the previous day\n        rem += kDay;\n        --days;\n    }\n",
+        "new": "    if (rem < 0) rem = -rem;\n"
+      }
+    ]
+  },
+  {
+    "name": "time-era-negative",
+    "why": "the era is not floored for dates before 0000-03-01",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    const std::int64_t era = (z >= 0 ? z : z - 146096) / 146097;",
+        "new": "    const std::int64_t era = z / 146097;"
+      }
+    ]
+  },
+  {
+    "name": "time-leap-century",
+    "why": "every fourth year is a leap year",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    const std::int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;",
+        "new": "    const std::int64_t yoe = (doe - doe / 1460) / 365;"
+      }
+    ]
+  },
+  {
+    "name": "time-month-offset",
+    "why": "the month is off by one",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    const std::int64_t month = mp < 10 ? mp + 3 : mp - 9;",
+        "new": "    const std::int64_t month = mp < 10 ? mp + 2 : mp - 10;"
+      }
+    ]
+  },
+  {
+    "name": "time-year-adjust",
+    "why": "January and February stay in the previous year",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (month <= 2) ++year;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "time-year-range-high",
+    "why": "years above 9999 are written",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (year < 0 || year > 9999) return \"\";",
+        "new": "    if (year < 0) return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "time-year-range-low",
+    "why": "negative years are written",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (year < 0 || year > 9999) return \"\";",
+        "new": "    if (year > 9999) return \"\";"
+      }
+    ]
+  },
+  {
+    "name": "time-millis-width",
+    "why": "milliseconds are not padded",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    digits(out, rem % 1000, 3);",
+        "new": "    out += std::to_string(rem % 1000);"
+      }
+    ]
+  },
+  {
+    "name": "time-no-z",
+    "why": "the Z is missing",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    out += 'Z';\n    return out;",
+        "new": "    return out;"
+      }
+    ]
+  },
+  {
+    "name": "time-seconds-minutes",
+    "why": "minutes use the hour divisor",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    digits(out, rem / 60000 % 60, 2);",
+        "new": "    digits(out, rem / 3600000 % 60, 2);"
+      }
+    ]
+  },
+  {
+    "name": "utf8-overlong-ok",
+    "why": "overlong sequences after E0 are accepted",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (c == 0xE0) lower = 0xA0;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-surrogate-ok",
+    "why": "surrogates after ED are accepted",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (c == 0xED) upper = 0x9F;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-f0-overlong-ok",
+    "why": "overlong 4-byte sequences are accepted",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (c == 0xF0) lower = 0x90;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-above-10ffff-ok",
+    "why": "values above U+10FFFF are accepted",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (c == 0xF4) upper = 0x8F;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-c0-c1-ok",
+    "why": "C0 and C1 are accepted as lead bytes",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (c >= 0xC2 && c <= 0xDF) {",
+        "new": "        if (c >= 0xC0 && c <= 0xDF) {"
+      }
+    ]
+  },
+  {
+    "name": "utf8-f5-ok",
+    "why": "F5..F7 are accepted as lead bytes",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        } else if (c >= 0xF0 && c <= 0xF4) {",
+        "new": "        } else if (c >= 0xF0 && c <= 0xF7) {"
+      }
+    ]
+  },
+  {
+    "name": "utf8-skip-broken-byte",
+    "why": "the byte that broke a sequence is swallowed",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        i = ok ? j : j;   // on failure the byte that broke the sequence is looked at again",
+        "new": "        i = ok ? j : std::min(j + 1, n);"
+      }
+    ]
+  },
+  {
+    "name": "utf8-one-fffd-per-byte",
+    "why": "a broken multi-byte sequence gives one replacement per byte",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        else out += \"\\xEF\\xBF\\xBD\";\n        i = ok ? j : j;",
+        "new": "        else for (std::size_t k = i; k < j; ++k) out += \"\\xEF\\xBF\\xBD\";\n        i = ok ? j : j;"
+      }
+    ]
+  },
+  {
+    "name": "utf8-truncated-dropped",
+    "why": "a truncated sequence at the end is dropped without a replacement",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (j >= n) {\n                ok = false;\n                break;\n            }",
+        "new": "            if (j >= n) return out;"
+      }
+    ]
+  },
+  {
+    "name": "utf8-continuation-unchecked",
+    "why": "continuation bytes are not validated",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (d < lower || d > upper) {\n                ok = false;\n                break;\n            }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-stray-continuation-passes",
+    "why": "stray continuation bytes are copied",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        } else {\n            out += \"\\xEF\\xBF\\xBD\";\n            ++i;\n            continue;\n        }",
+        "new": "        } else if (c < 0xC0) {\n            out.push_back(static_cast<char>(c));\n            ++i;\n            continue;\n        } else {\n            out += \"\\xEF\\xBF\\xBD\";\n            ++i;\n            continue;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "escape-quote-missing",
+    "why": "the double quote is not escaped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            case '\"': out += \"\\\\\\\"\"; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-backslash-missing",
+    "why": "the backslash is not escaped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            case '\\\\': out += \"\\\\\\\\\"; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-newline-raw",
+    "why": "the newline is copied",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            case '\\n': out += \"\\\\n\"; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-tab-as-u",
+    "why": "tab uses the long form",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            case '\\t': out += \"\\\\t\"; break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-control-upper-hex",
+    "why": "the \\u escapes use capital hex",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "static const char* kHex = \"0123456789abcdef\";",
+        "new": "static const char* kHex = \"0123456789ABCDEF\";"
+      }
+    ]
+  },
+  {
+    "name": "escape-control-threshold",
+    "why": "only characters below 0x1F are escaped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "                if (c < 0x20) {",
+        "new": "                if (c < 0x1F) {"
+      }
+    ]
+  },
+  {
+    "name": "escape-del",
+    "why": "DEL is escaped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "                if (c < 0x20) {",
+        "new": "                if (c < 0x20 || c == 0x7F) {"
+      }
+    ]
+  },
+  {
+    "name": "escape-slash",
+    "why": "the slash is escaped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            case '\\b': out += \"\\\\b\"; break;",
+        "new": "            case '/': out += \"\\\\/\"; break;\n            case '\\b': out += \"\\\\b\"; break;"
+      }
+    ]
+  },
+  {
+    "name": "escape-no-sanitize",
+    "why": "invalid bytes are copied through",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    const std::string clean = sanitize_utf8(text);\n    static const char* kHex",
+        "new": "    const std::string clean(text);\n    static const char* kHex"
+      }
+    ]
+  },
+  {
+    "name": "escape-non-ascii",
+    "why": "non-ASCII characters are written as \\u escapes",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "                if (c < 0x20) {",
+        "new": "                if (c < 0x20 || c >= 0x80) {"
+      }
+    ]
+  },
+  {
+    "name": "double-no-point",
+    "why": "whole doubles lose their decimal point",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (text.find_first_of(\".eE\") == std::string_view::npos) out += \".0\";",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "double-point-after-exponent",
+    "why": "doubles in exponent form get .0 too",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (text.find_first_of(\".eE\") == std::string_view::npos) out += \".0\";",
+        "new": "            if (text.find('.') == std::string_view::npos) out += \".0\";"
+      }
+    ]
+  },
+  {
+    "name": "double-nonfinite",
+    "why": "NaN and infinity are written as words",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            if (!std::isfinite(v.d)) {\n                out += \"null\";\n                break;\n            }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "double-precision",
+    "why": "doubles are written with 6 digits",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            const auto r = std::to_chars(buf, buf + sizeof buf, v.d);\n            const std::string_view text",
+        "new": "            const auto r = std::to_chars(buf, buf + sizeof buf, v.d, std::chars_format::general, 6);\n            const std::string_view text"
+      }
+    ]
+  },
+  {
+    "name": "double-fixed",
+    "why": "doubles are always written in fixed notation",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            const auto r = std::to_chars(buf, buf + sizeof buf, v.d);\n            const std::string_view text",
+        "new": "            const auto r = std::to_chars(buf, buf + sizeof buf, v.d, std::chars_format::fixed);\n            const std::string_view text"
+      }
+    ]
+  },
+  {
+    "name": "int-32-bit",
+    "why": "integers are narrowed to 32 bits",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            const auto r = std::to_chars(buf, buf + sizeof buf, v.i);",
+        "new": "            const auto r = std::to_chars(buf, buf + sizeof buf, static_cast<int>(v.i));"
+      }
+    ]
+  },
+  {
+    "name": "bool-words",
+    "why": "booleans are written as 1 and 0",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        case Value::Type::Bool: out += v.b ? \"true\" : \"false\"; break;",
+        "new": "        case Value::Type::Bool: out += v.b ? \"1\" : \"0\"; break;"
+      }
+    ]
+  },
+  {
+    "name": "null-quoted",
+    "why": "null is written as a string",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        case Value::Type::Null: out += \"null\"; break;",
+        "new": "        case Value::Type::Null: out += \"\\\"null\\\"\"; break;"
+      }
+    ]
+  },
+  {
+    "name": "reserved-not-renamed",
+    "why": "reserved keys are written as they are",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        std::string key = (f.key == \"ts\" || f.key == \"level\" || f.key == \"msg\") ? \"_\" + f.key : f.key;",
+        "new": "        std::string key = f.key;"
+      }
+    ]
+  },
+  {
+    "name": "reserved-msg-forgotten",
+    "why": "\"msg\" is not reserved",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "(f.key == \"ts\" || f.key == \"level\" || f.key == \"msg\") ? \"_\" + f.key",
+        "new": "(f.key == \"ts\" || f.key == \"level\") ? \"_\" + f.key"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-first-wins",
+    "why": "the first value of a duplicate key wins",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            values[it->second] = &f.value;   // the last value wins, at the position of the first\n            continue;",
+        "new": "            continue;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-last-position",
+    "why": "a duplicate key moves to the position of the last",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            values[it->second] = &f.value;   // the last value wins, at the position of the first\n            continue;",
+        "new": "            keys.push_back(key);\n            values.push_back(&f.value);\n            continue;"
+      }
+    ]
+  },
+  {
+    "name": "keys-not-escaped",
+    "why": "keys are written without escaping",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        escape_json(out, keys[i]);",
+        "new": "        out += keys[i];"
+      }
+    ]
+  },
+  {
+    "name": "ts-null-missing",
+    "why": "an unrepresentable time gives an empty string",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (ts.empty()) out += \"null\";\n    else out += \"\\\"\" + ts + \"\\\"\";",
+        "new": "    out += \"\\\"\" + ts + \"\\\"\";"
+      }
+    ]
+  },
+  {
+    "name": "layout-spaces",
+    "why": "the JSON has spaces after the colons",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    out += \",\\\"level\\\":\\\"\";",
+        "new": "    out += \", \\\"level\\\": \\\"\";"
+      }
+    ]
+  },
+  {
+    "name": "filter-off-by-one",
+    "why": "records at the minimum level are dropped",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (level < c.options.min_level) return;",
+        "new": "        if (level <= c.options.min_level) return;"
+      }
+    ]
+  },
+  {
+    "name": "filter-after-clock",
+    "why": "the clock is read before filtering",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (level < c.options.min_level) return;\n        const std::int64_t now = c.clock->now_ms();",
+        "new": "        const std::int64_t now = c.clock->now_ms();\n        if (level < c.options.min_level) return;"
+      }
+    ]
+  },
+  {
+    "name": "context-order",
+    "why": "call fields come before context fields",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        std::vector<Field> all = base_;\n        for (Field& f : fields) all.push_back(std::move(f));",
+        "new": "        std::vector<Field> all = fields;\n        for (const Field& f : base_) all.push_back(f);"
+      }
+    ]
+  },
+  {
+    "name": "with-replaces",
+    "why": "with() drops the parent's context",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        Logger child = *this;\n        for (Field& f : fields) child.base_.push_back(std::move(f));",
+        "new": "        Logger child = *this;\n        child.base_.clear();\n        for (Field& f : fields) child.base_.push_back(std::move(f));"
+      }
+    ]
+  },
+  {
+    "name": "with-own-state",
+    "why": "a child has its own suppression state",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        Logger child = *this;\n        for (Field& f : fields) child.base_.push_back(std::move(f));",
+        "new": "        Logger child = *this;\n        child.core_ = std::make_shared<Core>(*core_);\n        for (Field& f : fields) child.base_.push_back(std::move(f));"
+      }
+    ]
+  },
+  {
+    "name": "dedupe-window-inclusive",
+    "why": "a repeat exactly at the window edge is still suppressed",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "now - c.last_time < c.options.dedupe_window_ms) {",
+        "new": "now - c.last_time <= c.options.dedupe_window_ms) {"
+      }
+    ]
+  },
+  {
+    "name": "dedupe-window-from-last-seen",
+    "why": "the window slides with every suppressed record",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "            ++c.suppressed;\n            return;",
+        "new": "            ++c.suppressed;\n            c.last_time = now;\n            return;"
+      }
+    ]
+  },
+  {
+    "name": "dedupe-key-no-fields",
+    "why": "fields are not part of the key",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        std::string key = std::string(level_name(level)) + '\\0' + std::string(message) + '\\0' + detail::fields_fragment(all);",
+        "new": "        std::string key = std::string(level_name(level)) + '\\0' + std::string(message) + '\\0';"
+      }
+    ]
+  },
+  {
+    "name": "dedupe-key-no-level",
+    "why": "the level is not part of the key",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        std::string key = std::string(level_name(level)) + '\\0' + std::string(message)",
+        "new": "        std::string key = std::string(message)"
+      }
+    ]
+  },
+  {
+    "name": "dedupe-no-summary",
+    "why": "suppressed records are never reported",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        summary(now);\n        Record r;",
+        "new": "        core_->suppressed = 0;\n        Record r;"
+      }
+    ]
+  },
+  {
+    "name": "summary-count-off",
+    "why": "the summary counts one too many",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "r.fields.push_back(kv(\"repeated\", static_cast<std::int64_t>(c.suppressed)));",
+        "new": "r.fields.push_back(kv(\"repeated\", static_cast<std::int64_t>(c.suppressed + 1)));"
+      }
+    ]
+  },
+  {
+    "name": "summary-old-time",
+    "why": "the summary carries the time of the original line",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        r.timestamp_ms = now;\n        r.fields.push_back(kv(\"repeated\"",
+        "new": "        r.fields.push_back(kv(\"repeated\""
+      }
+    ]
+  },
+  {
+    "name": "summary-after-record",
+    "why": "the summary is written after the new record",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        summary(now);\n        Record r;\n        r.level = level;\n        r.timestamp_ms = now;\n        r.message = std::string(message);\n        r.fields = all;\n        c.sink->write(detail::fit(r, c.options.max_line_bytes));",
+        "new": "        Record r;\n        r.level = level;\n        r.timestamp_ms = now;\n        r.message = std::string(message);\n        r.fields = all;\n        const Record saved = c.last_record;\n        const std::size_t pending = c.suppressed;\n        c.sink->write(detail::fit(r, c.options.max_line_bytes));\n        c.last_record = saved;\n        c.suppressed = pending;\n        summary(now);"
+      }
+    ]
+  },
+  {
+    "name": "flush-always-writes",
+    "why": "flush writes a summary even when nothing was suppressed",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    void flush() { summary(core_->clock->now_ms()); }",
+        "new": "    void flush() { if (core_->has_last && core_->suppressed == 0) core_->suppressed = 1; summary(core_->clock->now_ms()); }"
+      }
+    ]
+  },
+  {
+    "name": "flush-forgets-count",
+    "why": "flush leaves the count so the summary repeats",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        c.suppressed = 0;\n        c.sink->write(detail::fit(r, c.options.max_line_bytes));\n    }",
+        "new": "        c.sink->write(detail::fit(r, c.options.max_line_bytes));\n    }"
+      }
+    ]
+  },
+  {
+    "name": "fit-drops-first-field",
+    "why": "fields are dropped from the front",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        work.fields.pop_back();\n        const std::string whole",
+        "new": "        work.fields.erase(work.fields.begin());\n        const std::string whole"
+      }
+    ]
+  },
+  {
+    "name": "fit-drops-all-fields",
+    "why": "all fields are dropped at once",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        work.fields.pop_back();\n        const std::string whole",
+        "new": "        work.fields.clear();\n        const std::string whole"
+      }
+    ]
+  },
+  {
+    "name": "fit-never-gives-up",
+    "why": "a line that cannot fit is not written at all (empty)",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (work.fields.empty()) return render(work, 0);   // nothing fits: the shortest form",
+        "new": "        if (work.fields.empty()) return std::string();"
+      }
+    ]
+  },
+  {
+    "name": "fit-whole-message-forgotten",
+    "why": "after dropping fields the complete message is not tried",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if (whole.size() <= max_line) return whole;   // with fewer fields the complete message fits",
+        "new": "        (void)whole;"
+      }
+    ]
+  },
+  {
+    "name": "fit-no-limit",
+    "why": "the length limit is ignored",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (max_line == 0 || line.size() <= max_line) return line;",
+        "new": "    return line;"
+      }
+    ]
+  },
+  {
+    "name": "fit-limit-inclusive",
+    "why": "a line exactly at the limit is shortened",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    if (max_line == 0 || line.size() <= max_line) return line;",
+        "new": "    if (max_line == 0 || line.size() < max_line) return line;"
+      }
+    ]
+  },
+  {
+    "name": "fit-cut-bytes",
+    "why": "the message is cut at a byte, not a code point",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        if ((static_cast<unsigned char>(clean[i]) & 0xC0) != 0x80) cuts.push_back(i);",
+        "new": "        cuts.push_back(i);"
+      }
+    ]
+  },
+  {
+    "name": "fit-no-ellipsis",
+    "why": "no ellipsis is added",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "        return assemble(rec, clean.substr(0, cuts[k]) + \"\\xE2\\x80\\xA6\", fields_fragment(rec.fields));",
+        "new": "        return assemble(rec, clean.substr(0, cuts[k]), fields_fragment(rec.fields));"
+      }
+    ]
+  },
+  {
+    "name": "fit-too-short",
+    "why": "one code point fewer than necessary is kept",
+    "edits": [
+      {
+        "file": "logger.hpp",
+        "old": "    return render(work, lo);\n}",
+        "new": "    return render(work, lo > 0 ? lo - 1 : lo);\n}"
+      }
+    ]
+  }
+]

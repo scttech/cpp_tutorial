@@ -1,0 +1,6 @@
+id: domain.graphics
+title: "Graphics and Robotics"
+track: graphics
+order: 107
+summary: "The math and algorithms behind 3D rendering and motion: vector and matrix math, quaternions and slerp, ray intersection, integer rasterization with the top-left rule, a Kalman filter and a pure-pursuit path follower."
+recommends: "Modules 1 to 7 (up to Inheritance and Polymorphism)"

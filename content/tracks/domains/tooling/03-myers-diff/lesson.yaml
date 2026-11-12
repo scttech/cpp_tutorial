@@ -1,0 +1,15 @@
+id: domain.tooling.myers-diff
+title: "Myers Diff and Unified Patches"
+module: domain.tooling
+type: challenge
+estimatedMinutes: 100
+concepts: [diff, myers-algorithm, shortest-edit-script, longest-common-subsequence, unified-diff, patch, hunks, backtracking, prefix-suffix-trimming, round-trip-testing]
+prerequisites: []
+files:
+  editable: [diff.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [v-array-snapshots, tie-breaking-is-not-unique, deletes-before-inserts, trim-the-common-ends, hunk-merging, omit-count-one, no-newline-at-end, patch-verifies-the-context]

@@ -1,0 +1,15 @@
+id: domain.graphics.ray-intersection
+title: "Ray Intersection"
+module: domain.graphics
+type: challenge
+estimatedMinutes: 90
+concepts: [ray-tracing, ray-sphere, ray-plane, slab-method, moller-trumbore, numerical-stability, closed-intervals, degenerate-inputs, hit-record, front-and-back-faces]
+prerequisites: []
+files:
+  editable: [ray.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [stable-discriminant, origin-inside-the-shape, parallel-rays, zero-direction-component, nearest-hit-in-the-window, closed-edges, degenerate-shapes, normals-face-the-ray]

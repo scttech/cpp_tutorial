@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Interpolation: validate (size >= 2, same lengths, finite, xs strictly increasing). Segment: k = upper_bound(xs, x) - begin; i = (k == 0) ? 0 : min(k - 1, n - 2). t = (x - xs[i]) / (xs[i+1] - xs[i]); result ys[i] * (1 - t) + ys[i+1] * t. Reject !(x >= front && x <= back) (that also rejects NaN)."
+  - level: 2
+    text: "Spline: m[0] = m[n-1] = 0. For i = 1..n-2: h0 = x[i]-x[i-1], h1 = x[i+1]-x[i], diag = 2(h0+h1), rhs = 6((y[i+1]-y[i])/h1 - (y[i]-y[i-1])/h0). Forward sweep: denom = diag - h0*cp[i-1] (just diag for i = 1); cp[i] = h1/denom; dp[i] = (rhs - h0*dp[i-1])/denom. Back substitution for i = n-2 down to 1: m[i] = dp[i] - cp[i]*m[i+1]. Evaluate with the formulas in the header comment (a = x1 - x, b = x - x0)."
+  - level: 3
+    text: "bisect: validate; swap so a <= b; evaluate both ends (exact zero -> return at once, same sign -> nullopt); loop: m = std::midpoint(a, b); fm = f(m); non-finite -> nullopt; fm == 0 -> done; replace the end whose sign matches fm; stop when b - a <= 2 * tol or the new midpoint equals a or b; then evaluate |f| there: bigger than max(|fa|, |fb|) means a pole -> nullopt. newton: x -= f/df with the checks listed in the header. safe_newton: keep xl, xh with f(xl) < 0 < f(xh); use the Newton step only if it lands inside the bracket and |2 f| <= |dxold * df|, else bisect the bracket; a zero or non-finite df forces a bisection."
+  - level: 4
+    text: |
+      // safe_newton, one iteration:
+      // const bool leaves = !std::isfinite(d) || d == 0.0 || ((x - xh) * d - fx) * ((x - xl) * d - fx) > 0.0;
+      // if (leaves || std::fabs(2.0 * fx) > std::fabs(dxold * d)) { dxold = dx; dx = (xh - xl) / 2; x = xl + dx; }
+      // else                                                        { dxold = dx; dx = fx / d;       x -= dx; }
+      // if (std::fabs(dx) <= tol * std::max(1.0, std::fabs(x))) return Root{x, i};
+      // fx = f(x); d = df(x); (fx < 0 ? xl : xh) = x;

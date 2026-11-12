@@ -1,0 +1,6 @@
+id: domain.tooling
+title: "Developer Tooling"
+track: tooling
+order: 108
+summary: "The small programs every engineering team writes: a command-line argument parser, a config file parser with line and column errors, a Myers diff with unified patches, a glob matcher that cannot backtrack, a build dependency graph and a structured JSON logger."
+recommends: "Modules 1 to 7 (up to Inheritance and Polymorphism)"

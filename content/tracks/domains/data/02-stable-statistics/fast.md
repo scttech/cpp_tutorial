@@ -1,0 +1,8 @@
+# Fast path: what's different in C++
+
+- **`std::accumulate` and `std::reduce` use plain `+`.** The standard library has no compensated sum. `std::reduce` may even add in a *different order* (it is allowed to reassociate for parallelism), so the result can change from run to run on the same data. For reproducible numbers write the loop yourself.
+- **`-ffast-math` and compensated summation do not mix.** The flag allows the compiler to treat floating-point addition as associative, and it will happily optimise `(sum + x) - sum - x` to `0`, deleting your compensation. Keep Kahan/Neumaier code out of `-ffast-math` translation units, or use `#pragma clang fp reassociate(off)`.
+- **`std::nth_element` and `std::partial_sort`.** Selection is `O(n)` average (introselect); the standard says nothing about the order of the rest. Libraries like Boost.Accumulators, Eigen and the C++ `<numeric>` header give means, but the *online* algorithms (Welford, P-squared quantile estimation, t-digest) are usually hand-written.
+- **`std::midpoint` (C++20)** computes the average of two values without overflow; the same family of problem as `(a + b) / 2`. `std::lerp` is the standard-library `a + t * (b - a)` with exactness guarantees at `t = 0` and `t = 1`, but it does not protect you against `b - a` overflowing.
+- **`long double`** is 80-bit on x86 Linux (the tests use it as a reference), 64-bit on MSVC and Apple silicon, and 128-bit software on some ABIs. Never rely on its width.
+- **Production counterparts.** Python's `statistics` and `math.fsum` (exact summation), NumPy's pairwise summation, Apache DataSketches (mergeable quantile sketches), Prometheus histograms, and `std::accumulate` of `__float128` when you must.

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "wrap_angle: not finite -> NaN; r = fmod(a, 2 pi); if r > pi subtract 2 pi, else if r <= -pi add 2 pi. advance: d = v dt, delta = kappa d, chord = d * sinc(delta / 2) (sinc(u) = sin(u)/u, but 1 - u^2/6 + u^4/120 for |u| < 1e-4), mid = theta + delta / 2; x += chord cos(mid), y += chord sin(mid), theta = wrap_angle(theta + delta). Return the pose unchanged for non-finite arguments or dt < 0."
+  - level: 2
+    text: "circle_segment: d = b - a, f = a - center, A = d.d (0 -> no roots), disc = A r^2 - cross(f, d)^2 (< 0 -> none), roots (-f.d -/+ sqrt(disc)) / A; keep only those in [0, 1], ascending, and report a tangent (disc == 0) once. Path::make: drop a point equal to the previous kept one, reject non-finite points, need at least 2 left. closest_on_path: clamp first/last to [0, segment_count - 1], for each segment t = clamp(dot(p - a, d) / dot(d, d), 0, 1); keep the strictly smallest distance so ties stay with the earlier segment."
+  - level: 3
+    text: "lookahead_point: for i from `segment` to the last segment: roots = circle_segment(robot, L, P[i], P[i+1]); look at the roots from the largest to the smallest and return the first with (i != segment || t_root >= t); nothing found anywhere -> nullopt. Follower::step: non-finite pose -> idle; dg = distance to the last point; dg <= tolerance or already done -> {0, 0, true}; c = closest_on_path(path, pos, segment_, segment_ + 8); segment_ = c.segment; carrot = lookahead_point(...) or (dg < L ? goal : c.point)."
+  - level: 4
+    text: |
+      // into the robot frame, then the command:
+      // dx = target.x - pose.x; dy = target.y - pose.y;
+      // lx =  cos(theta) * dx + sin(theta) * dy;      ly = -sin(theta) * dx + cos(theta) * dy;
+      // d2 = lx * lx + ly * ly;   kappa = d2 < 1e-12 ? 0 : 2 * ly / d2;
+      // if (lx < 0) kappa = ly >= 0 ? kmax : -kmax;   kappa = clamp(kappa, -kmax, kmax);
+      // v = vmax * (1 - 0.8 * |kappa| / kmax) * min(1, max(0.1, dg / L));

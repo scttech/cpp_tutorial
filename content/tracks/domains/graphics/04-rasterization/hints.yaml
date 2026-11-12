@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "Write one helper that draws a line whose MAJOR axis is its first coordinate, and call it with (x, y) swapped for steep lines (plot with swapped arguments). Inside: sort the two endpoints by the major coordinate, DX = x1 - x0, DY = |y1 - y0|, sy = +1 or -1, then for each k from max(0, -x0) to min(DX, W - 1 - x0): y = y0 + sy * ((2*k*DY + DX) / (2*DX)) (DX == 0 is a single point); plot only when 0 <= y < H. Use 64-bit integers for everything."
+  - level: 2
+    text: "fill_triangle: area2 as in the header comment (in int64); 0 means return true without drawing; negative means swap v1 and v2. The 'owns' flag of edge a -> b: b.y < a.y || (b.y == a.y && b.x > a.x). Pixel bounds: the first pixel whose centre 16x + 8 is >= min_x is ceil((min_x - 8) / 16), the last whose centre is <= max_x is floor((max_x - 8) / 16): write a floor_div(a, b) that rounds towards minus infinity for negative a, and clamp to [0, width - 1] / [0, height - 1]."
+  - level: 3
+    text: "For every pixel (px, py) in the clamped box: cx = 16 px + 8, cy = 16 py + 8; for each of the three edges w = (b.x - a.x) * (cy - a.y) - (b.y - a.y) * (cx - a.x) in int64; the pixel is inside when for every edge w > 0 || (w == 0 && owns[edge]). Plot it once. Check the coordinate limits first and return false before drawing anything."
+  - level: 4
+    text: |
+      // floor_div and the bounding box:
+      // i64 floor_div(i64 a, i64 b) { i64 q = a / b; if (a % b != 0 && a < 0) --q; return q; }
+      // px_lo = max(0, -floor_div(-(min_x - 8), 16));        // ceil(n / 16) = -floor(-n / 16)
+      // px_hi = min(W - 1, floor_div(max_x - 8, 16));

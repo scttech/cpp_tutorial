@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "Never keep a sum of squares. Welford keeps n, mean and m2 (the sum of squared deviations from the current mean). Per value: ++n; delta = x - mean; mean += delta / n; m2 += delta * (x - mean) (the NEW mean in the second factor). variance = m2 / (n - 1) (nullopt for n < 2); population variance = m2 / n. Reject !std::isfinite(x) before touching anything."
+  - level: 2
+    text: "merge(o): if o is empty do nothing; if *this is empty copy o; otherwise delta = o.mean - mean; mean += delta * (n_b / n); m2 += o.m2 + delta * delta * (n_a * n_b / n); n = n_a + n_b; fold min and max. RunningCov: the same pattern with dx = x - mx (old mean), then update both means, then c += dx * (y - my_new), m2x += dx * (x - mx_new), m2y += dy * (y - my_new)."
+  - level: 3
+    text: "Neumaier: t = sum + x; if |sum| >= |x| then comp += (sum - t) + x, else comp += (x - t) + sum; sum = t; value = sum + comp. Correlation: r = c / (sqrt(m2x) * sqrt(m2y)), nullopt if n < 2 or m2x or m2y is 0, then std::clamp(r, -1, 1). Percentile: reject empty, NaN p, p outside [0, 100] and NaN data; copy; rank = p / 100 * (n - 1); lo = floor(rank); nth_element(lo); the upper neighbour is the min_element of the part after lo."
+  - level: 4
+    text: |
+      // percentile
+      // std::vector<double> v(data.begin(), data.end());
+      // const double rank = p / 100.0 * double(v.size() - 1);
+      // const size_t lo = size_t(std::floor(rank));
+      // const double f = rank - double(lo);
+      // std::nth_element(v.begin(), v.begin() + lo, v.end());
+      // const double a = v[lo];
+      // if (lo + 1 >= v.size() || f == 0.0) return a;
+      // const double b = *std::min_element(v.begin() + lo + 1, v.end());
+      // return a * (1.0 - f) + b * f;

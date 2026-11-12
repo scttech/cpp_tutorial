@@ -1,0 +1,15 @@
+id: domain.data.matrix
+title: "A Matrix Library with Strided Views"
+module: domain.data
+type: challenge
+estimatedMinutes: 90
+concepts: [matrix, row-major, strided-view, transpose, non-owning-view, cache-blocking, templates, const-correctness, overflow-safe-bounds, cache-locality]
+prerequisites: []
+files:
+  editable: [matrix.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [view-is-not-a-copy, strides-not-shapes, transpose-is-free, bounds-check-without-overflow, blocking-needs-edge-tiles, block-size-extremes, zero-sized-matrices, accumulate-in-order]

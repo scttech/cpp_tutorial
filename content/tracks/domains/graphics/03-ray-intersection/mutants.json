@@ -1,0 +1,420 @@
+[
+  {
+    "name": "valid-zero-direction",
+    "why": "a zero direction is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (!(d2 > 0.0) || !std::isfinite(d2)) return false;",
+        "new": "    if (std::isnan(d2)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "valid-overflowing-direction",
+    "why": "a direction whose square overflows is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (!(d2 > 0.0) || !std::isfinite(d2)) return false;",
+        "new": "    if (!(d2 > 0.0)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "valid-origin-unchecked",
+    "why": "a non-finite origin is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (!is_finite(r.origin) || !is_finite(r.dir)) return false;",
+        "new": "    if (!is_finite(r.dir)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "hit-front-inverted",
+    "why": "front is inverted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    h.front = dot(r.dir, outward) < 0.0;",
+        "new": "    h.front = dot(r.dir, outward) > 0.0;"
+      }
+    ]
+  },
+  {
+    "name": "hit-normal-not-flipped",
+    "why": "the normal always points outward",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    h.normal = h.front ? outward : -outward;",
+        "new": "    h.normal = outward;"
+      }
+    ]
+  },
+  {
+    "name": "hit-point-unit-dir",
+    "why": "the point uses a normalised direction",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    h.point = r.origin + r.dir * t;",
+        "new": "    h.point = r.origin + r.dir * (t * length(r.dir));"
+      }
+    ]
+  },
+  {
+    "name": "sphere-naive-discriminant",
+    "why": "the textbook discriminant b^2 - a c",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double disc = a * s.radius * s.radius - dot(perp, perp);   // b^2 - a c, without the cancellation",
+        "new": "    const double disc = half_b * half_b - a * (dot(oc, oc) - s.radius * s.radius);"
+      }
+    ]
+  },
+  {
+    "name": "sphere-negative-radius-ok",
+    "why": "a negative radius is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "|| !(s.radius > 0.0) || !std::isfinite(s.radius)) return std::nullopt;\n    const Vec3 oc",
+        "new": "|| s.radius == 0.0 || !std::isfinite(s.radius)) return std::nullopt;\n    const Vec3 oc"
+      }
+    ]
+  },
+  {
+    "name": "sphere-zero-radius-ok",
+    "why": "a radius of zero is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "|| !(s.radius > 0.0) || !std::isfinite(s.radius)) return std::nullopt;\n    const Vec3 oc",
+        "new": "|| !(s.radius >= 0.0) || !std::isfinite(s.radius)) return std::nullopt;\n    const Vec3 oc"
+      }
+    ]
+  },
+  {
+    "name": "sphere-tangent-misses",
+    "why": "a tangent ray is a miss",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (disc < 0.0) return std::nullopt;\n    const double root",
+        "new": "    if (disc <= 0.0) return std::nullopt;\n    const double root"
+      }
+    ]
+  },
+  {
+    "name": "sphere-always-near",
+    "why": "the far root is never used",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = near_t >= t_min ? near_t : far_t;",
+        "new": "    const double t = near_t;"
+      }
+    ]
+  },
+  {
+    "name": "sphere-near-strict",
+    "why": "the near root at exactly t_min is skipped",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = near_t >= t_min ? near_t : far_t;",
+        "new": "    const double t = near_t > t_min ? near_t : far_t;"
+      }
+    ]
+  },
+  {
+    "name": "sphere-always-far",
+    "why": "the far root is returned",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = near_t >= t_min ? near_t : far_t;",
+        "new": "    const double t = far_t;"
+      }
+    ]
+  },
+  {
+    "name": "sphere-tmax-exclusive",
+    "why": "t_max is exclusive",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = near_t >= t_min ? near_t : far_t;\n    if (!(t >= t_min && t <= t_max)) return std::nullopt;",
+        "new": "    const double t = near_t >= t_min ? near_t : far_t;\n    if (!(t >= t_min && t < t_max)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "sphere-tmin-exclusive",
+    "why": "t_min is exclusive",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = near_t >= t_min ? near_t : far_t;\n    if (!(t >= t_min && t <= t_max)) return std::nullopt;",
+        "new": "    const double t = near_t >= t_min ? near_t : far_t;\n    if (!(t > t_min && t <= t_max)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "sphere-unnormalised-direction",
+    "why": "the quadratic assumes a unit direction",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double a = dot(ray.dir, ray.dir);\n    const double half_b = dot(oc, ray.dir);",
+        "new": "    const double a = 1.0;\n    const double half_b = dot(oc, ray.dir);"
+      }
+    ]
+  },
+  {
+    "name": "sphere-normal-unscaled",
+    "why": "the normal is not divided by the radius",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "return detail::make_hit(ray, t, (oc + ray.dir * t) / s.radius);",
+        "new": "return detail::make_hit(ray, t, oc + ray.dir * t);"
+      }
+    ]
+  },
+  {
+    "name": "plane-parallel-ok",
+    "why": "parallel rays are divided by",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (std::fabs(denom) <= 1e-12 * nl * length(ray.dir)) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "plane-absolute-epsilon",
+    "why": "the parallel test uses an absolute epsilon",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "if (std::fabs(denom) <= 1e-12 * nl * length(ray.dir)) return std::nullopt;",
+        "new": "if (std::fabs(denom) <= 1e-12) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "plane-normal-not-normalised",
+    "why": "the plane normal is not normalised",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "return detail::make_hit(ray, t, p.normal / nl);",
+        "new": "return detail::make_hit(ray, t, p.normal);"
+      }
+    ]
+  },
+  {
+    "name": "plane-sign",
+    "why": "the hit parameter has the wrong sign",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = dot(p.normal, p.point - ray.origin) / denom;",
+        "new": "    const double t = dot(p.normal, ray.origin - p.point) / denom;"
+      }
+    ]
+  },
+  {
+    "name": "box-parallel-boundary-exclusive",
+    "why": "a parallel ray exactly on the slab boundary misses",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "if (o[i] < lo[i] || o[i] > hi[i]) return std::nullopt;   // parallel to this slab and outside it",
+        "new": "if (o[i] <= lo[i] || o[i] >= hi[i]) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "box-no-swap",
+    "why": "the slab entry and exit are not ordered",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "        if (t1 > t2) std::swap(t1, t2);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "box-miss-not-detected",
+    "why": "the enter > exit test is missing",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "        if (t_enter > t_exit) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "box-inside-hits-entry",
+    "why": "a ray starting inside reports the (negative) entry",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (t_enter >= t_min) {",
+        "new": "    if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "box-normal-axis",
+    "why": "the normal comes from the exit face",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    double t;\n    int axis;\n    double sign;\n    if (t_enter >= t_min) {\n        t = t_enter;\n        axis = enter_axis;\n        sign = enter_sign;",
+        "new": "    double t;\n    int axis;\n    double sign;\n    if (t_enter >= t_min) {\n        t = t_enter;\n        axis = exit_axis < 0 ? enter_axis : exit_axis;\n        sign = enter_sign;"
+      }
+    ]
+  },
+  {
+    "name": "box-normal-sign",
+    "why": "the entering face normal has the wrong sign",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "        const double face_in = d[i] > 0.0 ? -1.0 : 1.0;",
+        "new": "        const double face_in = d[i] > 0.0 ? 1.0 : -1.0;"
+      }
+    ]
+  },
+  {
+    "name": "box-flat-rejected",
+    "why": "a box of zero thickness is rejected",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "        if (lo[i] > hi[i]) return std::nullopt;",
+        "new": "        if (lo[i] >= hi[i]) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "box-min-gt-max-ok",
+    "why": "min > max is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    for (int i = 0; i < 3; ++i)\n        if (lo[i] > hi[i]) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "box-tmax-ignored",
+    "why": "t_max is ignored",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (!(t >= t_min && t <= t_max)) return std::nullopt;\n    Vec3 outward;",
+        "new": "    if (!(t >= t_min)) return std::nullopt;\n    Vec3 outward;"
+      }
+    ]
+  },
+  {
+    "name": "box-exit-sign",
+    "why": "the exit face normal has the wrong sign",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "            exit_sign = -face_in;",
+        "new": "            exit_sign = face_in;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-u-open",
+    "why": "points on the u = 1 and u = 0 edges are outside",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (u < 0.0 || u > 1.0) return std::nullopt;",
+        "new": "    if (u <= 0.0 || u >= 1.0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-hypotenuse-open",
+    "why": "points on the far edge are outside",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (v < 0.0 || u + v > 1.0) return std::nullopt;",
+        "new": "    if (v < 0.0 || u + v >= 1.0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-v-unchecked-low",
+    "why": "v < 0 is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (v < 0.0 || u + v > 1.0) return std::nullopt;",
+        "new": "    if (u + v > 1.0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-backface-culled",
+    "why": "back faces are culled",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double inv = 1.0 / det;",
+        "new": "    if (det < 0.0) return std::nullopt;\n    const double inv = 1.0 / det;"
+      }
+    ]
+  },
+  {
+    "name": "triangle-parallel-ok",
+    "why": "a parallel ray is divided by",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    if (std::fabs(det) <= 1e-12 * length(e1) * length(e2) * length(ray.dir)) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "triangle-normal-winding",
+    "why": "the normal uses the opposite winding",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    return detail::make_hit(ray, t, n / nl);",
+        "new": "    return detail::make_hit(ray, t, -n / nl);"
+      }
+    ]
+  },
+  {
+    "name": "triangle-t-negative-ok",
+    "why": "t < t_min is accepted",
+    "edits": [
+      {
+        "file": "ray.hpp",
+        "old": "    const double t = dot(e2, q) * inv;\n    if (!(t >= t_min && t <= t_max)) return std::nullopt;",
+        "new": "    const double t = dot(e2, q) * inv;\n    if (!(t <= t_max)) return std::nullopt;"
+      }
+    ]
+  }
+]

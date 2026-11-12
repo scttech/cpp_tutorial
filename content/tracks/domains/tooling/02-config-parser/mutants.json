@@ -1,0 +1,816 @@
+[
+  {
+    "name": "bom-not-skipped",
+    "why": "a byte order mark is treated as text",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (s_.substr(0, 3) == \"\\xEF\\xBB\\xBF\") {\n            i_ = 3;\n            line_start_ = 3;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "bom-counts-as-columns",
+    "why": "the BOM counts towards the columns of line 1",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            i_ = 3;\n            line_start_ = 3;",
+        "new": "            i_ = 3;\n            line_start_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "crlf-not-newline",
+    "why": "CRLF is not recognised as a newline",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (c == '\\n' || (c == '\\r' && peek(1) == '\\n')) {\n                newline();\n                continue;\n            }\n            if (c == '#') {",
+        "new": "            if (c == '\\n') {\n                newline();\n                continue;\n            }\n            if (c == '#') {"
+      }
+    ]
+  },
+  {
+    "name": "newline-line-not-counted",
+    "why": "the line counter is not advanced",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        ++i_;\n        ++line_;\n        line_start_ = i_;",
+        "new": "        ++i_;\n        line_start_ = i_;"
+      }
+    ]
+  },
+  {
+    "name": "newline-line-start-not-updated",
+    "why": "columns keep counting from the previous line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        ++i_;\n        ++line_;\n        line_start_ = i_;",
+        "new": "        ++i_;\n        ++line_;"
+      }
+    ]
+  },
+  {
+    "name": "column-zero-based",
+    "why": "columns start at 0",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "    Pos here() const { return Pos{line_, i_ - line_start_ + 1}; }",
+        "new": "    Pos here() const { return Pos{line_, i_ - line_start_}; }"
+      }
+    ]
+  },
+  {
+    "name": "comment-eats-newline",
+    "why": "a comment swallows the line break",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        while (!eof() && peek() != '\\n') ++i_;\n    }\n    bool at_line_end",
+        "new": "        while (!eof() && peek() != '\\n') ++i_;\n        if (!eof()) ++i_;\n    }\n    bool at_line_end"
+      }
+    ]
+  },
+  {
+    "name": "trailing-garbage-ignored",
+    "why": "text after a value is ignored",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        return fail(ErrorKind::TrailingGarbage, here(), \"unexpected text after the value\");",
+        "new": "        while (!eof() && peek() != '\\n') ++i_;\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "trailing-position",
+    "why": "TrailingGarbage points at the start of the line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::TrailingGarbage, here(), \"unexpected text after the value\");",
+        "new": "return fail(ErrorKind::TrailingGarbage, Pos{line_, 1}, \"unexpected text after the value\");"
+      }
+    ]
+  },
+  {
+    "name": "key-empty-ok",
+    "why": "an empty key is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                if (part.empty()) return fail(bad, here(), \"a key was expected here\");",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "key-underscore-missing",
+    "why": "underscore is not a bare key character",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": " || c == '_' || c == '-'; }",
+        "new": " || c == '-'; }"
+      }
+    ]
+  },
+  {
+    "name": "key-dash-missing",
+    "why": "dash is not a bare key character",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": " || c == '_' || c == '-'; }",
+        "new": " || c == '_'; }"
+      }
+    ]
+  },
+  {
+    "name": "key-spaces-around-dot",
+    "why": "spaces around the dots are not allowed",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            parts.push_back(std::move(part));\n            skip_inline_space();\n            if (peek() == '.') {",
+        "new": "            parts.push_back(std::move(part));\n            if (peek() == '.') {"
+      }
+    ]
+  },
+  {
+    "name": "key-quoted-ignored",
+    "why": "quoted keys are not supported",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (peek() == '\"') {\n                if (!basic_string(part)) return false;\n            } else if (peek() == '\\'') {\n                if (!literal_string(part)) return false;\n            } else {",
+        "new": "            {"
+      }
+    ]
+  },
+  {
+    "name": "key-section-kind",
+    "why": "errors in headers are reported as InvalidKey",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "if (!key_path(parts, ErrorKind::InvalidSection)) return false;",
+        "new": "if (!key_path(parts, ErrorKind::InvalidKey)) return false;"
+      }
+    ]
+  },
+  {
+    "name": "section-missing-bracket-position",
+    "why": "a missing ] is reported at the opening bracket",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "if (peek() != ']') return fail(ErrorKind::InvalidSection, here(), \"a section header must end with ']'\");",
+        "new": "if (peek() != ']') return fail(ErrorKind::InvalidSection, open, \"a section header must end with ']'\");"
+      }
+    ]
+  },
+  {
+    "name": "section-duplicate-ok",
+    "why": "a repeated section header is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (!config.add_section(name)) return fail(ErrorKind::DuplicateSection, open, \"section [\" + name + \"] is defined twice\");",
+        "new": "        config.add_section(name);"
+      }
+    ]
+  },
+  {
+    "name": "section-duplicate-position",
+    "why": "DuplicateSection points at the name",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::DuplicateSection, open,",
+        "new": "return fail(ErrorKind::DuplicateSection, here(),"
+      }
+    ]
+  },
+  {
+    "name": "section-prefix-missing",
+    "why": "keys do not get the section prefix",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        prefix = name + \".\";",
+        "new": "        prefix = \"\";"
+      }
+    ]
+  },
+  {
+    "name": "section-prefix-no-dot",
+    "why": "the prefix has no separating dot",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        prefix = name + \".\";",
+        "new": "        prefix = name;"
+      }
+    ]
+  },
+  {
+    "name": "equals-position",
+    "why": "ExpectedEquals points one past the offending character",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::ExpectedEquals, here(), \"'=' expected after the key\");",
+        "new": "return fail(ErrorKind::ExpectedEquals, Pos{line_, here().column + 1}, \"'=' expected after the key\");"
+      }
+    ]
+  },
+  {
+    "name": "equals-not-required",
+    "why": "the = is optional",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (peek() != '=' || eof()) return fail(ErrorKind::ExpectedEquals, here(), \"'=' expected after the key\");\n        advance();",
+        "new": "        if (peek() == '=') advance();"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-key-ok",
+    "why": "a repeated key is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (!config.add(prefix + join(parts), std::move(v))) return fail(ErrorKind::DuplicateKey, start, \"the key '\" + prefix + join(parts) + \"' is defined twice\");",
+        "new": "        config.add(prefix + join(parts), std::move(v));"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-key-position",
+    "why": "DuplicateKey points at the value",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::DuplicateKey, start,",
+        "new": "return fail(ErrorKind::DuplicateKey, here(),"
+      }
+    ]
+  },
+  {
+    "name": "value-empty-ok",
+    "why": "an empty value is not detected",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (eof() || at_line_end() || c == ',' || c == ']' || c == '#') return fail(ErrorKind::ExpectedValue, here(), \"a value was expected here\");\n",
+        "new": "        if (eof() || at_line_end()) return fail(ErrorKind::ExpectedValue, here(), \"a value was expected here\");\n"
+      }
+    ]
+  },
+  {
+    "name": "value-bare-word-position",
+    "why": "InvalidValue points at the end of the word",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::InvalidValue, at,",
+        "new": "return fail(ErrorKind::InvalidValue, here(),"
+      }
+    ]
+  },
+  {
+    "name": "bool-prefix",
+    "why": "true and false are recognised by their first letter",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (token == \"true\" || token == \"false\") {\n            out = Value::boolean(token == \"true\");",
+        "new": "        if (token[0] == 't' || token[0] == 'f') {\n            out = Value::boolean(token[0] == 't');"
+      }
+    ]
+  },
+  {
+    "name": "bool-case-insensitive",
+    "why": "True and FALSE are accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (token == \"true\" || token == \"false\") {\n            out = Value::boolean(token == \"true\");",
+        "new": "        if (token == \"true\" || token == \"false\" || token == \"True\" || token == \"False\") {\n            out = Value::boolean(token == \"true\" || token == \"True\");"
+      }
+    ]
+  },
+  {
+    "name": "token-ends-at-quote",
+    "why": "a number token is cut at any character",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "static bool is_token_end(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n' || c == ',' || c == ']' || c == '#'; }",
+        "new": "static bool is_token_end(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n' || c == ',' || c == ']' || c == '#' || c == 'x' || c == ';'; }"
+      }
+    ]
+  },
+  {
+    "name": "string-newline-ok",
+    "why": "a raw newline is allowed inside a string",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (eof() || at_line_end()) return fail(ErrorKind::UnterminatedString, open, \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\"') {",
+        "new": "            if (eof()) return fail(ErrorKind::UnterminatedString, open, \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\"') {"
+      }
+    ]
+  },
+  {
+    "name": "literal-newline-ok",
+    "why": "a raw newline is allowed inside a literal string",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (eof() || at_line_end()) return fail(ErrorKind::UnterminatedString, open, \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\\'') {",
+        "new": "            if (eof()) return fail(ErrorKind::UnterminatedString, open, \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\\'') {"
+      }
+    ]
+  },
+  {
+    "name": "string-unterminated-position",
+    "why": "UnterminatedString points at the end of the line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::UnterminatedString, open, \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\"') {",
+        "new": "return fail(ErrorKind::UnterminatedString, here(), \"the string is not closed on its line\");\n            const char c = peek();\n            if (c == '\"') {"
+      }
+    ]
+  },
+  {
+    "name": "control-char-ok",
+    "why": "control characters are allowed in strings",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (c != '\\\\') {\n                if (is_control(static_cast<unsigned char>(c))) return fail(ErrorKind::ControlCharacter, here(), \"a control character is not allowed in a string\");\n                out.push_back(c);",
+        "new": "            if (c != '\\\\') {\n                out.push_back(c);"
+      }
+    ]
+  },
+  {
+    "name": "control-tab-rejected",
+    "why": "a tab in a string is rejected",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "static bool is_control(unsigned char c) { return (c < 0x20 && c != '\\t') || c == 0x7F; }",
+        "new": "static bool is_control(unsigned char c) { return c < 0x20 || c == 0x7F; }"
+      }
+    ]
+  },
+  {
+    "name": "control-del-ok",
+    "why": "DEL (0x7F) is allowed",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return (c < 0x20 && c != '\\t') || c == 0x7F; }",
+        "new": "return (c < 0x20 && c != '\\t'); }"
+      }
+    ]
+  },
+  {
+    "name": "literal-control-ok",
+    "why": "control characters are allowed in literal strings",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (is_control(static_cast<unsigned char>(c))) return fail(ErrorKind::ControlCharacter, here(), \"a control character is not allowed in a string\");\n            out.push_back(c);\n            advance();\n        }\n    }\n\n    static int hex_value",
+        "new": "            out.push_back(c);\n            advance();\n        }\n    }\n\n    static int hex_value"
+      }
+    ]
+  },
+  {
+    "name": "escape-position",
+    "why": "InvalidEscape points at the letter after the backslash",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "default: return fail(ErrorKind::InvalidEscape, slash, \"unknown escape sequence\");",
+        "new": "default: return fail(ErrorKind::InvalidEscape, here(), \"unknown escape sequence\");"
+      }
+    ]
+  },
+  {
+    "name": "escape-n-wrong",
+    "why": "\\n produces a carriage return",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "case 'n': out.push_back('\\n'); break;",
+        "new": "case 'n': out.push_back('\\r'); break;"
+      }
+    ]
+  },
+  {
+    "name": "escape-quote-missing",
+    "why": "\\\" is not an escape",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                case '\"': out.push_back('\"'); break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-backslash-missing",
+    "why": "\\\\ is not an escape",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                case '\\\\': out.push_back('\\\\'); break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-b-f-missing",
+    "why": "\\b and \\f are not escapes",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                case 'b': out.push_back('\\b'); break;\n                case 'f': out.push_back('\\f'); break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "escape-slash-accepted",
+    "why": "\\/ and \\' are accepted escapes",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                default: return fail(ErrorKind::InvalidEscape, slash, \"unknown escape sequence\");",
+        "new": "                case '/': out.push_back('/'); break;\n                case '\\'': out.push_back('\\''); break;\n                default: return fail(ErrorKind::InvalidEscape, slash, \"unknown escape sequence\");"
+      }
+    ]
+  },
+  {
+    "name": "unicode-short-ok",
+    "why": "\\u with fewer than four digits is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                        if (h < 0) return fail(ErrorKind::InvalidEscape, slash, \"\\\\u needs four hexadecimal digits\");",
+        "new": "                        if (h < 0) break;"
+      }
+    ]
+  },
+  {
+    "name": "unicode-surrogate-ok",
+    "why": "surrogates are accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "                    if (cp >= 0xD800 && cp <= 0xDFFF) return fail(ErrorKind::InvalidEscape, slash, \"\\\\u must not name a surrogate\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "utf8-two-byte-wrong",
+    "why": "two-byte UTF-8 lacks the continuation marker",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            out.push_back(static_cast<char>(0xC0 | (cp >> 6)));\n            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));",
+        "new": "            out.push_back(static_cast<char>(0xC0 | (cp >> 6)));\n            out.push_back(static_cast<char>(cp & 0x3F));"
+      }
+    ]
+  },
+  {
+    "name": "utf8-three-byte-wrong",
+    "why": "three-byte UTF-8 mixes up the middle byte",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            out.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));\n            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));\n        }\n    }\n\n    bool basic_string",
+        "new": "            out.push_back(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));\n            out.push_back(static_cast<char>(0x80 | (cp & 0x3F)));\n        }\n    }\n\n    bool basic_string"
+      }
+    ]
+  },
+  {
+    "name": "utf8-ascii-escape",
+    "why": "escapes below 0x80 are written as two bytes",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (cp < 0x80) {\n            out.push_back(static_cast<char>(cp));\n        } else if (cp < 0x800) {",
+        "new": "        if (cp < 0x1) {\n            out.push_back(static_cast<char>(cp));\n        } else if (cp < 0x800) {"
+      }
+    ]
+  },
+  {
+    "name": "number-leading-zero-ok",
+    "why": "leading zeros are accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (!allow_leading_zero && out.size() > 1 && out[0] == '0') return false;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "number-underscore-edge-ok",
+    "why": "a trailing underscore is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "    if (p == start || !last_digit) return false;   // empty, or ends with an underscore",
+        "new": "    if (p == start) return false;"
+      }
+    ]
+  },
+  {
+    "name": "number-double-underscore-ok",
+    "why": "two underscores in a row are accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            } else if (c == '_') {\n                if (!last_digit) return false;\n                last_digit = false;",
+        "new": "            } else if (c == '_') {\n                last_digit = false;"
+      }
+    ]
+  },
+  {
+    "name": "number-hex-sign-ok",
+    "why": "a signed hex number is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (p != 0) return bad();   // hex has no sign\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "number-hex-overflow",
+    "why": "hex values above INT64_MAX wrap around",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "if (r.ec != std::errc() || v > static_cast<unsigned long long>(INT64_MAX)) return bad();",
+        "new": "if (r.ec != std::errc()) return bad();"
+      }
+    ]
+  },
+  {
+    "name": "number-hex-lowercase-only",
+    "why": "upper-case hex digits are rejected",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (c >= 'A' && c <= 'F') return c - 'A' + 10;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "number-fraction-optional-digits",
+    "why": "a dot without digits is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (!digits(t, p, frac, false, true)) return bad();\n            text += \".\" + frac;",
+        "new": "            digits(t, p, frac, false, true);\n            text += \".\" + (frac.empty() ? std::string(\"0\") : frac);"
+      }
+    ]
+  },
+  {
+    "name": "number-exponent-optional-digits",
+    "why": "an exponent without digits is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (!digits(t, p, exp, false, true)) return bad();\n            text += \"e\" + sign + exp;",
+        "new": "            digits(t, p, exp, false, true);\n            text += \"e\" + sign + (exp.empty() ? std::string(\"0\") : exp);"
+      }
+    ]
+  },
+  {
+    "name": "number-trailing-junk-ok",
+    "why": "junk after a number is ignored",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        if (p != t.size()) return bad();\n        if (is_float) {",
+        "new": "        if (is_float) {"
+      }
+    ]
+  },
+  {
+    "name": "number-float-infinity-ok",
+    "why": "a float that overflows is accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (r.ec == std::errc::result_out_of_range || (r.ec == std::errc() && !std::isfinite(v))) return bad();\n",
+        "new": "            if (r.ec == std::errc::result_out_of_range) v = HUGE_VAL;\n            else if (r.ec != std::errc()) return bad();\n            out = Value::real(v);\n            return true;\n"
+      }
+    ]
+  },
+  {
+    "name": "number-int-overflow-wraps",
+    "why": "integer overflow clamps instead of failing",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        long long v = 0;\n        const auto r = std::from_chars(text.data(), text.data() + text.size(), v);\n        if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return bad();",
+        "new": "        long long v = 0;\n        const auto r = std::from_chars(text.data(), text.data() + text.size(), v);\n        if (r.ec == std::errc::result_out_of_range) v = negative ? INT64_MIN : INT64_MAX;\n        else if (r.ec != std::errc() || r.ptr != text.data() + text.size()) return bad();"
+      }
+    ]
+  },
+  {
+    "name": "number-negative-zero-float",
+    "why": "a negative float loses its sign",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "        std::string text = negative ? \"-\" + whole : whole;",
+        "new": "        std::string text = whole;"
+      }
+    ]
+  },
+  {
+    "name": "number-position",
+    "why": "InvalidNumber points at the end of the token",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "const auto bad = [&]() { return fail(ErrorKind::InvalidNumber, at,",
+        "new": "const auto bad = [&]() { return fail(ErrorKind::InvalidNumber, here(),"
+      }
+    ]
+  },
+  {
+    "name": "array-mixed-ok",
+    "why": "arrays of mixed types are accepted",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (!items.empty() && items.front().type != item.type) return fail(ErrorKind::MixedArray, at, \"all elements of an array must have the same type\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "array-mixed-position",
+    "why": "MixedArray points at the array",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::MixedArray, at,",
+        "new": "return fail(ErrorKind::MixedArray, open,"
+      }
+    ]
+  },
+  {
+    "name": "array-int-float-same",
+    "why": "ints and floats count as one type",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "items.front().type != item.type)",
+        "new": "(items.front().type != item.type && !(items.front().type == Value::Type::Int && item.type == Value::Type::Float) && !(items.front().type == Value::Type::Float && item.type == Value::Type::Int)))"
+      }
+    ]
+  },
+  {
+    "name": "array-newline-not-allowed",
+    "why": "newlines between elements are an error",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (peek() == '\\n' || (peek() == '\\r' && peek(1) == '\\n')) {\n                newline();\n                continue;\n            }\n            return true;\n        }\n    }\n\n    // ---- strings",
+        "new": "            return true;\n        }\n    }\n\n    // ---- strings"
+      }
+    ]
+  },
+  {
+    "name": "array-comment-not-allowed",
+    "why": "comments between elements are an error",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (peek() == '#') {\n                skip_comment();\n                continue;\n            }\n            if (peek() == '\\n' || (peek() == '\\r' && peek(1) == '\\n')) {\n                newline();\n                continue;\n            }\n            return true;",
+        "new": "            if (peek() == '\\n' || (peek() == '\\r' && peek(1) == '\\n')) {\n                newline();\n                continue;\n            }\n            return true;"
+      }
+    ]
+  },
+  {
+    "name": "array-trailing-comma-rejected",
+    "why": "a trailing comma is an error",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            if (peek() == ']') {\n                advance();\n                break;\n            }\n            const Pos at = here();",
+        "new": "            const Pos at = here();"
+      }
+    ]
+  },
+  {
+    "name": "array-unterminated-position",
+    "why": "UnterminatedArray points at the end of the text",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "return fail(ErrorKind::UnterminatedArray, open, \"the array is never closed\");\n            if (peek() == ']') {",
+        "new": "return fail(ErrorKind::UnterminatedArray, here(), \"the array is never closed\");\n            if (peek() == ']') {"
+      }
+    ]
+  },
+  {
+    "name": "array-missing-comma-ok",
+    "why": "elements need no commas",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "            return fail(ErrorKind::UnexpectedCharacter, here(), \"',' or ']' expected in the array\");",
+        "new": "            continue;"
+      }
+    ]
+  },
+  {
+    "name": "render-no-caret-tabs",
+    "why": "tabs are replaced by spaces in the caret line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "(k < line.size() && line[k] == '\\t') ? '\\t' : ' '",
+        "new": "' '"
+      }
+    ]
+  },
+  {
+    "name": "render-column-off",
+    "why": "the caret is one column to the right",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "for (std::size_t k = 0; k + 1 < e.column; ++k)",
+        "new": "for (std::size_t k = 0; k < e.column; ++k)"
+      }
+    ]
+  },
+  {
+    "name": "render-gutter-width",
+    "why": "the gutter is a fixed width",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "out += std::string(gutter.size(), ' ') + \" | \";",
+        "new": "out += std::string(2, ' ') + \" | \";"
+      }
+    ]
+  },
+  {
+    "name": "render-cr-kept",
+    "why": "a carriage return is kept in the source line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "    if (!line.empty() && line.back() == '\\r') line.remove_suffix(1);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "render-wrong-line",
+    "why": "the line number is zero-based when finding the line",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "for (std::size_t n = 1; n < e.line && pos < source.size(); ++n) {",
+        "new": "for (std::size_t n = 0; n < e.line && pos < source.size(); ++n) {"
+      }
+    ]
+  },
+  {
+    "name": "render-header-order",
+    "why": "line and column are swapped in the header",
+    "edits": [
+      {
+        "file": "config.hpp",
+        "old": "std::to_string(e.line) + \":\" + std::to_string(e.column) + \": error: \"",
+        "new": "std::to_string(e.column) + \":\" + std::to_string(e.line) + \": error: \""
+      }
+    ]
+  }
+]

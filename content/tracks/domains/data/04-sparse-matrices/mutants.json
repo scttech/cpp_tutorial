@@ -1,0 +1,387 @@
+[
+  {
+    "name": "triplet-row-unchecked",
+    "why": "a row outside the matrix is accepted",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (e.row >= rows || e.col >= cols) return std::nullopt;",
+        "new": "            if (e.col >= cols) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "triplet-col-boundary",
+    "why": "a column equal to cols is accepted",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "if (e.row >= rows || e.col >= cols) return std::nullopt;",
+        "new": "if (e.row >= rows || e.col > cols) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "dimension-limit-missing",
+    "why": "huge dimensions are not refused",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (rows > kMaxDimension || cols > kMaxDimension) return std::nullopt;\n        for",
+        "new": "        for"
+      }
+    ]
+  },
+  {
+    "name": "dimension-limit-off-by-one",
+    "why": "the largest allowed dimension is refused",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "if (rows > kMaxDimension || cols > kMaxDimension) return std::nullopt;",
+        "new": "if (rows >= kMaxDimension || cols >= kMaxDimension) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "sort-not-stable",
+    "why": "duplicates are summed in reverse order of arrival",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "m.row_ptr_.assign(rows + 1, 0);\n        for (std::size_t i = 0; i < t.size();) {",
+        "new": "m.row_ptr_.assign(rows + 1, 0);\n        std::reverse(t.begin(), t.end());\n        std::stable_sort(t.begin(), t.end(), [](const Triplet& a, const Triplet& b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });\n        for (std::size_t i = 0; i < t.size();) {"
+      }
+    ]
+  },
+  {
+    "name": "duplicates-keep-last",
+    "why": "a duplicate replaces the earlier value instead of adding",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "sum += t[j++].value;",
+        "new": "sum = t[j++].value;"
+      }
+    ]
+  },
+  {
+    "name": "duplicates-not-merged",
+    "why": "duplicates stay as separate entries",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "while (j < t.size() && t[j].row == t[i].row && t[j].col == t[i].col) sum += t[j++].value;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "zero-sum-kept",
+    "why": "entries that sum to zero are stored",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (sum != 0.0) {\n                m.col_idx_.push_back(t[i].col);",
+        "new": "            if (true) {\n                m.col_idx_.push_back(t[i].col);"
+      }
+    ]
+  },
+  {
+    "name": "nan-dropped",
+    "why": "a NaN sum is treated as zero",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (sum != 0.0) {\n                m.col_idx_.push_back(t[i].col);",
+        "new": "            if (sum != 0.0 && sum == sum) {\n                m.col_idx_.push_back(t[i].col);"
+      }
+    ]
+  },
+  {
+    "name": "row-ptr-not-accumulated",
+    "why": "row_ptr holds counts instead of offsets",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        for (std::size_t r = 0; r < rows; ++r) m.row_ptr_[r + 1] += m.row_ptr_[r];\n        return m;",
+        "new": "        return m;"
+      }
+    ]
+  },
+  {
+    "name": "at-misses-last",
+    "why": "the binary search range stops one short",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "row_ptr_[r + 1]);\n        const auto it = std::lower_bound(first, last, c);",
+        "new": "row_ptr_[r + 1] - (row_ptr_[r + 1] > row_ptr_[r] ? 1 : 0));\n        const auto it = std::lower_bound(first, last, c);"
+      }
+    ]
+  },
+  {
+    "name": "at-outside-is-zero",
+    "why": "a position outside the matrix reads as 0",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (r >= rows_ || c >= cols_) return std::nullopt;\n        const auto first",
+        "new": "        if (r >= rows_ || c >= cols_) return 0.0;\n        const auto first"
+      }
+    ]
+  },
+  {
+    "name": "at-linear-scan",
+    "why": "at() scans the row",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        const auto it = std::lower_bound(first, last, c);",
+        "new": "        auto it = first;\n        while (it != last && *it < c) ++it;"
+      }
+    ]
+  },
+  {
+    "name": "at-ignores-row",
+    "why": "at() searches the whole column list",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        const auto first = col_idx_.begin() + static_cast<std::ptrdiff_t>(row_ptr_[r]);",
+        "new": "        const auto first = col_idx_.begin();"
+      }
+    ]
+  },
+  {
+    "name": "spmv-size-unchecked",
+    "why": "multiply_into does not check x",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "if (x.size() != cols_ || y.size() != rows_) return false;\n        for (std::size_t r = 0; r < rows_; ++r) {\n            double sum",
+        "new": "if (y.size() != rows_) return false;\n        for (std::size_t r = 0; r < rows_; ++r) {\n            double sum"
+      }
+    ]
+  },
+  {
+    "name": "spmv-accumulates",
+    "why": "multiply_into adds to the old contents of y",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            y[r] = sum;\n        }\n        return true;\n    }\n\n    std::optional<std::vector<double>> multiply",
+        "new": "            y[r] += sum;\n        }\n        return true;\n    }\n\n    std::optional<std::vector<double>> multiply"
+      }
+    ]
+  },
+  {
+    "name": "spmv-skips-empty-rows",
+    "why": "empty rows are left untouched",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            double sum = 0.0;\n            for (std::size_t k = row_ptr_[r]; k < row_ptr_[r + 1]; ++k) sum += values_[k] * x[col_idx_[k]];",
+        "new": "            if (row_ptr_[r] == row_ptr_[r + 1]) continue;\n            double sum = 0.0;\n            for (std::size_t k = row_ptr_[r]; k < row_ptr_[r + 1]; ++k) sum += values_[k] * x[col_idx_[k]];"
+      }
+    ]
+  },
+  {
+    "name": "spmv-reverse-order",
+    "why": "a row is summed from the last entry backwards",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "for (std::size_t k = row_ptr_[r]; k < row_ptr_[r + 1]; ++k) sum += values_[k] * x[col_idx_[k]];",
+        "new": "for (std::size_t k = row_ptr_[r + 1]; k-- > row_ptr_[r];) sum += values_[k] * x[col_idx_[k]];"
+      }
+    ]
+  },
+  {
+    "name": "spmv-allocates-temp",
+    "why": "multiply_into copies x",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (x.size() != cols_ || y.size() != rows_) return false;\n        for (std::size_t r = 0; r < rows_; ++r) {\n            double sum",
+        "new": "        if (x.size() != cols_ || y.size() != rows_) return false;\n        const std::vector<double> xs(x.begin(), x.end());\n        x = std::span<const double>(xs);\n        for (std::size_t r = 0; r < rows_; ++r) {\n            double sum"
+      }
+    ]
+  },
+  {
+    "name": "transposed-product-no-zeroing",
+    "why": "multiply_transposed_into does not clear y",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        std::fill(y.begin(), y.end(), 0.0);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "transposed-product-wrong-sizes",
+    "why": "multiply_transposed_into checks the wrong sizes",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "if (x.size() != rows_ || y.size() != cols_) return false;\n        std::fill",
+        "new": "if (x.size() != cols_ || y.size() != rows_) return false;\n        std::fill"
+      }
+    ]
+  },
+  {
+    "name": "transpose-counts-wrong",
+    "why": "the column counts are shifted by one",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        for (std::size_t c : col_idx_) ++t.row_ptr_[c + 1];",
+        "new": "        for (std::size_t c : col_idx_) ++t.row_ptr_[c];"
+      }
+    ]
+  },
+  {
+    "name": "transpose-stores-column",
+    "why": "the transposed entries keep the old column as their index",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "                t.col_idx_[pos] = r;",
+        "new": "                t.col_idx_[pos] = col_idx_[k];"
+      }
+    ]
+  },
+  {
+    "name": "transpose-builds-triplets",
+    "why": "transpose builds a list of triplets first",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        std::vector<std::size_t> next(t.row_ptr_.begin(), t.row_ptr_.end() - 1);\n        for (std::size_t r = 0; r < rows_; ++r)\n            for (std::size_t k = row_ptr_[r]; k < row_ptr_[r + 1]; ++k) {\n                const std::size_t pos = next[col_idx_[k]]++;\n                t.col_idx_[pos] = r;\n                t.values_[pos] = values_[k];\n            }\n        return t;",
+        "new": "        std::vector<std::size_t> next(t.row_ptr_.begin(), t.row_ptr_.end() - 1);\n        std::vector<Triplet> tr;\n        for (std::size_t r = 0; r < rows_; ++r)\n            for (std::size_t k = row_ptr_[r]; k < row_ptr_[r + 1]; ++k) tr.push_back({col_idx_[k], r, values_[k]});\n        std::vector<std::size_t> tmp(tr.size());\n        for (const Triplet& e : tr) {\n            const std::size_t pos = next[e.row]++;\n            t.col_idx_[pos] = e.col;\n            t.values_[pos] = e.value;\n        }\n        return t;"
+      }
+    ]
+  },
+  {
+    "name": "plus-shape-unchecked",
+    "why": "plus accepts matrices of different shapes",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (rows_ != o.rows_ || cols_ != o.cols_) return std::nullopt;\n        Csr s;",
+        "new": "        if (rows_ != o.rows_) return std::nullopt;\n        Csr s;"
+      }
+    ]
+  },
+  {
+    "name": "plus-keeps-cancelled",
+    "why": "entries that cancel are stored as zeros",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "                if (v != 0.0) {\n                    s.col_idx_.push_back(col);",
+        "new": "                if (true) {\n                    s.col_idx_.push_back(col);"
+      }
+    ]
+  },
+  {
+    "name": "plus-alpha-beta-swapped",
+    "why": "alpha scales the other matrix",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "v = alpha * values_[i++];",
+        "new": "v = beta * values_[i++];"
+      }
+    ]
+  },
+  {
+    "name": "plus-tie-ignores-beta",
+    "why": "a column present in both ignores beta",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "v = alpha * values_[i++] + beta * o.values_[j++];",
+        "new": "v = alpha * values_[i++] + o.values_[j++];"
+      }
+    ]
+  },
+  {
+    "name": "plus-drops-tail",
+    "why": "entries after the other row is exhausted are dropped",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            while (i < ie || j < je) {",
+        "new": "            while (i < ie && j < je) {"
+      }
+    ]
+  },
+  {
+    "name": "vector-index-unchecked",
+    "why": "an index equal to dim is accepted",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (p.first >= dim) return std::nullopt;",
+        "new": "            if (p.first > dim) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "vector-dup-last-wins",
+    "why": "duplicate indices keep the last value",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "while (j < pairs.size() && pairs[j].first == pairs[i].first) sum += pairs[j++].second;",
+        "new": "while (j < pairs.size() && pairs[j].first == pairs[i].first) sum = pairs[j++].second;"
+      }
+    ]
+  },
+  {
+    "name": "vector-zero-kept",
+    "why": "zero sums are stored",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (sum != 0.0) {\n                v.indices_.push_back",
+        "new": "            if (true) {\n                v.indices_.push_back"
+      }
+    ]
+  },
+  {
+    "name": "dot-dim-unchecked",
+    "why": "dot does not compare the dimensions",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (dim_ != o.dim_) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "dot-advances-both",
+    "why": "a mismatch advances both pointers",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "            if (indices_[i] < o.indices_[j]) ++i;\n            else if (indices_[i] > o.indices_[j]) ++j;",
+        "new": "            if (indices_[i] < o.indices_[j]) { ++i; ++j; }\n            else if (indices_[i] > o.indices_[j]) { ++j; ++i; }"
+      }
+    ]
+  },
+  {
+    "name": "dot-dense-size-unchecked",
+    "why": "dot with a dense vector does not check its length",
+    "edits": [
+      {
+        "file": "sparse.hpp",
+        "old": "        if (dense.size() != dim_) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  }
+]

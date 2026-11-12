@@ -1,0 +1,442 @@
+[
+  {
+    "name": "normalize-first-wins",
+    "why": "the first of repeated timestamps wins",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (out > 0 && raw[out - 1].t == raw[i].t) raw[out - 1] = raw[i];   // a repeated timestamp: the last one wins",
+        "new": "        if (out > 0 && raw[out - 1].t == raw[i].t) continue;"
+      }
+    ]
+  },
+  {
+    "name": "normalize-keeps-duplicates",
+    "why": "repeated timestamps are all kept",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (out > 0 && raw[out - 1].t == raw[i].t) raw[out - 1] = raw[i];   // a repeated timestamp: the last one wins\n        else raw[out++] = raw[i];",
+        "new": "        raw[out++] = raw[i];"
+      }
+    ]
+  },
+  {
+    "name": "normalize-nan-kept",
+    "why": "NaN readings are kept",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "return !std::isfinite(s.v); }",
+        "new": "return std::isinf(s.v); }"
+      }
+    ]
+  },
+  {
+    "name": "normalize-inf-kept",
+    "why": "infinite readings are kept",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "return !std::isfinite(s.v); }",
+        "new": "return std::isnan(s.v); }"
+      }
+    ]
+  },
+  {
+    "name": "normalize-unsorted",
+    "why": "the samples are not sorted",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    std::stable_sort(raw.begin(), raw.end(), [](const Sample& a, const Sample& b) { return a.t < b.t; });\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "normalize-unstable-order",
+    "why": "equal timestamps are reordered (the last one is no longer last)",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    std::stable_sort(raw.begin(), raw.end(), [](const Sample& a, const Sample& b) { return a.t < b.t; });",
+        "new": "    std::stable_sort(raw.begin(), raw.end(), [](const Sample& a, const Sample& b) { return a.t != b.t ? a.t < b.t : a.v < b.v; });"
+      }
+    ]
+  },
+  {
+    "name": "align-down-truncates",
+    "why": "align_down rounds towards zero",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (r > 0) return t - r;\n    const Time back = r + step;   // r < 0: the multiple below t is t - (step + r)\n    if (t < std::numeric_limits<Time>::min() + back) return std::nullopt;\n    return t - back;",
+        "new": "    return t - r;"
+      }
+    ]
+  },
+  {
+    "name": "align-down-underflow",
+    "why": "align_down does not check for underflow",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (t < std::numeric_limits<Time>::min() + back) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "align-down-step-zero",
+    "why": "a zero step is divided by",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "inline std::optional<Time> align_down(Time t, Time step) {\n    if (step <= 0) return std::nullopt;",
+        "new": "inline std::optional<Time> align_down(Time t, Time step) {\n    if (step < 0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "align-up-always-next",
+    "why": "align_up moves even when t is already aligned",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    const Time r = t % step;\n    if (r == 0) return t;\n    if (r < 0) return t - r;",
+        "new": "    const Time r = t % step;\n    if (r < 0) return t - r;"
+      }
+    ]
+  },
+  {
+    "name": "align-up-negative",
+    "why": "align_up moves negative times the wrong way",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (r < 0) return t - r;   // towards zero: always representable",
+        "new": "    if (r < 0) return t - r - step;"
+      }
+    ]
+  },
+  {
+    "name": "align-up-overflow",
+    "why": "align_up does not check for overflow",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (t > std::numeric_limits<Time>::max() - forward) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "bucket-signed-difference",
+    "why": "the bucket index subtracts in signed arithmetic",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    return detail::diff_u(start, t) / static_cast<std::uint64_t>(width);",
+        "new": "    return static_cast<std::uint64_t>((t - start) / width);"
+      }
+    ]
+  },
+  {
+    "name": "bucket-before-start-zero",
+    "why": "times before the start fall into bucket 0",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (width <= 0 || t < start) return std::nullopt;",
+        "new": "    if (width <= 0) return std::uint64_t{0};"
+      }
+    ]
+  },
+  {
+    "name": "bucket-ceil",
+    "why": "bucket boundaries belong to the previous bucket",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    return detail::diff_u(start, t) / static_cast<std::uint64_t>(width);",
+        "new": "    return (detail::diff_u(start, t) + static_cast<std::uint64_t>(width) - 1) / static_cast<std::uint64_t>(width);"
+      }
+    ]
+  },
+  {
+    "name": "resample-step-zero-ok",
+    "why": "a zero step is accepted",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "if (step <= 0 || count > kMaxPoints || max_gap < 0) return std::nullopt;",
+        "new": "if (step < 0 || count > kMaxPoints || max_gap < 0) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "resample-negative-gap-ok",
+    "why": "a negative max_gap is accepted",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "if (step <= 0 || count > kMaxPoints || max_gap < 0) return std::nullopt;",
+        "new": "if (step <= 0 || count > kMaxPoints) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "resample-grid-overflow-unchecked",
+    "why": "a grid that passes INT64_MAX is accepted",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (!detail::fits(start, last_offset)) return std::nullopt;\n    std::vector<double> out(count, std::numeric_limits<double>::quiet_NaN());",
+        "new": "    std::vector<double> out(count, std::numeric_limits<double>::quiet_NaN());"
+      }
+    ]
+  },
+  {
+    "name": "resample-grid-off-by-one",
+    "why": "the last grid point may not be INT64_MAX",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (!detail::fits(start, last_offset)) return std::nullopt;\n    std::vector<double> out",
+        "new": "    if (!detail::fits(start, last_offset) || detail::offset(start) + last_offset == std::numeric_limits<std::uint64_t>::max()) return std::nullopt;\n    std::vector<double> out"
+      }
+    ]
+  },
+  {
+    "name": "resample-span-overflow-unchecked",
+    "why": "k * step is allowed to wrap around",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (count > 1 && last_offset / static_cast<std::uint64_t>(step) != count - 1) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "resample-exact-match-lost",
+    "why": "an exact match is replaced by the fill rule",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (j > 0 && s[j - 1].t == g) {\n            out[k] = s[j - 1].v;\n            continue;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "resample-pointer-strict",
+    "why": "the pointer stops before a sample at exactly g",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "while (j < s.size() && s[j].t <= g) ++j;",
+        "new": "while (j < s.size() && s[j].t < g) ++j;"
+      }
+    ]
+  },
+  {
+    "name": "resample-previous-strict-gap",
+    "why": "a gap of exactly max_gap is refused",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "if (within(detail::diff_u(prev.t, g))) out[k] = prev.v;",
+        "new": "if (detail::diff_u(prev.t, g) < gap) out[k] = prev.v;"
+      }
+    ]
+  },
+  {
+    "name": "resample-linear-strict-gap",
+    "why": "neighbours exactly max_gap apart are refused",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "            if (within(whole)) {",
+        "new": "            if (whole < gap) {"
+      }
+    ]
+  },
+  {
+    "name": "resample-linear-gap-from-grid",
+    "why": "the gap rule measures from the grid point, not between the neighbours",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "            if (within(whole)) {",
+        "new": "            if (within(detail::diff_u(prev.t, g))) {"
+      }
+    ]
+  },
+  {
+    "name": "resample-linear-fraction-swapped",
+    "why": "the fraction is measured from the other end",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "out[k] = prev.v * (1.0 - f) + next.v * f;",
+        "new": "out[k] = prev.v * f + next.v * (1.0 - f);"
+      }
+    ]
+  },
+  {
+    "name": "resample-unlimited-is-int64max",
+    "why": "kNoLimit is just a big number: wider spans are refused",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    const bool unlimited = max_gap == kNoLimit;",
+        "new": "    const bool unlimited = false;"
+      }
+    ]
+  },
+  {
+    "name": "resample-extrapolates-forward",
+    "why": "Linear carries the last value forward",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        } else if (j < s.size()) {\n            const Sample& next = s[j];",
+        "new": "        } else if (j >= s.size()) {\n            if (within(detail::diff_u(prev.t, g))) out[k] = prev.v;\n        } else {\n            const Sample& next = s[j];"
+      }
+    ]
+  },
+  {
+    "name": "resample-previous-before-first",
+    "why": "Previous fills before the first sample with the first value",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (fill == Fill::None || j == 0) continue;\n        const Sample& prev = s[j - 1];",
+        "new": "        if (fill == Fill::None) continue;\n        if (j == 0) { if (fill == Fill::Previous && !s.empty()) out[k] = s[0].v; continue; }\n        const Sample& prev = s[j - 1];"
+      }
+    ]
+  },
+  {
+    "name": "resample-missing-is-zero",
+    "why": "missing points are 0 instead of NaN",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    std::vector<double> out(count, std::numeric_limits<double>::quiet_NaN());\n    std::size_t j = 0;",
+        "new": "    std::vector<double> out(count, 0.0);\n    std::size_t j = 0;"
+      }
+    ]
+  },
+  {
+    "name": "resample-none-fills",
+    "why": "Fill::None behaves like Previous",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (fill == Fill::None || j == 0) continue;",
+        "new": "        if (j == 0) continue;"
+      }
+    ]
+  },
+  {
+    "name": "resample-binary-search-copy",
+    "why": "every grid point copies the samples seen so far",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        while (j < s.size() && s[j].t <= g) ++j;",
+        "new": "        while (j < s.size() && s[j].t <= g) ++j;\n        if (k % 1 == 0) { std::vector<Sample> seen(s.begin(), s.begin() + static_cast<std::ptrdiff_t>(std::min<std::size_t>(j, 4))); (void)seen; }"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-end-inclusive",
+    "why": "the end of a bucket belongs to it",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (!idx || *idx >= count) continue;",
+        "new": "        if (!idx || *idx > count) continue;"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-before-start",
+    "why": "samples before the start are put into bucket 0",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        const auto idx = bucket_of(x.t, start, width);\n        if (!idx || *idx >= count) continue;",
+        "new": "        auto idx = bucket_of(x.t, start, width);\n        if (!idx && x.t < start && count > 0) idx = 0;\n        if (!idx || *idx >= count) continue;"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-first-last-swapped",
+    "why": "\"first\" records the latest value",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (b.n == 0) b.first = b.min = b.max = x.v;",
+        "new": "        if (b.n == 0) b.last = b.min = b.max = x.v;\n        b.first = x.v;"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-min-uninitialised",
+    "why": "min starts at 0",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        if (b.n == 0) b.first = b.min = b.max = x.v;\n        b.min = std::min(b.min, x.v);",
+        "new": "        if (b.n == 0) b.first = b.max = x.v;\n        if (b.n == 0) b.min = 0;\n        b.min = std::min(b.min, x.v);"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-max-uninitialised",
+    "why": "max stays NaN for the first sample",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "        b.max = std::max(b.max, x.v);",
+        "new": "        b.max = std::isnan(b.max) ? x.v : b.max;"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-span-overflow-unchecked",
+    "why": "count * width may wrap around",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (count > 0 && total / static_cast<std::uint64_t>(count) != static_cast<std::uint64_t>(width)) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "aggregate-end-unchecked",
+    "why": "buckets may end beyond INT64_MAX",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "    if (!detail::fits(start, total)) return std::nullopt;\n    std::vector<Bucket> out(count);",
+        "new": "    std::vector<Bucket> out(count);"
+      }
+    ]
+  },
+  {
+    "name": "aggregate-width-zero",
+    "why": "a zero width is accepted",
+    "edits": [
+      {
+        "file": "timeseries.hpp",
+        "old": "if (width <= 0 || count > kMaxBuckets) return std::nullopt;",
+        "new": "if (width < 0 || count > kMaxBuckets) return std::nullopt;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+id: domain.graphics.pure-pursuit
+title: "A Pure-Pursuit Path Follower"
+module: domain.graphics
+type: challenge
+estimatedMinutes: 95
+concepts: [robotics, path-following, pure-pursuit, circle-segment-intersection, angle-wrapping, unicycle-kinematics, closed-loop-simulation, monotone-progress, curvature-limits, stable-trigonometry]
+prerequisites: []
+files:
+  editable: [pursuit.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [wrap-angles, exact-arc-integration, stable-circle-segment-intersection, never-go-back-along-the-path, target-behind-the-robot, finish-line-and-slowing, bounded-commands, reject-bad-parameters]

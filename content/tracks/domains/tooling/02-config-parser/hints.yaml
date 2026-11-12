@@ -1,0 +1,21 @@
+ladder:
+  - level: 1
+    text: "Write a small Parser class holding the text, the index, the current line and the index where the current line starts; the column is index - line_start + 1. Helpers: eof, peek(ahead), here() (captures a Pos), newline() (handles \\r\\n, bumps line and line_start), skip_inline_space (spaces and tabs only), skip_comment (to the end of the line). Every parse function returns bool and stores the error in a member via fail(kind, pos, message)."
+  - level: 2
+    text: "Main loop: skip inline space; stop at eof; newline -> newline(); '#' -> skip_comment; '[' -> section; otherwise a setting. After a section or setting call end_of_line(): skip spaces, accept eof/newline or a comment, else TrailingGarbage at the current character. key_path(parts, kind): loop { skip spaces; a quoted key via the string readers or a run of [A-Za-z0-9_-] (empty -> fail(kind, here)); skip spaces; if '.' continue }. A setting: start = here(); key_path; skip spaces; '=' else ExpectedEquals at here(); skip spaces; value(); config.add(prefix + joined, v) else DuplicateKey at start."
+  - level: 3
+    text: "value(): at eof, a line end, ',', ']' or '#' -> ExpectedValue; '\"' and '\\'' -> the string readers; '[' -> array; otherwise take the token up to whitespace, ',', ']' or '#': true/false -> bool; starts with a digit, '+' or '-' -> number; else InvalidValue at the token start. Strings: remember the opening quote's Pos; at the end of the line -> UnterminatedString there; a backslash starts an escape (remember ITS Pos for InvalidEscape); control chars (< 0x20 except tab, and 0x7F) -> ControlCharacter at the char. Number grammar by hand: sign, digits with single underscores between digits and no leading zero, optional .digits, optional e[+-]digits, hex only unsigned; then from_chars on the underscore-free text."
+  - level: 4
+    text: |
+      // array(): remember the '[' position
+      // for (;;) {
+      //     if (!skip_array_space()) return fail(UnterminatedArray, open, ...);       // whitespace, newlines AND comments
+      //     if (peek() == ']') { advance(); break; }
+      //     const Pos at = here(); Value item; if (!value(item)) return false;
+      //     if (!items.empty() && items.front().type != item.type) return fail(MixedArray, at, ...);
+      //     items.push_back(item);
+      //     if (!skip_array_space()) return fail(UnterminatedArray, open, ...);
+      //     if (peek() == ',') { advance(); continue; }
+      //     if (peek() == ']') { advance(); break; }
+      //     return fail(UnexpectedCharacter, here(), ...);
+      // }

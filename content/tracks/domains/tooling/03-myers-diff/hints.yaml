@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "split_lines: find '\\n' from `start`; take substr(start, nl - start + 1) (the line INCLUDES its newline); a remainder without '\\n' is the last line. diff(): first trim: pre = number of equal lines at the start, then suf = number of equal lines at the end among the rest (never count a line twice). Run Myers on N = n - pre - suf and M = m - pre - suf lines, then add the trimmed Equal edits back with their real indices."
+  - level: 2
+    text: "Myers forward pass: v is an array indexed by diagonal k = x - y (use an offset so k can be negative; size 2 * (N + M) + 3). For d = 0..N+M: for k = -d..d step 2: x = (k == -d || (k != d && v[k-1] < v[k+1])) ? v[k+1] : v[k-1] + 1; y = x - k; while (x < N && y < M && a[x] == b[y]) ++x, ++y; v[k] = x; if (x >= N && y >= M) stop. After each d that did not finish, save a copy of v[-d..d]."
+  - level: 3
+    text: "Backtrack from (x, y) = (N, M): for d from the final d down to 1: let pv be the copy saved after step d-1; k = x - y; down = (k == -d || (k != d && pv[k-1] < pv[k+1])); prev_k = down ? k + 1 : k - 1; prev_x = pv[prev_k]; prev_y = prev_x - prev_k. Emit Equal edits while (x > prev_x && y > prev_y), decrementing both, then emit one Insert (down) or Delete, and set (x, y) = (prev_x, prev_y). When d reaches 0 the rest is a diagonal of Equal edits. Reverse the list. Finally, inside every run of non-Equal edits put the Deletes first and recompute the index fields."
+  - level: 4
+    text: |
+      // unified(): hunks
+      // while (i < edits.size()) {
+      //     skip Equal edits; if none left, stop.
+      //     lo = i, extended backwards over up to `context` Equal edits (but not into the previous hunk).
+      //     hi = i; loop: advance hi over non-Equal edits; gap = number of Equal edits that follow;
+      //         if (end of script || gap > 2 * context) { hi += min(gap, context); break; } else hi += gap;
+      //     header: a_count = edits in [lo,hi) that are not Insert; b_count = those that are not Delete;
+      //             "@@ -" range(edits[lo].a, a_count) " +" range(edits[lo].b, b_count) " @@"
+      //     range(start0, count): the number is (count == 0 ? start0 : start0 + 1); append "," + count unless count == 1.
+      // }

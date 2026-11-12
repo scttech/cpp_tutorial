@@ -1,0 +1,18 @@
+ladder:
+  - level: 1
+    text: "constant_velocity(dt, q): F = {{1, dt}, {0, 1}}, Q = q * {{dt^4/4, dt^3/2}, {dt^3/2, dt^2}} (build with dt2 = dt*dt, dt3, dt4). A helper symmetrized(M) returns 0.5 * (M + transposed(M)). make(): reject non-finite input, a negative diagonal entry, and asymmetry larger than 1e-12 * (1 + the largest diagonal entry); store the symmetrized P."
+  - level: 2
+    text: "predict: refuse if F or Q is not finite (return false, change nothing); x = F * x; P = symmetrized(F * P * transposed(F) + Q). update: refuse non-finite H or z, R not a finite number > 0, a NaN or negative gate. PH = P * H; s = dot(H, PH) + R (refuse if not finite or <= 0); y = z - dot(H, x); nis = y * y / s; if nis > gate return nullopt (before changing anything)."
+  - level: 3
+    text: "Gain: K[i] = PH[i] / s. State: x[i] += K[i] * y. Covariance in the Joseph form: A = identity<N>() - outer(K, H); P = symmetrized(A * P * transposed(A) + outer(K, K) * R). Return Innovation{y, s, nis}. Do all the checks first, so a refused call leaves state and covariance exactly as they were."
+  - level: 4
+    text: |
+      // the heart of update():
+      // const Vec<N> PH = P_ * H;
+      // const double s = dot(H, PH) + R;
+      // const double y = z - dot(H, x_);
+      // if (y * y / s > gate) return std::nullopt;
+      // Vec<N> K; for (i) K[i] = PH[i] / s;
+      // for (i) x_[i] += K[i] * y;
+      // const Mat<N> A = identity<N>() - outer(K, H);
+      // P_ = symmetrized(A * P_ * transposed(A) + outer(K, K) * R);

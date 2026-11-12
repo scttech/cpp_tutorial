@@ -1,0 +1,590 @@
+[
+  {
+    "name": "wrap-minus-pi-stays",
+    "why": "minus pi is not mapped to plus pi",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    else if (r <= -kPi) r += 2.0 * kPi;",
+        "new": "    else if (r < -kPi) r += 2.0 * kPi;"
+      }
+    ]
+  },
+  {
+    "name": "wrap-pi-flips",
+    "why": "plus pi is mapped to minus pi",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    if (r > kPi) r -= 2.0 * kPi;",
+        "new": "    if (r >= kPi) r -= 2.0 * kPi;"
+      }
+    ]
+  },
+  {
+    "name": "wrap-one-turn-only",
+    "why": "only one turn is removed",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    double r = std::fmod(a, 2.0 * kPi);\n    if (r > kPi)",
+        "new": "    double r = a;\n    if (r > kPi)"
+      }
+    ]
+  },
+  {
+    "name": "advance-naive-arc",
+    "why": "the arc is computed as (sin(a + d) - sin(a)) / kappa",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    return Pose{p.x + chord * std::cos(mid), p.y + chord * std::sin(mid), wrap_angle(p.theta + delta)};",
+        "new": "    (void)chord; (void)mid;\n    if (kappa == 0.0) return Pose{p.x + d * std::cos(p.theta), p.y + d * std::sin(p.theta), p.theta};\n    return Pose{p.x + (std::sin(p.theta + delta) - std::sin(p.theta)) / kappa, p.y + (std::cos(p.theta) - std::cos(p.theta + delta)) / kappa, wrap_angle(p.theta + delta)};"
+      }
+    ]
+  },
+  {
+    "name": "advance-euler",
+    "why": "the position is advanced by Euler steps",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    const double chord = d * detail::sinc(delta / 2.0);\n    const double mid = p.theta + delta / 2.0;",
+        "new": "    const double chord = d;\n    const double mid = p.theta;"
+      }
+    ]
+  },
+  {
+    "name": "advance-chord-without-sinc",
+    "why": "the chord is the arc length",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    const double chord = d * detail::sinc(delta / 2.0);",
+        "new": "    const double chord = d;"
+      }
+    ]
+  },
+  {
+    "name": "advance-heading-end",
+    "why": "the chord points along the final heading",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    const double mid = p.theta + delta / 2.0;",
+        "new": "    const double mid = p.theta + delta;"
+      }
+    ]
+  },
+  {
+    "name": "advance-no-half",
+    "why": "the half angle is forgotten in the sinc",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "detail::sinc(delta / 2.0)",
+        "new": "detail::sinc(delta)"
+      }
+    ]
+  },
+  {
+    "name": "advance-theta-unwrapped",
+    "why": "theta is not wrapped",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "wrap_angle(p.theta + delta)};",
+        "new": "p.theta + delta};"
+      }
+    ]
+  },
+  {
+    "name": "advance-negative-dt-ok",
+    "why": "a negative dt runs time backwards",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": " || !std::isfinite(dt) || dt < 0.0) return p;",
+        "new": " || !std::isfinite(dt)) return p;"
+      }
+    ]
+  },
+  {
+    "name": "advance-nonfinite-ok",
+    "why": "a non-finite speed is used",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "if (!is_finite(p) || !std::isfinite(v) ||",
+        "new": "if (!is_finite(p) ||"
+      }
+    ]
+  },
+  {
+    "name": "advance-kappa-sign",
+    "why": "positive curvature turns clockwise",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    const double delta = kappa * d;",
+        "new": "    const double delta = -kappa * d;"
+      }
+    ]
+  },
+  {
+    "name": "circle-naive-discriminant",
+    "why": "the textbook discriminant",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    const double disc = A * r * r - c * c;",
+        "new": "    const double disc = dot(f, d) * dot(f, d) - A * (dot(f, f) - r * r);"
+      }
+    ]
+  },
+  {
+    "name": "circle-roots-unclipped",
+    "why": "roots outside the segment are kept",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    if (lo >= 0.0 && lo <= 1.0) out.t[out.count++] = lo;\n    if (hi >= 0.0 && hi <= 1.0 && (disc > 0.0)) out.t[out.count++] = hi;",
+        "new": "    out.t[out.count++] = lo;\n    if (disc > 0.0) out.t[out.count++] = hi;"
+      }
+    ]
+  },
+  {
+    "name": "circle-tangent-twice",
+    "why": "a tangent counts as two roots",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    if (hi >= 0.0 && hi <= 1.0 && (disc > 0.0)) out.t[out.count++] = hi;",
+        "new": "    if (hi >= 0.0 && hi <= 1.0) out.t[out.count++] = hi;"
+      }
+    ]
+  },
+  {
+    "name": "circle-open-ends",
+    "why": "a root exactly at an end is dropped",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    if (lo >= 0.0 && lo <= 1.0) out.t[out.count++] = lo;\n    if (hi >= 0.0 && hi <= 1.0 && (disc > 0.0)) out.t[out.count++] = hi;",
+        "new": "    if (lo > 0.0 && lo < 1.0) out.t[out.count++] = lo;\n    if (hi > 0.0 && hi < 1.0 && (disc > 0.0)) out.t[out.count++] = hi;"
+      }
+    ]
+  },
+  {
+    "name": "circle-radius-unchecked",
+    "why": "a non-positive radius is accepted",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": " || !(r > 0.0) || !std::isfinite(r)) return out;",
+        "new": " || !std::isfinite(r)) return out;"
+      }
+    ]
+  },
+  {
+    "name": "circle-descending",
+    "why": "the roots come out in descending order",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    if (lo >= 0.0 && lo <= 1.0) out.t[out.count++] = lo;\n    if (hi >= 0.0 && hi <= 1.0 && (disc > 0.0)) out.t[out.count++] = hi;",
+        "new": "    if (hi >= 0.0 && hi <= 1.0 && (disc > 0.0)) out.t[out.count++] = hi;\n    if (lo >= 0.0 && lo <= 1.0) out.t[out.count++] = lo;"
+      }
+    ]
+  },
+  {
+    "name": "path-duplicates-kept",
+    "why": "consecutive duplicates are kept",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "            if (clean.empty() || p.x != clean.back().x || p.y != clean.back().y) clean.push_back(p);",
+        "new": "            clean.push_back(p);"
+      }
+    ]
+  },
+  {
+    "name": "path-nonfinite-ok",
+    "why": "non-finite points are accepted",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "            if (!is_finite(p)) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "path-one-point-ok",
+    "why": "a single point makes a path",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (clean.size() < 2) return std::nullopt;",
+        "new": "        if (clean.empty()) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "path-all-duplicates-dedup-global",
+    "why": "all repeated points are removed, not only consecutive ones",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "            if (clean.empty() || p.x != clean.back().x || p.y != clean.back().y) clean.push_back(p);",
+        "new": "            bool seen = false;\n            for (const Vec2& q : clean) seen = seen || (q.x == p.x && q.y == p.y);\n            if (!seen) clean.push_back(p);"
+      }
+    ]
+  },
+  {
+    "name": "closest-no-clamp",
+    "why": "the projection is not clamped to the segment",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        const double t = std::clamp(dot(p - a, d) / dot(d, d), 0.0, 1.0);",
+        "new": "        const double t = dot(p - a, d) / dot(d, d);"
+      }
+    ]
+  },
+  {
+    "name": "closest-ties-later",
+    "why": "ties go to the later segment",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (dist < best.distance) best = Closest{i, t, q, dist};",
+        "new": "        if (dist <= best.distance) best = Closest{i, t, q, dist};"
+      }
+    ]
+  },
+  {
+    "name": "closest-last-ignored",
+    "why": "the last segment of the window is not searched",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    for (std::size_t i = first; i <= last; ++i) {\n        const Vec2 a = path.points()[i], b = path.points()[i + 1];\n        const Vec2 d = b - a;\n        const double t = std::clamp",
+        "new": "    for (std::size_t i = first; i < last || (i == last && first == last); ++i) {\n        const Vec2 a = path.points()[i], b = path.points()[i + 1];\n        const Vec2 d = b - a;\n        const double t = std::clamp"
+      }
+    ]
+  },
+  {
+    "name": "closest-window-unclamped",
+    "why": "indices past the end are not clamped",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    first = std::min(first, n - 1);\n    last = std::min(std::max(last, first), n - 1);",
+        "new": "    last = std::max(last, first);"
+      }
+    ]
+  },
+  {
+    "name": "lookahead-smallest-root",
+    "why": "the nearest root is taken instead of the farthest",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        for (int k = r.count - 1; k >= 0; --k)",
+        "new": "        for (int k = 0; k < r.count; ++k)"
+      }
+    ]
+  },
+  {
+    "name": "lookahead-behind-allowed",
+    "why": "roots behind the robot on the first segment are used",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "            if (i != segment || r.t[k] >= t) return a + (b - a) * r.t[k];",
+        "new": "            return a + (b - a) * r.t[k];"
+      }
+    ]
+  },
+  {
+    "name": "lookahead-skip-segments",
+    "why": "only the starting segment is searched",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "    for (std::size_t i = segment; i < path.segment_count(); ++i) {",
+        "new": "    for (std::size_t i = segment; i < std::min(path.segment_count(), segment + 1); ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "lookahead-last-intersection",
+    "why": "the last intersection on the whole path is used",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        for (int k = r.count - 1; k >= 0; --k)\n            if (i != segment || r.t[k] >= t) return a + (b - a) * r.t[k];\n    }\n    return std::nullopt;",
+        "new": "        for (int k = r.count - 1; k >= 0; --k)\n            if (i != segment || r.t[k] >= t) found = a + (b - a) * r.t[k];\n    }\n    return found;"
+      },
+      {
+        "file": "pursuit.hpp",
+        "old": "inline std::optional<Vec2> lookahead_point(const Path& path, Vec2 robot, double L, std::size_t segment, double t) {",
+        "new": "inline std::optional<Vec2> lookahead_point(const Path& path, Vec2 robot, double L, std::size_t segment, double t) {\n    std::optional<Vec2> found;"
+      }
+    ]
+  },
+  {
+    "name": "follower-lookahead-zero-ok",
+    "why": "a zero lookahead is accepted",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "if (!positive(params.lookahead) || !positive(params.max_speed)",
+        "new": "if (!std::isfinite(params.lookahead) || !positive(params.max_speed)"
+      }
+    ]
+  },
+  {
+    "name": "follower-negative-tolerance-ok",
+    "why": "a negative tolerance is accepted",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": " || params.goal_tolerance < 0.0) return std::nullopt;",
+        "new": ") return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "follower-speed-ok",
+    "why": "max_speed is not validated",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "|| !positive(params.max_speed) ||",
+        "new": "||"
+      }
+    ]
+  },
+  {
+    "name": "follower-nonfinite-pose-moves",
+    "why": "a NaN pose is processed",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (!is_finite(pose)) return Command{};\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "follower-done-exclusive",
+    "why": "the tolerance is exclusive",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (done_ || dg <= params_.goal_tolerance) {",
+        "new": "        if (done_ || dg < params_.goal_tolerance) {"
+      }
+    ]
+  },
+  {
+    "name": "follower-done-not-sticky",
+    "why": "done is forgotten",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (done_ || dg <= params_.goal_tolerance) {",
+        "new": "        if (dg <= params_.goal_tolerance) {"
+      }
+    ]
+  },
+  {
+    "name": "follower-done-speed",
+    "why": "done keeps a speed",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "            return Command{0.0, 0.0, true};",
+        "new": "            return Command{params_.max_speed, 0.0, true};"
+      }
+    ]
+  },
+  {
+    "name": "follower-search-from-start",
+    "why": "the projection searches the whole path from the start",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "closest_on_path(path_, pos, segment_, segment_ + 8)",
+        "new": "closest_on_path(path_, pos, 0, path_.segment_count())"
+      }
+    ]
+  },
+  {
+    "name": "follower-window-too-wide",
+    "why": "the window covers the whole path",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "closest_on_path(path_, pos, segment_, segment_ + 8)",
+        "new": "closest_on_path(path_, pos, segment_, path_.segment_count())"
+      }
+    ]
+  },
+  {
+    "name": "follower-no-end-fallback",
+    "why": "at the end of the path it aims at the nearest point instead of the goal",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "carrot ? *carrot : (dg < params_.lookahead ? goal : c.point)",
+        "new": "carrot ? *carrot : c.point"
+      }
+    ]
+  },
+  {
+    "name": "follower-segment-not-updated",
+    "why": "the segment is never advanced",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        segment_ = c.segment;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "follower-kappa-sign",
+    "why": "the curvature has the wrong sign",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        double kappa = d2 < 1e-12 ? 0.0 : 2.0 * ly / d2;",
+        "new": "        double kappa = d2 < 1e-12 ? 0.0 : -2.0 * ly / d2;"
+      }
+    ]
+  },
+  {
+    "name": "follower-kappa-wrong-frame",
+    "why": "the carrot is not rotated into the robot frame",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        const double lx = std::cos(pose.theta) * dx + std::sin(pose.theta) * dy;\n        const double ly = -std::sin(pose.theta) * dx + std::cos(pose.theta) * dy;",
+        "new": "        const double lx = dx;\n        const double ly = dy;"
+      }
+    ]
+  },
+  {
+    "name": "follower-frame-rotation-sign",
+    "why": "the frame is rotated the wrong way",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        const double ly = -std::sin(pose.theta) * dx + std::cos(pose.theta) * dy;",
+        "new": "        const double ly = std::sin(pose.theta) * dx + std::cos(pose.theta) * dy;"
+      }
+    ]
+  },
+  {
+    "name": "follower-kappa-factor",
+    "why": "the factor 2 is missing",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "2.0 * ly / d2;",
+        "new": "ly / d2;"
+      }
+    ]
+  },
+  {
+    "name": "follower-carrot-behind-ignored",
+    "why": "a carrot behind the robot is not handled",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (lx < 0.0) kappa = ly >= 0.0 ? params_.max_curvature : -params_.max_curvature;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "follower-behind-wrong-side",
+    "why": "the full-lock turn goes the wrong way",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        if (lx < 0.0) kappa = ly >= 0.0 ? params_.max_curvature : -params_.max_curvature;",
+        "new": "        if (lx < 0.0) kappa = ly >= 0.0 ? -params_.max_curvature : params_.max_curvature;"
+      }
+    ]
+  },
+  {
+    "name": "follower-behind-zero-ly",
+    "why": "exactly behind turns clockwise",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "kappa = ly >= 0.0 ? params_.max_curvature : -params_.max_curvature;",
+        "new": "kappa = ly > 0.0 ? params_.max_curvature : -params_.max_curvature;"
+      }
+    ]
+  },
+  {
+    "name": "follower-no-clamp",
+    "why": "the curvature is not clamped",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "        kappa = std::clamp(kappa, -params_.max_curvature, params_.max_curvature);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "follower-speed-ignores-curvature",
+    "why": "the speed does not drop in turns",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "(1.0 - 0.8 * std::fabs(kappa) / params_.max_curvature) * ",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "follower-speed-ignores-goal",
+    "why": "the speed does not drop near the goal",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": " * std::min(1.0, std::max(0.1, dg / params_.lookahead));",
+        "new": ";"
+      }
+    ]
+  },
+  {
+    "name": "follower-speed-floor-missing",
+    "why": "the speed can reach zero near the goal",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "std::min(1.0, std::max(0.1, dg / params_.lookahead))",
+        "new": "std::min(1.0, dg / params_.lookahead)"
+      }
+    ]
+  },
+  {
+    "name": "follower-speed-curvature-factor",
+    "why": "full lock stops the robot",
+    "edits": [
+      {
+        "file": "pursuit.hpp",
+        "old": "(1.0 - 0.8 * std::fabs(kappa)",
+        "new": "(1.0 - 1.0 * std::fabs(kappa)"
+      }
+    ]
+  }
+]

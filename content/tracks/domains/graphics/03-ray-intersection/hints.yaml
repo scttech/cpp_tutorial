@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "One helper does the shared work: valid(ray, t_min, t_max) (finite origin and direction, direction's squared length finite and > 0, no NaN window, t_min <= t_max) and make_hit(ray, t, outward_unit_normal) (point = origin + dir * t; front = dot(dir, outward) < 0; normal = front ? outward : -outward). Every intersect() validates, finds ONE candidate t, checks t_min <= t <= t_max (written so that NaN fails), and calls make_hit."
+  - level: 2
+    text: "Sphere: oc = origin - center; a = dot(dir, dir); half_b = dot(oc, dir); disc = a r^2 - |cross(oc, dir)|^2; disc < 0 is a miss. near = (-half_b - sqrt(disc)) / a, far = (-half_b + sqrt(disc)) / a; use near if near >= t_min, else far. The outward normal is (oc + dir * t) / r. Plane: reject |n . dir| <= 1e-12 |n| |dir|; t = dot(n, p0 - origin) / dot(n, dir); outward normal n / |n|."
+  - level: 3
+    text: "Box: loop over the three axes. If d == 0: miss when origin < lo or origin > hi, else continue. Otherwise t1 = (lo - o) / d, t2 = (hi - o) / d, swap so t1 <= t2; remember which axis and which sign (the face entered is the low face, outward normal -axis, when d > 0) set the largest t1 and the smallest t2; miss when t_enter > t_exit. Take t_enter if it is >= t_min (front hit), otherwise t_exit (origin inside: the exit face, back hit). Triangle: e1 = b - a, e2 = c - a, p = cross(dir, e2), det = dot(e1, p); parallel if |det| tiny; u = dot(origin - a, p) / det must be in [0, 1]; q = cross(origin - a, e1); v = dot(dir, q) / det with v >= 0 and u + v <= 1; t = dot(e2, q) / det."
+  - level: 4
+    text: |
+      // box, after the loop:
+      // double t; int axis; double sign;
+      // if (t_enter >= t_min) { t = t_enter; axis = enter_axis; sign = enter_sign; }
+      // else                  { t = t_exit;  axis = exit_axis;  sign = exit_sign;  }
+      // if (!(t >= t_min && t <= t_max)) return std::nullopt;
+      // Vec3 outward; (axis == 0 ? outward.x : axis == 1 ? outward.y : outward.z) = sign;
+      // return make_hit(ray, t, outward);

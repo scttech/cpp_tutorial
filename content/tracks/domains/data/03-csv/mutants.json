@@ -1,0 +1,364 @@
+[
+  {
+    "name": "bom-not-skipped",
+    "why": "a leading byte order mark is kept as data",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        if (text_.size() >= 3 && text_.substr(0, 3) == \"\\xEF\\xBB\\xBF\") pos_ = 3;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "bom-skipped-anywhere",
+    "why": "a BOM is also skipped in the middle",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    bool at_record_end() const {",
+        "new": "    bool at_bom() const { return text_.compare(pos_, 3, \"\\xEF\\xBB\\xBF\") == 0; }\n    bool at_record_end() const {"
+      },
+      {
+        "file": "csv.hpp",
+        "old": "                while (pos_ < text_.size() && text_[pos_] != options_.delimiter && !at_record_end()) {\n                    if (text_[pos_] == '\"')",
+        "new": "                while (pos_ < text_.size() && text_[pos_] != options_.delimiter && !at_record_end()) {\n                    if (at_bom() && !f.empty()) { pos_ += 3; continue; }\n                    if (text_[pos_] == '\"')"
+      }
+    ]
+  },
+  {
+    "name": "bad-delimiter-accepted",
+    "why": "a quote as the delimiter is not reported",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "options_.delimiter == '\"' || options_.delimiter == '\\n' || options_.delimiter == '\\r'",
+        "new": "options_.delimiter == '\\n' || options_.delimiter == '\\r'"
+      }
+    ]
+  },
+  {
+    "name": "crlf-needs-both-wrong",
+    "why": "a record also ends at a lone carriage return",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "(text_[pos_] == '\\r' && pos_ + 1 < text_.size() && text_[pos_ + 1] == '\\n')",
+        "new": "text_[pos_] == '\\r'"
+      }
+    ]
+  },
+  {
+    "name": "lf-only-records",
+    "why": "only \\r\\n ends a record, a bare \\n does not",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "return text_[pos_] == '\\n' || (text_[pos_] == '\\r'",
+        "new": "return (text_[pos_] == '\\r'"
+      }
+    ]
+  },
+  {
+    "name": "doubled-quote-ends-field",
+    "why": "a doubled quote inside quotes closes the field",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "if (pos_ + 1 < text_.size() && text_[pos_ + 1] == '\"') {",
+        "new": "if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "doubled-quote-kept-doubled",
+    "why": "a doubled quote stays doubled",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                            f.push_back('\"');\n                            pos_ += 2;",
+        "new": "                            f.push_back('\"');\n                            f.push_back('\"');\n                            pos_ += 2;"
+      }
+    ]
+  },
+  {
+    "name": "newline-in-quotes-not-counted",
+    "why": "line breaks inside quotes do not advance the line number",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    if (c == '\\n') ++line_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "crlf-in-quotes-normalised",
+    "why": "a CRLF inside quotes becomes an LF",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    if (c == '\\n') ++line_;\n                    f.push_back(c);",
+        "new": "                    if (c == '\\n') ++line_;\n                    if (c == '\\r' && pos_ + 1 < text_.size() && text_[pos_ + 1] == '\\n') { ++pos_; continue; }\n                    f.push_back(c);"
+      }
+    ]
+  },
+  {
+    "name": "unterminated-line-is-end",
+    "why": "an unterminated quote reports the line where the text ended",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "return fail(ErrorKind::UnterminatedQuote, opened);",
+        "new": "return fail(ErrorKind::UnterminatedQuote, line_);"
+      }
+    ]
+  },
+  {
+    "name": "text-after-quote-accepted",
+    "why": "text after the closing quote is accepted",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                if (pos_ < text_.size() && text_[pos_] != options_.delimiter && !at_record_end()) return fail(ErrorKind::TextAfterClosingQuote, line_);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "quote-in-unquoted-accepted",
+    "why": "a quote inside an unquoted field is accepted",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    if (text_[pos_] == '\"') return fail(ErrorKind::QuoteInUnquotedField, line_);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "trailing-delimiter-lost",
+    "why": "a delimiter at the very end of the text adds no field",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                ++pos_;\n                continue;   // another field follows, even if it is empty and the text ends here",
+        "new": "                ++pos_;\n                if (pos_ >= text_.size()) return true;\n                continue;"
+      }
+    ]
+  },
+  {
+    "name": "lone-cr-ends-record",
+    "why": "a lone carriage return is dropped",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    f.push_back(text_[pos_]);\n                    ++pos_;\n                }\n            }",
+        "new": "                    if (text_[pos_] != '\\r') f.push_back(text_[pos_]);\n                    ++pos_;\n                }\n            }"
+      }
+    ]
+  },
+  {
+    "name": "empty-line-skipped-always",
+    "why": "blank lines never produce a record",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            if (k == 1 && fields[0].empty() && !first_quoted && options_.skip_empty_lines) continue;",
+        "new": "            if (k == 1 && fields[0].empty() && !first_quoted) continue;"
+      }
+    ]
+  },
+  {
+    "name": "skip-also-drops-quoted-empty",
+    "why": "a quoted empty line is dropped too",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "fields[0].empty() && !first_quoted && options_.skip_empty_lines",
+        "new": "fields[0].empty() && options_.skip_empty_lines"
+      }
+    ]
+  },
+  {
+    "name": "terminator-makes-extra-record",
+    "why": "a final terminator starts an empty record",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            if (error_ || pos_ >= text_.size()) return false;\n            const std::size_t record_line",
+        "new": "            if (error_ || (pos_ >= text_.size() && delivered_ == 0)) return false;\n            if (pos_ >= text_.size() && text_.back() == '\\n' && !tail_done_) { tail_done_ = true; fields.assign(1, std::string()); ++delivered_; return true; }\n            if (pos_ >= text_.size()) return false;\n            const std::size_t record_line"
+      },
+      {
+        "file": "csv.hpp",
+        "old": "    std::optional<std::size_t> width_;",
+        "new": "    std::optional<std::size_t> width_;\n    bool tail_done_ = false;"
+      }
+    ]
+  },
+  {
+    "name": "ragged-reports-end-line",
+    "why": "RaggedRecord reports the line after the record",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "error_ = Error{ErrorKind::RaggedRecord, record_line, delivered_ + 1};",
+        "new": "error_ = Error{ErrorKind::RaggedRecord, line_, delivered_ + 1};"
+      }
+    ]
+  },
+  {
+    "name": "ragged-record-delivered",
+    "why": "the ragged record is delivered before the error",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                else if (*width_ != k) {\n                    error_ = Error{ErrorKind::RaggedRecord, record_line, delivered_ + 1};\n                    return false;\n                }",
+        "new": "                else if (*width_ != k) {\n                    error_ = Error{ErrorKind::RaggedRecord, record_line, delivered_ + 1};\n                    return true;\n                }"
+      }
+    ]
+  },
+  {
+    "name": "record-index-off-by-one",
+    "why": "the record index of an error is zero-based",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "error_ = Error{kind, line, delivered_ + 1};",
+        "new": "error_ = Error{kind, line, delivered_};"
+      }
+    ]
+  },
+  {
+    "name": "fields-not-resized",
+    "why": "the vector keeps stale fields from a wider record",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            fields.resize(k);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "fields-not-cleared",
+    "why": "a reused string is appended to instead of cleared",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        fields[k].clear();\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-no-quote-for-cr",
+    "why": "a carriage return does not force quotes",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "if (c == delimiter || c == '\"' || c == '\\r' || c == '\\n') return true;",
+        "new": "if (c == delimiter || c == '\"' || c == '\\n') return true;"
+      }
+    ]
+  },
+  {
+    "name": "writer-quotes-not-doubled",
+    "why": "quotes inside a quoted field are not doubled",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "                    if (c == '\"') out.push_back('\"');\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-always-comma",
+    "why": "the writer tests for a comma, not for the chosen delimiter",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "if (c == delimiter || c == '\"'",
+        "new": "if (c == ',' || c == '\"'"
+      }
+    ]
+  },
+  {
+    "name": "writer-empty-lone-field",
+    "why": "a record with one empty field is written as an empty line",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    if (f.empty()) return only_field;",
+        "new": "    if (f.empty()) return false;"
+      }
+    ]
+  },
+  {
+    "name": "writer-bom-first-unquoted",
+    "why": "a first field that starts with a BOM is not quoted",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "    if (very_first && f.size() >= 3 && f.compare(0, 3, \"\\xEF\\xBB\\xBF\") == 0) return true;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-bom-quoted-always",
+    "why": "every field starting with a BOM is quoted",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "if (very_first && f.size() >= 3",
+        "new": "if (f.size() >= 3"
+      }
+    ]
+  },
+  {
+    "name": "writer-empty-row-written",
+    "why": "a row with no fields is written as an empty line",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        if (row.empty()) continue;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "writer-lf-ignored",
+    "why": "the crlf option is ignored",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "out += options.crlf ? \"\\r\\n\" : \"\\n\";",
+        "new": "out += \"\\r\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "writer-no-final-terminator",
+    "why": "the last record has no terminator",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "        very_first = false;\n        out += options.crlf ? \"\\r\\n\" : \"\\n\";",
+        "new": "        very_first = false;\n        if (&row != &table.back()) out += options.crlf ? \"\\r\\n\" : \"\\n\";"
+      }
+    ]
+  },
+  {
+    "name": "writer-allocates-per-field",
+    "why": "every field is copied into a temporary string first",
+    "edits": [
+      {
+        "file": "csv.hpp",
+        "old": "            const std::string& f = row[i];",
+        "new": "            const std::string f = std::string(row[i].data(), row[i].size());"
+      }
+    ]
+  }
+]

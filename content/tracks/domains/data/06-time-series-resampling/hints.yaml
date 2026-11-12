@@ -1,0 +1,19 @@
+ladder:
+  - level: 1
+    text: "normalize: erase samples with !std::isfinite(v); std::stable_sort by t; then compact: if the previous kept sample has the same t, overwrite it (so the LAST one wins), else keep. align_down: r = t % step (sign of t); r == 0 -> t; r > 0 -> t - r; r < 0 -> t - (r + step), but check it does not go below INT64_MIN. align_up is the mirror image. Reject step <= 0. bucket_of: reject t < start or width <= 0; the index is (uint64_t(t) - uint64_t(start)) / uint64_t(width)."
+  - level: 2
+    text: "resample: validate step > 0, count <= kMaxPoints, max_gap >= 0, and that (count - 1) * step does not overflow uint64 AND stays within the room above start. The room above start is UINT64_MAX - (uint64_t(start) ^ (1 << 63)). Grid time k: static_cast<Time>(uint64_t(start) + k * uint64_t(step)). Keep j = the number of samples with t <= g; it only moves forward. An exact hit s[j-1].t == g is always the answer."
+  - level: 3
+    text: "Distances are unsigned: span(a, b) = uint64_t(b) - uint64_t(a) for a <= b. Previous: if span(prev.t, g) <= gap take prev.v. Linear: needs j > 0 and j < n; whole = span(prev.t, next.t); if whole <= gap, f = double(span(prev.t, g)) / double(whole); v = prev.v * (1 - f) + next.v * f. Missing stays NaN. aggregate: total = count * width must not overflow uint64 and must fit above start; for each sample idx = bucket_of(...); skip when empty optional or idx >= count; the first sample of a bucket sets first/min/max."
+  - level: 4
+    text: |
+      // the loop of resample:
+      // for (std::size_t k = 0; k < count; ++k) {
+      //     const Time g = static_cast<Time>(uint64_t(start) + uint64_t(k) * uint64_t(step));
+      //     while (j < s.size() && s[j].t <= g) ++j;
+      //     if (j > 0 && s[j - 1].t == g) { out[k] = s[j - 1].v; continue; }
+      //     if (fill == Fill::None || j == 0) continue;
+      //     const Sample& prev = s[j - 1];
+      //     if (fill == Fill::Previous) { if (span(prev.t, g) <= gap) out[k] = prev.v; }
+      //     else if (j < s.size()) { /* linear, see above */ }
+      // }

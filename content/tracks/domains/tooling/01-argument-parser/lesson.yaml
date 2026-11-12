@@ -1,0 +1,15 @@
+id: domain.tooling.argument-parser
+title: "A Command-Line Argument Parser"
+module: domain.tooling
+type: challenge
+estimatedMinutes: 90
+concepts: [command-line, argument-parsing, getopt-conventions, short-option-clusters, long-option-prefixes, help-generation, error-reporting, std-from-chars, string-view, definition-validation]
+prerequisites: []
+files:
+  editable: [cli.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [double-dash, clusters-and-attached-values, negative-numbers-are-positionals, unique-prefix-abbreviations, values-may-start-with-a-dash, errors-name-the-culprit, validate-the-definition, strict-number-parsing]

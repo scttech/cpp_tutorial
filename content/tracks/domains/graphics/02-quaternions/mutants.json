@@ -1,0 +1,354 @@
+[
+  {
+    "name": "product-reversed",
+    "why": "the product composes in the wrong order",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return {a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,\n            a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,\n            a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,\n            a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w};",
+        "new": "    return {b.w * a.w - b.x * a.x - b.y * a.y - b.z * a.z,\n            b.w * a.x + b.x * a.w + b.y * a.z - b.z * a.y,\n            b.w * a.y - b.x * a.z + b.y * a.w + b.z * a.x,\n            b.w * a.z + b.x * a.y - b.y * a.x + b.z * a.w};"
+      }
+    ]
+  },
+  {
+    "name": "product-sign",
+    "why": "one sign of the product is wrong",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,",
+        "new": "a.w * b.y + a.x * b.z + a.y * b.w + a.z * b.x,"
+      }
+    ]
+  },
+  {
+    "name": "conjugate-w",
+    "why": "the conjugate negates w too",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "inline Quat conjugate(Quat q) { return {q.w, -q.x, -q.y, -q.z}; }",
+        "new": "inline Quat conjugate(Quat q) { return {-q.w, -q.x, -q.y, -q.z}; }"
+      }
+    ]
+  },
+  {
+    "name": "norm-naive",
+    "why": "the norm squares directly",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "inline double norm(Quat q) { return std::hypot(std::hypot(q.w, q.x), std::hypot(q.y, q.z)); }",
+        "new": "inline double norm(Quat q) { return std::sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z); }"
+      }
+    ]
+  },
+  {
+    "name": "norm-three-components",
+    "why": "w is left out of the norm",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "return std::hypot(std::hypot(q.w, q.x), std::hypot(q.y, q.z)); }",
+        "new": "return std::hypot(q.x, std::hypot(q.y, q.z)); }"
+      }
+    ]
+  },
+  {
+    "name": "normalized-reciprocal",
+    "why": "the components are multiplied by 1/norm",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return Quat{q.w / n, q.x / n, q.y / n, q.z / n};\n}\ninline std::optional<Quat> inverse",
+        "new": "    const double r = 1.0 / n;\n    return Quat{q.w * r, q.x * r, q.y * r, q.z * r};\n}\ninline std::optional<Quat> inverse"
+      }
+    ]
+  },
+  {
+    "name": "normalized-zero-ok",
+    "why": "a zero quaternion normalises to NaN",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    const double n = norm(q);\n    if (!(n > 0.0) || !std::isfinite(n)) return std::nullopt;\n    return Quat{q.w / n, q.x / n, q.y / n, q.z / n};",
+        "new": "    const double n = norm(q);\n    if (!std::isfinite(n)) return std::nullopt;\n    return Quat{q.w / n, q.x / n, q.y / n, q.z / n};"
+      }
+    ]
+  },
+  {
+    "name": "inverse-norm-squared",
+    "why": "the inverse divides by norm^2 computed directly",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return Quat{q.w / n / n, -q.x / n / n, -q.y / n / n, -q.z / n / n};",
+        "new": "    const double n2 = q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z;\n    return Quat{q.w / n2, -q.x / n2, -q.y / n2, -q.z / n2};"
+      }
+    ]
+  },
+  {
+    "name": "inverse-unit-only",
+    "why": "the inverse is just the conjugate",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return Quat{q.w / n / n, -q.x / n / n, -q.y / n / n, -q.z / n / n};",
+        "new": "    return Quat{q.w, -q.x, -q.y, -q.z};"
+      }
+    ]
+  },
+  {
+    "name": "axis-angle-full-angle",
+    "why": "the full angle is used instead of the half angle",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    const double s = std::sin(radians / 2.0);\n    return Quat{std::cos(radians / 2.0),",
+        "new": "    const double s = std::sin(radians);\n    return Quat{std::cos(radians),"
+      }
+    ]
+  },
+  {
+    "name": "axis-not-normalised",
+    "why": "the axis is not normalised",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "return Quat{std::cos(radians / 2.0), axis.x / len * s, axis.y / len * s, axis.z / len * s};",
+        "new": "return Quat{std::cos(radians / 2.0), axis.x * s, axis.y * s, axis.z * s};"
+      }
+    ]
+  },
+  {
+    "name": "axis-zero-ok",
+    "why": "a zero axis gives NaN instead of nullopt",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (!(len > 0.0) || !std::isfinite(len)) return std::nullopt;\n    const double s",
+        "new": "    if (!std::isfinite(len)) return std::nullopt;\n    const double s"
+      }
+    ]
+  },
+  {
+    "name": "rotate-sign",
+    "why": "rotate goes the other way round",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return v + t * q.w + cross(u, t);",
+        "new": "    return v - t * q.w + cross(u, t);"
+      }
+    ]
+  },
+  {
+    "name": "rotate-missing-term",
+    "why": "the second cross product is missing",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return v + t * q.w + cross(u, t);",
+        "new": "    return v + t * q.w;"
+      }
+    ]
+  },
+  {
+    "name": "matrix-transposed",
+    "why": "to_matrix returns the inverse rotation",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "return Mat3{1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy),\n                2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx),\n                2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)};",
+        "new": "return Mat3{1 - 2 * (yy + zz), 2 * (xy + wz), 2 * (xz - wy),\n                2 * (xy - wz), 1 - 2 * (xx + zz), 2 * (yz + wx),\n                2 * (xz + wy), 2 * (yz - wx), 1 - 2 * (xx + yy)};"
+      }
+    ]
+  },
+  {
+    "name": "matrix-diagonal",
+    "why": "one diagonal entry is wrong",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)};",
+        "new": "2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx - yy)};"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-no-orthonormal-check",
+    "why": "a scale or shear is accepted",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "            if (std::fabs(s - (i == j ? 1.0 : 0.0)) > 1e-6) return std::nullopt;",
+        "new": "            (void)s;"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-mirror-ok",
+    "why": "a mirror image is accepted",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (det < 0.0) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-only-trace-branch",
+    "why": "the trace branch is used for every rotation",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (tr > 0.0) {",
+        "new": "    if (tr > -2.0) {"
+      }
+    ]
+  },
+  {
+    "name": "slerp-never-nlerp",
+    "why": "the near-parallel case divides by a zero sine",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (d > 0.9995) {",
+        "new": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-wrong-branch-x",
+    "why": "the x branch has a sign error",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "q = {(m[7] - m[5]) / s, s / 4.0, (m[1] + m[3]) / s, (m[2] + m[6]) / s};",
+        "new": "q = {(m[7] - m[5]) / s, s / 4.0, (m[1] - m[3]) / s, (m[2] + m[6]) / s};"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-wrong-branch-y",
+    "why": "the y branch has a sign error",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "q = {(m[2] - m[6]) / s, (m[1] + m[3]) / s, s / 4.0, (m[5] + m[7]) / s};",
+        "new": "q = {(m[2] - m[6]) / s, (m[1] + m[3]) / s, s / 4.0, (m[5] - m[7]) / s};"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-wrong-branch-z",
+    "why": "the z branch has a sign error",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "q = {(m[3] - m[1]) / s, (m[2] + m[6]) / s, (m[5] + m[7]) / s, s / 4.0};",
+        "new": "q = {(m[3] - m[1]) / s, (m[2] - m[6]) / s, (m[5] + m[7]) / s, s / 4.0};"
+      }
+    ]
+  },
+  {
+    "name": "from-matrix-sign-not-canonical",
+    "why": "w may be negative",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    return n->w < 0.0 ? -*n : *n;",
+        "new": "    return *n;"
+      }
+    ]
+  },
+  {
+    "name": "angle-acos",
+    "why": "the angle uses acos of the dot product",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    const Quat r = conjugate(a) * b;\n    return 2.0 * std::atan2(length(Vec3{r.x, r.y, r.z}), std::fabs(r.w));",
+        "new": "    return 2.0 * std::acos(std::min(1.0, std::fabs(dot(a, b))));"
+      }
+    ]
+  },
+  {
+    "name": "angle-no-abs",
+    "why": "the double cover is ignored in angle_between",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "std::fabs(r.w));\n}",
+        "new": "r.w);\n}"
+      }
+    ]
+  },
+  {
+    "name": "slerp-no-shortest-arc",
+    "why": "slerp can take the long way round",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (d < 0.0) {   // the long way round: use the other representation of b\n        b = -b;\n        d = -d;\n    }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "slerp-nlerp-unnormalised",
+    "why": "the linear fallback is not normalised",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "        return normalized(l).value_or(a);",
+        "new": "        return l;"
+      }
+    ]
+  },
+  {
+    "name": "slerp-t-swapped",
+    "why": "the weights are swapped",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "return a * (std::sin((1.0 - t) * theta) / s) + b * (std::sin(t * theta) / s);",
+        "new": "return a * (std::sin(t * theta) / s) + b * (std::sin((1.0 - t) * theta) / s);"
+      }
+    ]
+  },
+  {
+    "name": "slerp-always-lerp",
+    "why": "plain nlerp is used everywhere",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (d > 0.9995) {",
+        "new": "    if (d > -2.0) {"
+      }
+    ]
+  },
+  {
+    "name": "slerp-threshold-too-low",
+    "why": "nlerp is used for angles up to 30 degrees",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "    if (d > 0.9995) {",
+        "new": "    if (d > 0.95) {"
+      }
+    ]
+  },
+  {
+    "name": "slerp-no-sine",
+    "why": "theta is used where sin(theta) belongs",
+    "edits": [
+      {
+        "file": "quat.hpp",
+        "old": "return a * (std::sin((1.0 - t) * theta) / s) + b * (std::sin(t * theta) / s);",
+        "new": "return a * (std::sin((1.0 - t) * theta) / theta) + b * (std::sin(t * theta) / theta);"
+      }
+    ]
+  }
+]

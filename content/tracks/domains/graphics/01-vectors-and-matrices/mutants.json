@@ -1,0 +1,464 @@
+[
+  {
+    "name": "add-sign",
+    "why": "subtraction adds",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }",
+        "new": "inline Vec3 operator-(Vec3 a, Vec3 b) { return {a.x + b.x, a.y - b.y, a.z - b.z}; }"
+      }
+    ]
+  },
+  {
+    "name": "scalar-division-multiplies",
+    "why": "division by a scalar multiplies",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "inline Vec3 operator/(Vec3 a, double s) { return {a.x / s, a.y / s, a.z / s}; }",
+        "new": "inline Vec3 operator/(Vec3 a, double s) { return {a.x / s, a.y / s, a.z * s}; }"
+      }
+    ]
+  },
+  {
+    "name": "equality-ignores-z",
+    "why": "equality ignores z",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "return a.x == b.x && a.y == b.y && a.z == b.z; }",
+        "new": "return a.x == b.x && a.y == b.y; }"
+      }
+    ]
+  },
+  {
+    "name": "cross-sign",
+    "why": "the cross product is left-handed",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "inline Vec3 cross(Vec3 a, Vec3 b) { return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x}; }",
+        "new": "inline Vec3 cross(Vec3 a, Vec3 b) { return {a.z * b.y - a.y * b.z, a.x * b.z - a.z * b.x, a.y * b.x - a.x * b.y}; }"
+      }
+    ]
+  },
+  {
+    "name": "dot-drops-z",
+    "why": "the dot product ignores z",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "inline double dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }",
+        "new": "inline double dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y; }"
+      }
+    ]
+  },
+  {
+    "name": "length-naive",
+    "why": "length squares the components directly",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    const double x = v.x / m, y = v.y / m, z = v.z / m;   // scaled so that the squares can neither overflow nor underflow\n    return m * std::sqrt(x * x + y * y + z * z);",
+        "new": "    return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);"
+      }
+    ]
+  },
+  {
+    "name": "length-nan-lost",
+    "why": "a NaN component is ignored by the maximum",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    if (std::isnan(v.x) || std::isnan(v.y) || std::isnan(v.z)) return std::nan(\"\");\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "length-inf-nan",
+    "why": "an infinite component gives NaN",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    if (m == 0.0 || std::isinf(m)) return m;",
+        "new": "    if (m == 0.0) return m;"
+      }
+    ]
+  },
+  {
+    "name": "normalized-zero-ok",
+    "why": "the zero vector normalises to NaN instead of nullopt",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    if (!(len > 0.0) || !std::isfinite(len)) return std::nullopt;",
+        "new": "    if (!std::isfinite(len)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "normalized-inf-ok",
+    "why": "infinite vectors normalise",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    if (!(len > 0.0) || !std::isfinite(len)) return std::nullopt;",
+        "new": "    if (!(len > 0.0)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "lerp-endpoints",
+    "why": "lerp mixes with t on the wrong end",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "inline Vec3 lerp(Vec3 a, Vec3 b, double t) { return a * (1.0 - t) + b * t; }",
+        "new": "inline Vec3 lerp(Vec3 a, Vec3 b, double t) { return a * t + b * (1.0 - t); }"
+      }
+    ]
+  },
+  {
+    "name": "reflect-factor",
+    "why": "reflect uses factor 1 instead of 2",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "return v - n * (2.0 * dot(v, n)); }",
+        "new": "return v - n * dot(v, n); }"
+      }
+    ]
+  },
+  {
+    "name": "angle-acos",
+    "why": "the angle is computed with acos",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    return std::atan2(length(cross(a, b)), dot(a, b));",
+        "new": "    return std::acos(dot(a, b) / (length(a) * length(b)));"
+      }
+    ]
+  },
+  {
+    "name": "angle-zero-vector-ok",
+    "why": "a zero vector has an angle of 0",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "    if (!(length(a) > 0.0) || !(length(b) > 0.0)) return std::nullopt;",
+        "new": "    if (!(length(a) > 0.0) || !(length(b) > 0.0)) return 0.0;"
+      }
+    ]
+  },
+  {
+    "name": "identity-missing-corner",
+    "why": "the identity has no 1 in the corner",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        for (std::size_t i = 0; i < 4; ++i) r.at(i, i) = 1.0;\n        return r;",
+        "new": "        for (std::size_t i = 0; i < 3; ++i) r.at(i, i) = 1.0;\n        return r;"
+      }
+    ]
+  },
+  {
+    "name": "translation-row-major",
+    "why": "the translation is stored row-major",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(0, 3) = t.x;\n        r.at(1, 3) = t.y;\n        r.at(2, 3) = t.z;",
+        "new": "        r.at(3, 0) = t.x;\n        r.at(3, 1) = t.y;\n        r.at(3, 2) = t.z;"
+      }
+    ]
+  },
+  {
+    "name": "scaling-xy-only",
+    "why": "the z scale is ignored",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(2, 2) = s.z;\n        return r;\n    }\n    static std::optional<Mat4> rotation",
+        "new": "        return r;\n    }\n    static std::optional<Mat4> rotation"
+      }
+    ]
+  },
+  {
+    "name": "rotation-unnormalised",
+    "why": "the axis is not normalised",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const auto u = normalized(axis);\n        if (!u) return std::nullopt;",
+        "new": "        if (!(length(axis) > 0.0)) return std::nullopt;\n        const std::optional<Vec3> u = axis;"
+      }
+    ]
+  },
+  {
+    "name": "rotation-clockwise",
+    "why": "the rotation is clockwise",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const double c = std::cos(radians), s = std::sin(radians), t = 1.0 - c;",
+        "new": "        const double c = std::cos(radians), s = -std::sin(radians), t = 1.0 - c;"
+      }
+    ]
+  },
+  {
+    "name": "rotation-zero-axis",
+    "why": "a zero axis gives the identity",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const auto u = normalized(axis);\n        if (!u) return std::nullopt;",
+        "new": "        const auto u = normalized(axis);\n        if (!u) return identity();"
+      }
+    ]
+  },
+  {
+    "name": "rotation-y-sign",
+    "why": "one off-diagonal term has the wrong sign",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(0, 2) = t * u->x * u->z + s * u->y;",
+        "new": "        r.at(0, 2) = t * u->x * u->z - s * u->y;"
+      }
+    ]
+  },
+  {
+    "name": "look-at-up-not-checked",
+    "why": "looking along up is accepted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const auto s = normalized(cross(*f, up));\n        if (!s) return std::nullopt;",
+        "new": "        const auto sn = normalized(cross(*f, up));\n        const Vec3 s0 = sn ? *sn : Vec3{1, 0, 0};\n        const std::optional<Vec3> s = s0;"
+      }
+    ]
+  },
+  {
+    "name": "look-at-forward-positive",
+    "why": "the camera looks down +z",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "r.at(2, 0) = -f->x; r.at(2, 1) = -f->y; r.at(2, 2) = -f->z; r.at(2, 3) = dot(*f, eye);",
+        "new": "r.at(2, 0) = f->x; r.at(2, 1) = f->y; r.at(2, 2) = f->z; r.at(2, 3) = -dot(*f, eye);"
+      }
+    ]
+  },
+  {
+    "name": "look-at-no-translation",
+    "why": "the eye position is not subtracted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "r.at(0, 3) = -dot(*s, eye);",
+        "new": "r.at(0, 3) = 0;"
+      }
+    ]
+  },
+  {
+    "name": "look-at-u-wrong-order",
+    "why": "the true up vector has the wrong sign",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const Vec3 u = cross(*s, *f);",
+        "new": "        const Vec3 u = cross(*f, *s);"
+      }
+    ]
+  },
+  {
+    "name": "perspective-fov-degrees",
+    "why": "the field of view is not halved",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "const double f = 1.0 / std::tan(fov_y / 2.0);",
+        "new": "const double f = 1.0 / std::tan(fov_y);"
+      }
+    ]
+  },
+  {
+    "name": "perspective-aspect-inverted",
+    "why": "the aspect ratio multiplies instead of dividing",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(0, 0) = f / aspect;",
+        "new": "        r.at(0, 0) = f * aspect;"
+      }
+    ]
+  },
+  {
+    "name": "perspective-depth-sign",
+    "why": "the depth terms have the wrong sign",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(2, 2) = (far_z + near_z) / (near_z - far_z);",
+        "new": "        r.at(2, 2) = (far_z + near_z) / (far_z - near_z);"
+      }
+    ]
+  },
+  {
+    "name": "perspective-w",
+    "why": "w does not take -z",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        r.at(3, 2) = -1.0;",
+        "new": "        r.at(3, 2) = 1.0;"
+      }
+    ]
+  },
+  {
+    "name": "perspective-near-far-unchecked",
+    "why": "near >= far is accepted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": " || !(far_z > near_z) || !std::isfinite(far_z)) return std::nullopt;",
+        "new": " || !std::isfinite(far_z)) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "perspective-fov-pi-ok",
+    "why": "a field of view of pi is accepted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "fov_y < 3.14159265358979323846",
+        "new": "fov_y <= 3.14159265358979323846"
+      }
+    ]
+  },
+  {
+    "name": "perspective-near-zero-ok",
+    "why": "near = 0 is accepted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "!(near_z > 0.0)",
+        "new": "!(near_z >= 0.0)"
+      }
+    ]
+  },
+  {
+    "name": "transposed-copies",
+    "why": "transposed only mirrors the upper triangle",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "            for (std::size_t j = 0; j < 4; ++j) r.at(i, j) = at(j, i);\n        return r;\n    }\n\n    // the cofactor",
+        "new": "            for (std::size_t j = 0; j < 4; ++j) r.at(i, j) = j >= i ? at(j, i) : at(i, j);\n        return r;\n    }\n\n    // the cofactor"
+      }
+    ]
+  },
+  {
+    "name": "cofactor-sign",
+    "why": "the checkerboard sign is missing",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        return ((r + c) % 2 == 0) ? d : -d;",
+        "new": "        return d;"
+      }
+    ]
+  },
+  {
+    "name": "determinant-wrong-cofactors",
+    "why": "the first-row entries are combined with the second row's cofactors",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        for (std::size_t c = 0; c < 4; ++c) d += at(0, c) * cofactor(0, c);",
+        "new": "        for (std::size_t c = 0; c < 4; ++c) d += at(0, c) * cofactor(1, c);"
+      }
+    ]
+  },
+  {
+    "name": "inverse-not-transposed",
+    "why": "the adjugate is not transposed",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "r.at(i, j) = cofactor(j, i) / det;",
+        "new": "r.at(i, j) = cofactor(i, j) / det;"
+      }
+    ]
+  },
+  {
+    "name": "mul-order",
+    "why": "the product multiplies in the other order",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "            for (std::size_t k = 0; k < 4; ++k) s += a.at(i, k) * b.at(k, j);",
+        "new": "            for (std::size_t k = 0; k < 4; ++k) s += b.at(i, k) * a.at(k, j);"
+      }
+    ]
+  },
+  {
+    "name": "point-no-divide",
+    "why": "the perspective divide is missing",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        return Vec3{x / w, y / w, z / w};",
+        "new": "        return Vec3{x, y, z};"
+      }
+    ]
+  },
+  {
+    "name": "point-w-zero-ok",
+    "why": "w = 0 is divided by",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        if (w == 0.0 || !std::isfinite(w)) return std::nullopt;\n        return Vec3{x / w",
+        "new": "        if (!std::isfinite(w)) return std::nullopt;\n        return Vec3{x / w"
+      }
+    ]
+  },
+  {
+    "name": "point-w-nonfinite-ok",
+    "why": "an infinite w is accepted",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        if (w == 0.0 || !std::isfinite(w)) return std::nullopt;\n        return Vec3{x / w",
+        "new": "        if (w == 0.0) return std::nullopt;\n        return Vec3{x / w"
+      }
+    ]
+  },
+  {
+    "name": "direction-translated",
+    "why": "directions are translated",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        return {at(0, 0) * d.x + at(0, 1) * d.y + at(0, 2) * d.z, at(1, 0)",
+        "new": "        return {at(0, 0) * d.x + at(0, 1) * d.y + at(0, 2) * d.z + at(0, 3), at(1, 0)"
+      }
+    ]
+  },
+  {
+    "name": "point-w-column",
+    "why": "w is read from the last column instead of the last row",
+    "edits": [
+      {
+        "file": "mathlib.hpp",
+        "old": "        const double w = at(3, 0) * p.x + at(3, 1) * p.y + at(3, 2) * p.z + at(3, 3);",
+        "new": "        const double w = at(0, 3) * p.x + at(1, 3) * p.y + at(2, 3) * p.z + at(3, 3);"
+      }
+    ]
+  }
+]
