@@ -1,4 +1,5 @@
 import type { AnalyzerSpec, Capability, Lib, Tier } from "../runner/types";
+import type { Gotcha } from "./gotchas";
 
 export type LessonType = "lesson" | "challenge" | "capstone" | "test-out" | "debug";
 
@@ -36,6 +37,8 @@ export interface Lesson {
   lessonMd: string;
   fastMd: string;
   hints: HintLevel[];
+  /** The "C++ gotchas" panel: lesson.yaml's gotcha ids, explained by gotchas.yaml. */
+  gotchas: Gotcha[];
   starter: Record<string, string>;
   /** Hidden tests / reference solution are separate chunks, fetched only when needed. */
   loadTests(): Promise<Record<string, string>>;

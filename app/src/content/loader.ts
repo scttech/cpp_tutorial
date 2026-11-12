@@ -1,4 +1,5 @@
 import { parse } from "yaml";
+import { gotchaEntries } from "./gotchas";
 import type { HintLevel, Lesson, LessonMeta, Module } from "./types";
 
 // Content lives in /content at the repo root (shared with the CI validator and, later, the runner).
@@ -64,6 +65,7 @@ function build(): Module[] {
       lessonMd: eager[`${dir}/lesson.md`] ?? "",
       fastMd: eager[`${dir}/fast.md`] ?? "",
       hints,
+      gotchas: gotchaEntries(meta.gotchas, eager[`${dir}/gotchas.yaml`]),
       starter,
       loadTests: () => loadDir(lazyTests, dir, "tests"),
       loadSolution: () => loadDir(lazySolutions, dir, "solution"),

@@ -1,0 +1,68 @@
+dangling-string-view:
+  title: "A `string_view` does not own its characters"
+  text: "A view of a temporary or a local `std::string` dangles as soon as that string dies, and reading it is undefined behavior. Use views for short-lived, parameter-style purposes."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string_view view = make();   // the temporary string dies at the semicolon
+            std::cout << view << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string text = make();         // something that owns the characters
+            std::string_view view = text;
+            std::cout << view << "\n";
+        }
+      out: "a string that is long enough to live on the heap\n"
+string-is-bytes:
+  title: "A `std::string` is bytes, not characters"
+  text: "`size()` and `[]` work on bytes, so UTF-8 text with accented letters or emoji can be cut in the middle of a character. Code written for ASCII quietly mangles other text."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string word = "café";
+            std::cout << word.size() << "\n";   // bytes, not letters
+        }
+      out: "5\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string word = "café";
+            std::size_t letters = 0;
+            for (unsigned char c : word)
+                if ((c & 0xC0) != 0x80) ++letters;   // skip UTF-8 continuation bytes
+            std::cout << letters << "\n";
+        }
+      out: "4\n"
+isspace-needs-unsigned-char:
+  title: "`std::isspace` needs an `unsigned char` value"
+  text: "The `<cctype>` functions take an `int` that must be 0 to 255 or EOF, so passing a negative `char` is undefined behavior. Cast first: `std::isspace(static_cast<unsigned char>(c))`."
+hidden-copies:
+  title: "String operations copy more than you think"
+  text: "Passing by value, `substr` and `s = s + x` all allocate. Take `const std::string&` or `std::string_view`, and use `+=` or `append` instead of `+` in loops."
+quadratic-erase-from-front:
+  title: "Erasing from the front of a string is O(n)"
+  text: "Each `erase(0, 1)` shifts every remaining character, so removing a prefix piece by piece is quadratic. Track an index or `string_view` offset instead, and erase once at the end."

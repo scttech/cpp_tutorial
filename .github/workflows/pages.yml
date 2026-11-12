@@ -57,6 +57,13 @@ jobs:
           npm run compat --prefix tools/validate-content
           git diff --exit-code content/wasm-compat.json
 
+      # The Gotchas tab: every explanation is well-formed, and every runnable demo does what it declares on the in-browser
+      # compiler (the sanitizer demos are checked by `npm run validate` against the Docker runner). Missing explanations are only
+      # reported for now; this becomes `--strict` when they are all written.
+      - name: Gotcha explanations and demos
+        run: node gotchas-check.mjs --wasm
+        working-directory: tools/validate-content
+
   deploy:
     needs: verify
     if: github.event_name != 'pull_request'

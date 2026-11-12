@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CodeEditor } from "../components/CodeEditor";
+import { GotchaList } from "../components/GotchaList";
 import { HintLadder } from "../components/HintLadder";
 import { TutorPanel } from "../components/TutorPanel";
 import type { TutorRequest } from "../components/TutorPanel";
@@ -35,7 +36,7 @@ export function LessonPage() {
   return <LessonView key={lesson.meta.id} lesson={lesson} />;
 }
 
-type LeftTab = "lesson" | "fast" | "hints" | "tutor";
+type LeftTab = "lesson" | "fast" | "gotchas" | "hints" | "tutor";
 
 /** Tabs follow lesson.yaml: editable files first, then read-only ones, then anything else. */
 function orderFiles(lesson: Lesson, files: Record<string, string>): Record<string, string> {
@@ -173,6 +174,7 @@ ${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
         <div className="tabs" role="tablist">
           {tab("lesson", "Lesson")}
           {tab("fast", "Fast summary")}
+          {lesson.gotchas.length > 0 && tab("gotchas", `Gotchas (${lesson.gotchas.length})`)}
           {tab("hints", "Hints")}
           {tab("tutor", "Tutor")}
         </div>
@@ -183,6 +185,7 @@ ${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
           <div hidden={leftTab !== "tutor"}>
             <TutorPanel lesson={lesson} files={files} result={result} progress={progress} request={tutorRequest} />
           </div>
+          {leftTab === "gotchas" && <GotchaList gotchas={lesson.gotchas} />}
           {leftTab === "hints" && (
             <>
               <HintLadder

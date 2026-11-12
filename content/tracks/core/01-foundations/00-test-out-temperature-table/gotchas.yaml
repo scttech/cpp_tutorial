@@ -1,0 +1,77 @@
+integer-division:
+  title: "Integer division throws away the fraction"
+  text: "`9 / 5` is `1`, not `1.8`, because both operands are `int`. Make one side a `double` (`9.0 / 5`) before dividing, or the Fahrenheit formula quietly comes out wrong."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int celsius = 37;
+            std::cout << 9 / 5 * celsius + 32 << "\n";   // 9 / 5 is 1 before anything else happens
+        }
+      out: "69\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int celsius = 37;
+            std::cout << 9.0 / 5 * celsius + 32 << "\n";   // one double operand: real division
+        }
+      out: "98.6\n"
+signed-overflow-ub:
+  title: "Signed overflow is undefined behavior"
+  text: "When an `int` calculation goes past its maximum, the result is undefined behavior, not a wraparound. The compiler may assume it never happens, so a huge range in a table can fail in surprising ways."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int big = INT_MAX - 1 + argc;   // INT_MAX: the compiler cannot know that
+            int next = big + 1;             // undefined behavior
+            std::cout << next << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int big = INT_MAX - 1 + argc;
+            long long next = static_cast<long long>(big) + 1;   // widen first, then add
+            std::cout << next << "\n";
+        }
+      out: "2147483648\n"
+sticky-stream-flags:
+  title: "Stream format flags stay set"
+  text: "Manipulators such as `std::fixed` and `std::setprecision` change the stream until you change them back, so a format chosen for one column also applies to every later line you print."
+  demo:
+    bad:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::fixed << std::setprecision(1) << 98.6 << "\n";
+            std::cout << 0.12345 << "\n";   // still fixed, still one digit
+        }
+      out: "98.6\n0.1\n"
+    fix:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            const auto flags = std::cout.flags();
+            const auto precision = std::cout.precision();
+            std::cout << std::fixed << std::setprecision(1) << 98.6 << "\n";
+            std::cout.flags(flags);   // put the stream back the way it was
+            std::cout.precision(precision);
+            std::cout << 0.12345 << "\n";
+        }
+      out: "98.6\n0.12345\n"

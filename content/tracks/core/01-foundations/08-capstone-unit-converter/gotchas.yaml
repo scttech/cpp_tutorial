@@ -1,0 +1,80 @@
+from-chars-accepts-nan:
+  title: "`from_chars` happily parses `nan` and `inf`"
+  text: "`std::from_chars` for `double` accepts the text `nan` and `inf` as numbers. If your program must reject them, check `std::isfinite` after parsing."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc()) << "\n";
+        }
+      out: "accepted: 1\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <cmath>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc() && std::isfinite(value)) << "\n";
+        }
+      out: "accepted: 0\n"
+floating-point-printing:
+  title: "Printing a double needs an explicit format"
+  text: "The default `cout` output shows 6 significant digits and may switch to scientific notation. Choose the format on purpose: `std::fixed` with `std::setprecision`, or `std::format`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << 1234567.891 << "\n";   // six significant digits, then scientific
+        }
+      out: "1.23457e+06\n"
+    fix:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::fixed << std::setprecision(2) << 1234567.891 << "\n";
+        }
+      out: "1234567.89\n"
+negative-zero:
+  title: "A rounded result can print as `-0.0000`"
+  text: "A tiny negative value rounds to zero but keeps its sign, so fixed-precision output shows `-0.0000`. Normalize it (test for zero, or add `0.0`) before you format."
+  demo:
+    bad:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            std::cout << std::fixed << std::setprecision(2) << x << "\n";
+        }
+      out: "-0.00\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            double rounded = std::round(x * 100) / 100;   // -0.0
+            if (rounded == 0) rounded = 0;                // -0.0 == 0, so this drops the sign
+            std::cout << std::fixed << std::setprecision(2) << rounded << "\n";
+        }
+      out: "0.00\n"

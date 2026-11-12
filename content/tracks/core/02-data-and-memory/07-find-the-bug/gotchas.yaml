@@ -1,0 +1,141 @@
+off-by-one-write:
+  title: "An off-by-one write corrupts a neighbor"
+  text: "`i <= n` instead of `i < n` writes one element past the end. The program may look fine and crash somewhere unrelated; a sanitizer reports it at once."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {0, 0, 0, 0};
+            for (int i = 0; i <= 4; ++i) a[i] = i;   // <= also writes a[4]
+            std::cout << a[3] << "\n";
+        }
+      reports: "out of bounds"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {0, 0, 0, 0};
+            for (int i = 0; i < 4; ++i) a[i] = i;
+            std::cout << a[3] << "\n";
+        }
+      out: "3\n"
+reference-member-to-temporary:
+  title: "A reference member bound to a temporary dangles"
+  text: "Storing a reference to a temporary leaves it pointing at an object that died at the end of the statement. Store a copy instead."
+use-after-free:
+  title: "Using memory after it was freed"
+  text: "After `delete`, the memory can be reused by the next allocation. Reading or writing through the old pointer is undefined behavior, even when it appears to work."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int{7};
+            delete p;
+            std::cout << *p << "\n";   // p still holds the old address
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int{7};
+            std::cout << *p << "\n";   // use it first ...
+            delete p;                  // ... then free it, and never touch p again
+        }
+      out: "7\n"
+push-back-invalidates:
+  title: "`push_back` while holding a reference"
+  text: "`auto& first = v[0]; v.push_back(x);` leaves `first` dangling if the vector reallocated. Do not keep references or iterators across an insertion."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int* p = &v[0];
+            v.push_back(4);   // may reallocate
+            std::cout << *p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            v.reserve(4);     // room for the push_back: no reallocation
+            int* p = &v[0];
+            v.push_back(4);
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+uninitialized-local:
+  title: "A local variable you never set holds garbage"
+  text: "Reading a local before assigning to it is undefined behavior: you may get zero today and nonsense tomorrow. Initialize every variable where you declare it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int count;
+            if (argc > 5) count = 1;       // not taken
+            std::cout << count << "\n";    // never set
+        }
+      warns: "uninitialized"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int count = 0;                 // set where it is declared
+            if (argc > 5) count = 1;
+            std::cout << count << "\n";
+        }
+      out: "0\n"
+string-view-of-local:
+  title: "A `string_view` of a local string dangles"
+  text: "Returning a `string_view` onto a local `std::string` hands out a view of memory that is freed at the closing brace. Return a `std::string` instead."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string_view name() {
+            std::string s(20, 'x');   // heap text, freed at the closing brace
+            return s;
+        }
+
+        int main() {
+            std::cout << name() << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        std::string name() {   // return the string itself
+            std::string s(20, 'x');
+            return s;
+        }
+
+        int main() {
+            std::cout << name() << "\n";
+        }
+      out: "xxxxxxxxxxxxxxxxxxxx\n"

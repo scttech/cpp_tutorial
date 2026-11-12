@@ -1,0 +1,123 @@
+from-chars-accepts-nan:
+  title: "`from_chars` happily parses `nan` and `inf`"
+  text: "`std::from_chars` for `double` accepts the text `nan` and `inf` as numbers. Reject them with `std::isfinite` if a price or quantity must be an ordinary number."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc()) << "\n";
+        }
+      out: "accepted: 1\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <cmath>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            const std::string text = "nan";
+            double value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << "accepted: " << (r.ec == std::errc() && std::isfinite(value)) << "\n";
+        }
+      out: "accepted: 0\n"
+negative-zero:
+  title: "A rounded result can print as `-0.00`"
+  text: "A tiny negative value rounds to zero but keeps its sign, so fixed-precision output shows `-0.00`. Normalize it before you format."
+  demo:
+    bad:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            std::cout << std::fixed << std::setprecision(2) << x << "\n";
+        }
+      out: "-0.00\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            double rounded = std::round(x * 100) / 100;   // -0.0
+            if (rounded == 0) rounded = 0;                // -0.0 == 0, so this drops the sign
+            std::cout << std::fixed << std::setprecision(2) << rounded << "\n";
+        }
+      out: "0.00\n"
+int-overflow-on-add:
+  title: "Adding to a count can overflow"
+  text: "A quantity that grows past `INT_MAX` is signed overflow, which is undefined behavior. Check before adding and report an error instead of wrapping."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;   // INT_MAX
+            stock += 1;                       // one more
+            std::cout << stock << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;
+            if (stock > INT_MAX - 1) {        // would not fit: say so instead of adding
+                std::cout << "too many items\n";
+            } else {
+                stock += 1;
+                std::cout << stock << "\n";
+            }
+        }
+      out: "too many items\n"
+erase-while-iterating:
+  title: "Erasing while iterating invalidates the iterator"
+  text: "`erase` invalidates the iterator you are using, so the next `++it` is undefined behavior. Use the iterator that `erase` returns, or the `remove_if` and `erase` idiom."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 2, 3};
+            for (auto it = v.begin(); it != v.end(); ++it)
+                if (*it == 2) v.erase(it);   // `it` is invalid afterwards, and the next 2 is skipped
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 2, 3};
+            v.erase(std::remove(v.begin(), v.end(), 2), v.end());   // the erase-remove idiom
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 3 \n"
+validation-order:
+  title: "Check errors in the documented order"
+  text: "When a command is wrong in several ways, the spec says which error is reported first. Test the conditions in exactly that order so the message matches."

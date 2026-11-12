@@ -1,0 +1,102 @@
+signed-overflow-ub:
+  title: "Signed overflow is undefined behavior"
+  text: "`INT_MAX + 1` is not `INT_MIN`: it is undefined behavior, and an optimizer may delete your overflow check. Test before you add (`a > INT_MAX - b`) or compute in a wider type."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int smallest = INT_MIN + argc - 1;   // INT_MIN
+            int positive = -smallest;            // there is no +2147483648 in an int
+            std::cout << positive << "\n";
+        }
+      reports: "cannot be represented in type"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int smallest = INT_MIN + argc - 1;
+            long long positive = -static_cast<long long>(smallest);   // widen first
+            std::cout << positive << "\n";
+        }
+      out: "2147483648\n"
+unsigned-wraparound:
+  title: "Unsigned arithmetic wraps around"
+  text: "Unsigned types wrap modulo 2^N by definition, so `0u - 1` is the largest value, not -1. That is safe but surprising, and it makes `i >= 0` always true for an unsigned `i`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned int a = 3;
+            unsigned int b = 5;
+            std::cout << a - b << "\n";   // not -2
+        }
+      out: "4294967294\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned int a = 3;
+            unsigned int b = 5;
+            std::cout << static_cast<long long>(a) - static_cast<long long>(b) << "\n";   // subtract in a signed type
+        }
+      out: "-2\n"
+negative-modulo:
+  title: "`%` keeps the sign of the left operand"
+  text: "`-7 % 3` is `-1`, not `2`, because integer division truncates toward zero. If you need a result that is never negative, add the divisor back when the remainder is below zero."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = -7;
+            std::cout << x % 3 << "\n";   // not 2
+        }
+      out: "-1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = -7;
+            int r = x % 3;
+            if (r < 0) r += 3;   // bring it back into 0..2
+            std::cout << r << "\n";
+        }
+      out: "2\n"
+integer-promotion:
+  title: "Small integers are promoted to `int`"
+  text: "`char`, `short` and `bool` become `int` before arithmetic, so adding two `uint8_t` values never wraps at 255 and has type `int`. Only casting the result back truncates it."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t a = 200;
+            std::uint8_t b = 100;
+            std::cout << (a + b) << "\n";   // both are promoted to int: no wraparound
+        }
+      out: "300\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t a = 200;
+            std::uint8_t b = 100;
+            std::uint8_t sum = static_cast<std::uint8_t>(a + b);   // only this cast wraps it
+            std::cout << static_cast<int>(sum) << "\n";
+        }
+      out: "44\n"

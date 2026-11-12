@@ -1,0 +1,123 @@
+array-decay:
+  title: "A C array decays to a pointer"
+  text: "Passing an array to a function hands it a pointer to the first element, and the size is gone. Pass a `std::array`, a `std::span`, or a pointer plus a count."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        void show(int values[5]) {   // looks like an array of 5, but is an int*
+            std::cout << (sizeof(values) == sizeof(int*)) << "\n";
+        }
+
+        int main() {
+            int a[5] = {1, 2, 3, 4, 5};
+            show(a);
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <array>
+        #include <iostream>
+
+        void show(const std::array<int, 5>& values) {   // the size travels with the type
+            std::cout << values.size() << "\n";
+        }
+
+        int main() {
+            std::array<int, 5> a{1, 2, 3, 4, 5};
+            show(a);
+        }
+      out: "5\n"
+no-bounds-checking:
+  title: "Indexing is not bounds-checked"
+  text: "`a[10]` on a 5-element array compiles and is undefined behavior: it may read garbage or corrupt memory. `at()` on a `std::array` throws instead, which is what you want while learning."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int a[5] = {1, 2, 3, 4, 5};
+            int i = 9 + argc;            // 10: the compiler cannot know
+            std::cout << a[i] << "\n";   // 5 elements: undefined behavior
+        }
+      reports: "out of bounds"
+    fix:
+      code: |
+        #include <array>
+        #include <iostream>
+        #include <stdexcept>
+
+        int main(int argc, char**) {
+            std::array<int, 5> a{1, 2, 3, 4, 5};
+            std::size_t i = 9 + argc;
+            try {
+                std::cout << a.at(i) << "\n";   // at() checks
+            } catch (const std::out_of_range&) {
+                std::cout << "index out of range\n";
+            }
+        }
+      out: "index out of range\n"
+sizeof-on-parameter:
+  title: "`sizeof` on an array parameter gives the pointer size"
+  text: "Inside a function an array parameter is really a pointer, so `sizeof(a) / sizeof(a[0])` is 2 on a 64-bit machine, not the element count. `std::size` or `std::array::size()` does it right."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        std::size_t count(int a[5]) { return sizeof(a) / sizeof(a[0]); }   // sizeof a pointer
+
+        int main() {
+            int a[5] = {1, 2, 3, 4, 5};
+            std::cout << (count(a) == 5) << "\n";
+        }
+      out: "0\n"
+      warns: "sizeof"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        template <std::size_t N>
+        std::size_t count(const int (&)[N]) { return N; }   // the size is part of the type
+
+        int main() {
+            int a[5] = {1, 2, 3, 4, 5};
+            std::cout << (count(a) == 5) << "\n";
+        }
+      out: "1\n"
+int-sum-overflow:
+  title: "Summing many `int`s can overflow"
+  text: "Adding up many large `int`s overflows, and signed overflow is undefined behavior. Accumulate in a `long long` (start from `0LL`) when the values or their number can be large."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            int sum = 0;
+            for (int x : v) sum += x;   // overflows an int
+            std::cout << sum << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            long long sum = 0;   // a wider accumulator
+            for (int x : v) sum += x;
+            std::cout << sum << "\n";
+        }
+      out: "2147483648\n"

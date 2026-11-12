@@ -203,3 +203,20 @@ label.btn { display: inline-block; }
 .tutor-form { display: flex; flex-direction: column; gap: 6px; position: sticky; bottom: 0; background: var(--panel2); padding-top: 8px; border-top: 1px solid var(--edge); }
 .tutor-form select, .tutor-form textarea, .tutor-key input, .tutor-key select { width: 100%; background: #07173b; color: var(--fg); border: 1px solid var(--edge); border-radius: 4px; padding: 6px; font: inherit; }
 .link.explain { margin-left: 2.2em; font-size: 0.85rem; }
+
+/* Gotchas tab */
+.gotchas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.gotchas li { padding: 8px 10px; border: 1px solid var(--edge); border-left: 3px solid var(--warn); border-radius: 6px; background: var(--panel); }
+.gotchas .g-title { font-weight: 600; display: block; margin-bottom: 2px; }
+.gotchas .g-text p { margin: 0; }
+.gotchas .g-title code { font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; background: #07173b; padding: 1px 5px; border-radius: 4px; }
+.demo { margin-top: 8px; }
+.demo > summary { cursor: pointer; color: var(--blue); }
+.snips { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.snip { border: 1px solid var(--edge); border-radius: 6px; padding: 6px 8px; background: var(--panel2); }
+.snip.bad { border-left: 3px solid var(--bad); }
+.snip.fix { border-left: 3px solid var(--ok); }
+.snip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.snip textarea { overflow-x: auto; white-space: pre; width: 100%; background: #07173b; color: var(--fg); border: 1px solid var(--edge); border-radius: 4px; font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; padding: 6px; resize: vertical; tab-size: 4; }
+.snip-out { margin: 6px 0 0; max-height: 220px; }
+.snip-out.warn { border-color: var(--warn); }

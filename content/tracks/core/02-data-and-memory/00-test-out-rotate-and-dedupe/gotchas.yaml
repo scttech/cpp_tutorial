@@ -1,0 +1,56 @@
+modulo-negative:
+  title: "Modulo of a negative number can be negative"
+  text: "A rotation count `k` below zero needs care: `k % n` is negative in C++. Normalize with `((k % n) + n) % n` before using it as an offset."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int k = -1, n = 5;
+            std::cout << k % n << "\n";   // negative: not usable as an index
+        }
+      out: "-1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int k = -1, n = 5;
+            std::cout << ((k % n) + n) % n << "\n";   // always 0..n-1
+        }
+      out: "4\n"
+empty-input:
+  title: "An empty input is a case of its own"
+  text: "With no elements `n` is 0, so `k % n` divides by zero and `front()` is undefined. Return early for an empty vector before doing arithmetic with its size."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;   // empty
+            int k = 2;
+            std::cout << k % static_cast<int>(v.size()) << "\n";   // division by zero
+        }
+      reports: "division by zero"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            int k = 2;
+            if (v.empty()) {
+                std::cout << "nothing to rotate\n";
+                return 0;
+            }
+            std::cout << k % static_cast<int>(v.size()) << "\n";
+        }
+      out: "nothing to rotate\n"
+quadratic-dedupe:
+  title: "Nested-loop deduplication is O(n squared)"
+  text: "Comparing every element with everything kept so far is quadratic and crawls on big inputs. A `std::unordered_set` of the values seen so far makes it linear and still keeps the first occurrence."

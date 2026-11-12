@@ -1,0 +1,175 @@
+iterator-invalidation:
+  title: "`push_back` can invalidate iterators and references"
+  text: "If the vector reallocates, every pointer, reference and iterator into it dangles. Do not hold one across an insertion: use indexes, or `reserve` first."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+reserve-vs-resize:
+  title: "`reserve` is not `resize`"
+  text: "`reserve(n)` only sets capacity aside: the size stays 0, so `v[0]` is still out of range. `resize(n)` creates the n elements. Mixing them up causes quiet out-of-bounds writes."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            v.reserve(3);   // capacity only
+            std::cout << v.size() << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            v.resize(3);    // three real elements
+            std::cout << v.size() << "\n";
+        }
+      out: "3\n"
+hidden-reallocation:
+  title: "Growing a vector reallocates and moves the elements"
+  text: "A vector that grows by repeated `push_back` reallocates several times, moving everything each time. `reserve` the final size up front when you know it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            int moves = 0;
+            const int* data = nullptr;
+            for (int i = 0; i < 100; ++i) {
+                v.push_back(i);
+                if (v.data() != data) { ++moves; data = v.data(); }
+            }
+            std::cout << (moves > 1 ? "several reallocations\n" : "one allocation\n");
+        }
+      out: "several reallocations\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            v.reserve(100);   // allocate once
+            int moves = 0;
+            const int* data = nullptr;
+            for (int i = 0; i < 100; ++i) {
+                v.push_back(i);
+                if (v.data() != data) { ++moves; data = v.data(); }
+            }
+            std::cout << (moves > 1 ? "several reallocations\n" : "one allocation\n");
+        }
+      out: "one allocation\n"
+int-overflow-in-square:
+  title: "Squaring an `int` can overflow"
+  text: "`x * x` for a large `int` leaves the range and is undefined behavior. Widen first: `static_cast<long long>(x) * x`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;   // 46341
+            int sq = x * x;         // more than INT_MAX
+            std::cout << sq << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;
+            long long sq = static_cast<long long>(x) * x;   // widen before multiplying
+            std::cout << sq << "\n";
+        }
+      out: "2147488281\n"
+vector-bool:
+  title: "`vector<bool>` is not a vector of `bool`"
+  text: "It packs bits, and `operator[]` returns a proxy object instead of a `bool&`, so `auto& b = v[0]` fails and taking an address does not work. Use `vector<char>` or `std::bitset` when you need real elements."
+  demo:
+    bad:
+      code: |
+        #include <vector>
+
+        int main() {
+            std::vector<bool> flags = {true, false};
+            bool& first = flags[0];   // operator[] returns a proxy, not a bool&
+            (void)first;
+        }
+      error: "cannot bind"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<char> flags = {1, 0};   // real elements
+            char& first = flags[0];
+            first = 0;
+            std::cout << static_cast<int>(flags[0]) << "\n";
+        }
+      out: "0\n"
+index-vs-at:
+  title: "`[]` does not check bounds, `at()` does"
+  text: "`v[i]` with a bad index is undefined behavior; `v.at(i)` throws `std::out_of_range`. Use `at()` where an error should be loud, `[]` where the index is known to be good."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {1, 2, 3};
+            int i = 2 + argc;            // 3
+            std::cout << v[i] << "\n";   // one past the end: undefined behavior
+        }
+      reports: "heap-buffer-overflow"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {1, 2, 3};
+            std::size_t i = 2 + argc;
+            try {
+                std::cout << v.at(i) << "\n";   // at() throws instead
+            } catch (const std::out_of_range&) {
+                std::cout << "caught out_of_range\n";
+            }
+        }
+      out: "caught out_of_range\n"

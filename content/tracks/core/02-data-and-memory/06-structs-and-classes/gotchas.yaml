@@ -1,0 +1,204 @@
+member-init-order:
+  title: "Members initialize in declaration order"
+  text: "The order in the initializer list does not matter: members are constructed in the order they are declared in the class. Using one member to initialize another that is declared later reads garbage."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Pair {
+            int first;
+            int second;
+            Pair(int v) : second(v), first(second + 1) {}   // first is initialized BEFORE second
+        };
+
+        int main() {
+            Pair p(1);
+            (void)p;
+            std::cout << "built\n";
+        }
+      out: "built\n"
+      warns: "will be initialized after"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Pair {
+            int first;
+            int second;
+            Pair(int v) : first(v + 1), second(v) {}   // same order as the declarations
+        };
+
+        int main() {
+            Pair p(1);
+            std::cout << p.first << " " << p.second << "\n";
+        }
+      out: "2 1\n"
+struct-padding:
+  title: "Struct layout includes padding"
+  text: "The compiler inserts padding for alignment, so `sizeof` can be bigger than the sum of the members. Ordering members from largest to smallest often shrinks it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Wasteful {
+            char a;
+            double b;
+            char c;
+        };
+
+        int main() {
+            std::cout << (sizeof(Wasteful) == sizeof(char) + sizeof(double) + sizeof(char)) << "\n";   // padding adds bytes
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Wasteful { char a; double b; char c; };
+        struct Compact  { double b; char a; char c; };   // largest member first
+
+        int main() {
+            std::cout << (sizeof(Compact) < sizeof(Wasteful)) << "\n";
+        }
+      out: "1\n"
+private-members:
+  title: "`private` data lets a class keep its rules"
+  text: "Public data lets any code break an invariant; private data forces changes through member functions that can check them. In a `struct` members default to public, in a `class` to private."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Account {
+            int balance = 10;
+        };
+
+        int main() {
+            Account a;
+            a.balance -= 50;   // nothing stops this
+            std::cout << a.balance << "\n";
+        }
+      out: "-40\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        class Account {
+        public:
+            bool withdraw(int amount) {
+                if (amount > balance_) return false;   // the rule lives in one place
+                balance_ -= amount;
+                return true;
+            }
+            int balance() const { return balance_; }
+
+        private:
+            int balance_ = 10;
+        };
+
+        int main() {
+            Account a;
+            a.withdraw(50);
+            std::cout << a.balance() << "\n";
+        }
+      out: "10\n"
+this-return-by-reference:
+  title: "Return `*this` by reference to allow chaining"
+  text: "A member that returns `*this` as `T&` lets calls chain, as in `r.scale(2).translate(1, 1)`. Returning by value would chain onto a copy and lose the change."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n = 0;
+            Counter add(int k) { n += k; return *this; }   // returns a COPY
+        };
+
+        int main() {
+            Counter c;
+            c.add(1).add(2).add(3);
+            std::cout << c.n << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n = 0;
+            Counter& add(int k) { n += k; return *this; }   // returns the object itself
+        };
+
+        int main() {
+            Counter c;
+            c.add(1).add(2).add(3);
+            std::cout << c.n << "\n";
+        }
+      out: "6\n"
+cached-state:
+  title: "A cached value goes stale when its inputs change"
+  text: "A stored `area_` is only right if every function that changes the sides updates it. Compute on demand unless you really need the cache, and then update it in one place."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Rect {
+            int w, h;
+            int area_;   // cached
+            Rect(int w_, int h_) : w(w_), h(h_), area_(w_ * h_) {}
+            int area() const { return area_; }
+        };
+
+        int main() {
+            Rect r(2, 3);
+            r.w = 10;
+            std::cout << r.area() << "\n";   // still 6
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Rect {
+            int w, h;
+            Rect(int w_, int h_) : w(w_), h(h_) {}
+            int area() const { return w * h; }   // computed when asked: never stale
+        };
+
+        int main() {
+            Rect r(2, 3);
+            r.w = 10;
+            std::cout << r.area() << "\n";
+        }
+      out: "30\n"
+int-overflow-in-length:
+  title: "The difference of two `int`s can overflow"
+  text: "`b - a` for the ends of an interval can exceed `int` even though both ends fit. Compute the length in a wider type such as `long long`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int lo = INT_MIN + argc;
+            int hi = INT_MAX - argc;
+            std::cout << hi - lo << "\n";   // too big for an int
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int lo = INT_MIN + argc;
+            int hi = INT_MAX - argc;
+            std::cout << static_cast<long long>(hi) - lo << "\n";   // subtract in a wider type
+        }
+      out: "4294967293\n"

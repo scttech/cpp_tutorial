@@ -1,0 +1,86 @@
+switch-fallthrough:
+  title: "A `switch` case falls through"
+  text: "Without `break` (or `return`), execution continues into the next case. It compiles fine and is a classic bug, so end every case on purpose, and mark an intended fall-through with `[[fallthrough]];`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int level = 1;
+            switch (level) {
+                case 1: std::cout << "low\n";
+                case 2: std::cout << "medium\n"; break;
+                default: std::cout << "other\n";
+            }
+        }
+      out: "low\nmedium\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int level = 1;
+            switch (level) {
+                case 1: std::cout << "low\n"; break;
+                case 2: std::cout << "medium\n"; break;
+                default: std::cout << "other\n";
+            }
+        }
+      out: "low\n"
+size-t-loop-index:
+  title: "`size_t` loop counters never go below zero"
+  text: "`for (size_t i = n - 1; i >= 0; --i)` never ends: an unsigned `i` wraps to a huge number instead of becoming -1. Count down with `while (i-- > 0)` or use a signed index deliberately."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t i = 0;
+            --i;   // an unsigned type has no -1
+            std::cout << (i > 1000000) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t n = 3;
+            while (n-- > 0) std::cout << n << " ";   // counts 2 1 0 and stops
+            std::cout << "\n";
+        }
+      out: "2 1 0 \n"
+dangling-else:
+  title: "An `else` binds to the nearest `if`"
+  text: "Indentation means nothing to the compiler: in nested `if`s the `else` belongs to the closest one. Put braces around every branch and the question never comes up."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = 1, b = 0;
+            if (a == 1)
+                if (b == 1) std::cout << "both\n";
+            else std::cout << "a is not 1\n";   // belongs to the inner if!
+            std::cout << "done\n";
+        }
+      out: "a is not 1\ndone\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = 1, b = 0;
+            if (a == 1) {
+                if (b == 1) std::cout << "both\n";
+            } else {
+                std::cout << "a is not 1\n";
+            }
+            std::cout << "done\n";
+        }
+      out: "done\n"

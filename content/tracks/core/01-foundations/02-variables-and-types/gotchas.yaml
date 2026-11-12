@@ -1,0 +1,67 @@
+uninitialized-variables:
+  title: "Uninitialized variables hold garbage"
+  text: "A local `int x;` has no value, and reading it is undefined behavior: the program may print anything, or seem to work. Always initialize, preferably with braces: `int x{};` or `int x{5};`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int total;                     // never set
+            std::cout << total << "\n";    // undefined behavior
+        }
+      warns: "uninitialized"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int total{};                   // {} means zero
+            std::cout << total << "\n";
+        }
+      out: "0\n"
+narrowing-conversions:
+  title: "Narrowing conversions lose data silently"
+  text: "`int n = 3.9;` quietly gives 3, and `char c = 300;` wraps. Brace initialization (`int n{3.9};`) makes these compile errors, which is why modern C++ prefers it."
+  demo:
+    bad:
+      code: |
+        int main() {
+            int n{3.9};   // braces refuse to lose the .9
+            (void)n;
+        }
+      error: "narrow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n{static_cast<int>(3.9)};   // the truncation is now visible, and intended
+            std::cout << n << "\n";
+        }
+      out: "3\n"
+integer-division:
+  title: "Dividing two ints gives an int"
+  text: "`7 / 2` is `3`. For `3.5` at least one operand must be floating-point, and the conversion has to happen before the division, not after it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double half = 7 / 2;   // the division is done on ints first
+            std::cout << half << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double half = 7 / 2.0;   // a double operand makes it a real division
+            std::cout << half << "\n";
+        }
+      out: "3.5\n"
+int-size-not-fixed:
+  title: "`int` is not a fixed size"
+  text: "The standard only promises that `int` is at least 16 bits; on common platforms it is 32. When the size matters, use `<cstdint>` types such as `std::int32_t` or `std::uint64_t`."

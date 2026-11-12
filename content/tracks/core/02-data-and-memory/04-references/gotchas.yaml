@@ -1,0 +1,144 @@
+reference-to-local:
+  title: "Never return a reference to a local"
+  text: "The local dies when the function returns, leaving a dangling reference, and using it is undefined behavior. Return by value, or return a reference to something that outlives the call."
+  demo:
+    bad:
+      code: |
+        const int& answer() {
+            int result = 42;
+            return result;   // result dies at the closing brace
+        }
+
+        int main() {
+            answer();
+        }
+      warns: "local"
+    fix:
+      code: |
+        #include <iostream>
+
+        int answer() {   // return by value
+            int result = 42;
+            return result;
+        }
+
+        int main() {
+            std::cout << answer() << "\n";
+        }
+      out: "42\n"
+range-for-copies:
+  title: "A range-`for` by value copies every element"
+  text: "`for (auto x : v)` copies each element, which is slow for strings and silently breaks modification. Use `const auto&` to read and `auto&` to change."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"
+aliased-arguments:
+  title: "Two reference parameters can name the same object"
+  text: "`swap_values(x, x)` is legal. Code that assumes two different objects breaks: the XOR swap trick sets the variable to zero when both parameters are the same one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        void xor_swap(int& a, int& b) {
+            a ^= b;
+            b ^= a;
+            a ^= b;
+        }
+
+        int main() {
+            int x = 5;
+            xor_swap(x, x);   // both parameters are x
+            std::cout << x << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        void swap_values(int& a, int& b) {
+            int t = a;
+            a = b;
+            b = t;
+        }
+
+        int main() {
+            int x = 5;
+            swap_values(x, x);
+            std::cout << x << "\n";
+        }
+      out: "5\n"
+temporaries-bind-to-const-ref:
+  title: "A temporary binds to `const&` but not to `&`"
+  text: "`f(5)` works when `f` takes `const int&`, because the temporary lives until the call ends. A non-const `int&` parameter rejects it, which is a useful safety net."
+  demo:
+    bad:
+      code: |
+        void show(int& x) { (void)x; }
+
+        int main() {
+            show(5);   // 5 is a temporary
+        }
+      error: "no matching function"
+    fix:
+      code: |
+        #include <iostream>
+
+        void show(const int& x) { std::cout << x << "\n"; }
+
+        int main() {
+            show(5);
+        }
+      out: "5\n"
+reference-members:
+  title: "A reference member refers, it does not keep alive"
+  text: "A class with a reference member cannot be reassigned, and if the target dies the member dangles. Own the data with a value member unless you truly need a non-owning link."
+  demo:
+    bad:
+      code: |
+        struct Holder {
+            int& ref;
+        };
+
+        int main() {
+            int a = 1, b = 2;
+            Holder h1{a}, h2{b};
+            h1 = h2;   // a reference cannot be re-seated
+        }
+      error: "deleted"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Holder {
+            int value;   // own the data
+        };
+
+        int main() {
+            Holder h1{1}, h2{2};
+            h1 = h2;
+            std::cout << h1.value << "\n";
+        }
+      out: "2\n"

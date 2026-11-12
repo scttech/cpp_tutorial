@@ -1,0 +1,96 @@
+cin-then-getline:
+  title: "`getline` after `cin >>` reads an empty line"
+  text: "`std::cin >> n` leaves the newline in the buffer, so the next `std::getline` returns an empty string at once. Discard the rest of the line with `std::cin.ignore(...)`, or read whole lines everywhere and parse them."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("42\nAda Lovelace\n");   // stands in for std::cin
+            int age;
+            std::string name;
+            in >> age;
+            std::getline(in, name);   // reads what is left of the first line: nothing
+            std::cout << "[" << name << "]\n";
+        }
+      out: "[]\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("42\nAda Lovelace\n");
+            int age;
+            std::string name;
+            in >> age;
+            in >> std::ws;   // skip the newline that >> left behind
+            std::getline(in, name);
+            std::cout << "[" << name << "]\n";
+        }
+      out: "[Ada Lovelace]\n"
+failed-extraction-state:
+  title: "A failed read leaves the stream in a fail state"
+  text: "After `cin >> n` fails on `abc`, the stream stays failed and every later read does nothing. Test the stream in your loop condition, then `clear()` it and discard the bad input."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+
+        int main() {
+            std::istringstream in("abc 7");
+            int n = 0, m = 0;
+            in >> n;   // fails on "abc"
+            in >> m;   // does nothing: the stream is still failed
+            std::cout << n << " " << m << " " << in.fail() << "\n";
+        }
+      out: "0 0 1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+
+        int main() {
+            std::istringstream in("abc 7");
+            int n = 0, m = 0;
+            in >> n;
+            if (!in) {
+                in.clear();               // leave the fail state ...
+                in.ignore(4, ' ');        // ... and throw the bad token away
+            }
+            in >> m;
+            std::cout << n << " " << m << "\n";
+        }
+      out: "0 7\n"
+string-is-bytes:
+  title: "A `std::string` is bytes, not characters"
+  text: "`size()` counts bytes, so UTF-8 text with `é` or an emoji has more bytes than characters, and `s[i]` can land in the middle of one. Fine for ASCII; for anything else, treat it deliberately."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string word = "café";
+            std::cout << word.size() << "\n";   // bytes, not letters
+        }
+      out: "5\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string word = "café";
+            std::size_t letters = 0;
+            for (unsigned char c : word)
+                if ((c & 0xC0) != 0x80) ++letters;   // skip UTF-8 continuation bytes
+            std::cout << letters << "\n";
+        }
+      out: "4\n"

@@ -1,0 +1,12 @@
+odr-violation:
+  title: "The one definition rule is not always checked"
+  text: "Define a non-inline function in a header and include it from two `.cpp` files and the linker complains. Two different definitions of the same inline function or class are worse: undefined behavior, no diagnostic."
+include-guards:
+  title: "A header needs an include guard"
+  text: "Without `#pragma once` (or an `#ifndef` guard) a header that is included twice in one translation unit redefines its classes and fails to compile."
+inline-in-headers:
+  title: "Functions defined in a header must be `inline`"
+  text: "A plain function body in a header is defined once in every `.cpp` that includes it, giving duplicate-symbol link errors. Mark it `inline` (functions defined inside a class already are) or move the body to a `.cpp`."
+static-init-order:
+  title: "Static initialization order is unspecified across files"
+  text: "Globals in different `.cpp` files are constructed in no guaranteed order, so one that uses another may see it before it exists. Prefer function-local statics, or `constexpr` and `constinit`."

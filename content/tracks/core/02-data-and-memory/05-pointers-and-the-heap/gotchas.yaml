@@ -1,0 +1,109 @@
+dangling-pointer:
+  title: "A pointer can outlive what it points to"
+  text: "A pointer to a local, or to memory that was deleted, still looks valid and is not. Dereferencing it is undefined behavior."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = nullptr;
+            {
+                int inner = 7;
+                p = &inner;
+            }                           // inner is gone
+            std::cout << *p << "\n";    // p still points at it
+        }
+      reports: "stack-use-after-scope"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int inner = 7;              // lives as long as p is used
+            int* p = &inner;
+            std::cout << *p << "\n";
+        }
+      out: "7\n"
+double-free:
+  title: "Deleting the same memory twice is undefined behavior"
+  text: "A second `delete` of the same pointer corrupts the allocator and often crashes later. Setting the pointer to `nullptr` after deleting makes a repeat harmless; owning types make it impossible."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int{1};
+            delete p;
+            delete p;   // freed twice
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            auto p = std::make_unique<int>(1);   // freed exactly once, automatically
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+memory-leak:
+  title: "Memory you `new` must be deleted"
+  text: "An early return, an exception or a lost pointer leaves heap memory that is never freed. RAII types such as `unique_ptr` and `vector` free it for you."
+use-after-free:
+  title: "Using memory after it was freed"
+  text: "After `delete p` the memory belongs to the allocator again and may be reused. Reading or writing `*p` is undefined behavior: it often seems to work, until it does not."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int{7};
+            delete p;
+            std::cout << *p << "\n";   // p still holds the old address
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = new int{7};
+            std::cout << *p << "\n";   // use it first ...
+            delete p;                  // ... then free it, and never touch p again
+        }
+      out: "7\n"
+null-dereference:
+  title: "Dereferencing `nullptr` is undefined behavior"
+  text: "A null pointer usually crashes, but the standard does not promise it. Check for `nullptr` before dereferencing whenever a pointer is allowed to be absent."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = nullptr;
+            std::cout << *p << "\n";   // nothing to read
+        }
+      reports: "null pointer"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int* p = nullptr;
+            if (p) {
+                std::cout << *p << "\n";
+            } else {
+                std::cout << "no value\n";
+            }
+        }
+      out: "no value\n"
+recursion-depth:
+  title: "Deep recursion overflows the stack"
+  text: "A recursive function over a long linked list uses one stack frame per node, and a stack overflow is a crash. Walk long structures with a loop."

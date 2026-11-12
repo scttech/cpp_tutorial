@@ -1,0 +1,35 @@
+header-vs-source:
+  title: "Headers declare, source files define"
+  text: "`#include <iostream>` only makes declarations visible; the code itself is linked in later. A missing include is a compile error, a missing definition is a separate linker error."
+  demo:
+    bad:
+      code: |
+        int main() {
+            std::cout << "Hello\n";   // nothing declared std::cout yet
+        }
+      error: "cout"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << "Hello\n";
+        }
+      out: "Hello\n"
+main-returns-int:
+  title: "`main` returns `int`, and may omit the `return`"
+  text: "`main` must return `int`; `void main` is not standard C++. Falling off the end of `main` is the one place where a function returns 0 for you."
+  demo:
+    bad:
+      code: |
+        void main() {
+        }
+      error: "must return"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << "ok\n";
+        }   // no return needed: main returns 0 by itself
+      out: "ok\n"

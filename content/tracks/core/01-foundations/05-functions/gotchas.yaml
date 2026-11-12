@@ -1,0 +1,129 @@
+silent-copies:
+  title: "Passing by value copies silently"
+  text: "A `std::string` or `std::vector` parameter taken by value is copied on every call, with no warning. Take big read-only arguments by `const&`, and cheap types such as `int` and `double` by value."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+default-args-call-site:
+  title: "Default arguments are filled in by the caller"
+  text: "A default is substituted, and evaluated, at each call site using the declaration the caller can see. Give it in one declaration only, never again in the definition."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int next_id() {
+            static int id = 0;
+            return ++id;
+        }
+
+        void show(int id = next_id()) { std::cout << id << "\n"; }   // evaluated on EVERY call that omits it
+
+        int main() {
+            show();
+            show();
+            show(7);
+        }
+      out: "1\n2\n7\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int next_id() {
+            static int id = 0;
+            return ++id;
+        }
+
+        const int first_id = next_id();                              // evaluated once, here
+        void show(int id = first_id) { std::cout << id << "\n"; }
+
+        int main() {
+            show();
+            show();
+            show(7);
+        }
+      out: "1\n1\n7\n"
+overload-promotion:
+  title: "Overload resolution prefers promotion to conversion"
+  text: "`f('a')` picks the `int` overload over the `double` one: `char` promotes to `int`, which beats converting to `double`. When several overloads fit, the best match wins, and a tie is a compile error."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        void kind(int) { std::cout << "int\n"; }
+        void kind(double) { std::cout << "double\n"; }
+
+        int main() {
+            kind('a');    // char is promoted to int: the better match
+            kind(3.0f);   // float is promoted to double
+        }
+      out: "int\ndouble\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        void kind(int) { std::cout << "int\n"; }
+        void kind(double) { std::cout << "double\n"; }
+
+        int main() {
+            kind(static_cast<double>('a'));   // say which one you mean
+            kind(3.0f);
+        }
+      out: "double\ndouble\n"
+declaration-order:
+  title: "A function must be declared before it is used"
+  text: "C++ reads a file from top to bottom: calling a function that is only defined further down is an error unless you declare its prototype first. That is the job of headers."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << twice(21) << "\n";   // twice is defined further down
+        }
+
+        int twice(int x) { return 2 * x; }
+      error: "twice"
+    fix:
+      code: |
+        #include <iostream>
+
+        int twice(int x);   // a declaration is enough to call it
+
+        int main() {
+            std::cout << twice(21) << "\n";
+        }
+
+        int twice(int x) { return 2 * x; }
+      out: "42\n"
