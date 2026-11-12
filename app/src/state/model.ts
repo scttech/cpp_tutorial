@@ -1,6 +1,9 @@
 import type { Tier } from "../runner/types";
 import { MAX_BOX } from "../warmup/schedule";
 import type { Review } from "../warmup/schedule";
+import { CLEAR_RANGE, DEFAULT_CLEAR } from "../warmup/weak";
+import type { WeakEntry } from "../warmup/weak";
+import type { ResolveEntry } from "./resolves";
 
 // The persisted progress model (spec section 2.4). Every field added after the first release has a
 // default in normalize(), so older saved data and imported files keep working.
@@ -36,6 +39,8 @@ export interface EarnedBadge {
 
 export interface Settings {
   pace: "full" | "fast";
+  /** A weak spot clears after this many right answers in a row. */
+  weakClear: number;
 }
 
 export interface Progress {
@@ -46,6 +51,10 @@ export interface Progress {
   events: Record<string, { count: number; lastAt: string }>;
   /** Warm-up cards: when each one that has been asked is due again (see warmup/schedule.ts). */
   reviews: Record<string, Review>;
+  /** Per lesson or topic: misses and the current run of right answers (see warmup/weak.ts). */
+  weak: Record<string, WeakEntry>;
+  /** Re-solve schedule per completed lesson (see state/resolves.ts). A lesson without an entry is due 3 days after it was first completed. */
+  resolves: Record<string, ResolveEntry>;
   settings: Settings;
 }
 
@@ -69,7 +78,9 @@ export const emptyProgress = (): Progress => ({
   badges: {},
   events: {},
   reviews: {},
-  settings: { pace: "full" },
+  weak: {},
+  resolves: {},
+  settings: { pace: "full", weakClear: DEFAULT_CLEAR },
 });
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -144,8 +155,27 @@ export function normalize(raw: unknown): Progress {
       out.reviews[id] = { box: Math.min(MAX_BOX, Math.max(1, num(v.box, 1))), due: v.due, seen: num(v.seen), correct: num(v.correct) };
     }
   }
-  if (isObj(raw.settings) && (raw.settings.pace === "fast" || raw.settings.pace === "full")) {
-    out.settings.pace = raw.settings.pace;
+  if (isObj(raw.weak)) {
+    for (const [unit, v] of Object.entries(raw.weak)) {
+      if (isObj(v)) out.weak[unit] = { misses: num(v.misses), run: num(v.run), last: typeof v.last === "string" && /^(\d{4}-\d{2}-\d{2})?$/.test(v.last) ? v.last : "" };
+    }
+  }
+  if (isObj(raw.resolves)) {
+    for (const [id, v] of Object.entries(raw.resolves)) {
+      if (!isObj(v) || typeof v.due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.due)) continue;
+      out.resolves[id] = {
+        box: Math.min(4, Math.max(1, num(v.box, 1))),
+        due: v.due,
+        count: num(v.count),
+        misses: num(v.misses),
+        lastAt: str(v.lastAt) ?? "",
+        ...(typeof v.bestMs === "number" ? { bestMs: num(v.bestMs) } : {}),
+      };
+    }
+  }
+  if (isObj(raw.settings)) {
+    if (raw.settings.pace === "fast" || raw.settings.pace === "full") out.settings.pace = raw.settings.pace;
+    if (typeof raw.settings.weakClear === "number") out.settings.weakClear = Math.min(CLEAR_RANGE.max, Math.max(CLEAR_RANGE.min, num(raw.settings.weakClear, DEFAULT_CLEAR)));
   }
   return out;
 }

@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
+import { CLEAR_RANGE } from "../warmup/weak";
 import { EDITOR_FONT, TEXT_SCALE, resetPrefs, savePrefs, usePrefs } from "../prefs/prefs";
-import type { KeyMode, ThemePref } from "../prefs/prefs";
-import { applyImport, exportProgress, parseImport, resetAll, setPace, summarize, useAllProgress, useStorageKind } from "../state/store";
+import type { KeyMode, LayoutPref, ThemePref } from "../prefs/prefs";
+import { applyImport, exportProgress, parseImport, resetAll, setPace, setWeakClear, summarize, useAllProgress, useStorageKind } from "../state/store";
 import type { ImportSummary } from "../state/store";
 import type { Progress } from "../state/model";
 import { MODELS, MAX_TOKENS_LIMIT, clearApiKey, clearLeaks, looksLikeKey, readLeaks, saveTutorSettings, useTutorSettings } from "../tutor/settings";
@@ -106,6 +107,12 @@ const KEY_CHOICES: { id: KeyMode; label: string; hint: string }[] = [
   { id: "emacs", label: "Emacs", hint: "Ctrl+A, Ctrl+E, Ctrl+K and friends." },
 ];
 
+const LAYOUT_CHOICES: { id: LayoutPref; label: string; hint: string }[] = [
+  { id: "auto", label: "Automatic", hint: "Results beside the editor on a wide screen (1800px and up), stacked below it otherwise." },
+  { id: "wide", label: "Always wide", hint: "Lesson, editor and results side by side." },
+  { id: "normal", label: "Always stacked", hint: "Results below the editor." },
+];
+
 function AppearanceSection() {
   const p = usePrefs();
   return (
@@ -116,6 +123,14 @@ function AppearanceSection() {
         {THEME_CHOICES.map((t) => (
           <label key={t.id} className="radio">
             <input type="radio" name="theme" checked={p.theme === t.id} onChange={() => savePrefs({ theme: t.id })} /> {t.label} <span className="muted small">{t.hint}</span>
+          </label>
+        ))}
+      </fieldset>
+      <fieldset className="choice-set">
+        <legend>Lesson page layout</legend>
+        {LAYOUT_CHOICES.map((l) => (
+          <label key={l.id} className="radio">
+            <input type="radio" name="layout" checked={p.layout === l.id} onChange={() => savePrefs({ layout: l.id })} /> {l.label} <span className="muted small">{l.hint}</span>
           </label>
         ))}
       </fieldset>
@@ -221,6 +236,15 @@ export function Settings() {
         </label>
         <label className="radio">
           <input type="radio" name="pace" checked={state.settings.pace === "fast"} onChange={() => setPace("fast")} /> Fast: the short summary first
+        </label>
+      </section>
+
+      <section>
+        <h2>Weak spots</h2>
+        <p className="muted">A lesson or topic you keep missing shows on the home page until you answer this many of its warm-up cards right in a row.</p>
+        <label>
+          Clear a weak spot after {state.settings.weakClear} right answer{state.settings.weakClear === 1 ? "" : "s"} in a row
+          <input type="range" min={CLEAR_RANGE.min} max={CLEAR_RANGE.max} step={1} value={state.settings.weakClear} onChange={(e) => setWeakClear(Number(e.target.value))} />
         </label>
       </section>
 

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node run.mjs && node modules.mjs && node progress.mjs && node home.mjs && node module2.mjs && node module3.mjs && node module4.mjs && node module5.mjs && node module6.mjs && node module7.mjs && node module8.mjs && node module9.mjs && node module10.mjs && node module11.mjs && node domains.mjs && node tutor.mjs && node gotchas.mjs && node search.mjs && node warmup.mjs && node a11y.mjs && node sanitizers.mjs",
+    "test": "node run.mjs && node modules.mjs && node progress.mjs && node home.mjs && node module2.mjs && node module3.mjs && node module4.mjs && node module5.mjs && node module6.mjs && node module7.mjs && node module8.mjs && node module9.mjs && node module10.mjs && node module11.mjs && node domains.mjs && node tutor.mjs && node gotchas.mjs && node search.mjs && node warmup.mjs && node weakspots.mjs && node layout.mjs && node compare.mjs && node resolve.mjs && node a11y.mjs && node sanitizers.mjs",
     "test:wasm": "node wasm.mjs"
   },
   "devDependencies": {

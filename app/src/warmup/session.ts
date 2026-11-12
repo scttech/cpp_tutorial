@@ -30,7 +30,7 @@ export function counts({ cards, reviews, completed, today }: PickInput): { due: 
   return { due, fresh };
 }
 
-const topicKey = (c: Card) => (c.source === "demo" ? `${c.lessonId}:${c.gotchaId}` : c.id);
+export const topicKey = (c: Card) => (c.source === "demo" ? `${c.lessonId}:${c.gotchaId}` : c.id);
 
 /**
  * Today's cards: reviews that are due come first (the most overdue first, but never more than 60% of the set, so something new keeps

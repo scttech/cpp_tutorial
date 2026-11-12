@@ -13,6 +13,8 @@ import { catalog } from "../badges/catalog";
 import { isModuleComplete } from "../badges/engine";
 import type { LessonProgress, Progress } from "../state/model";
 import { useAllProgress } from "../state/store";
+import { weakSpotsFor } from "../warmup/weakView";
+import { dueResolves } from "../state/resolves";
 
 /** Why this lesson cannot run with the current runner, or null if it can. */
 export function unrunnableReason(l: Lesson): string | null {
@@ -38,7 +40,7 @@ function Status({ p }: { p: LessonProgress | undefined }) {
   return null;
 }
 
-function Row({ lesson, p, hint, module }: { lesson: Lesson; p: LessonProgress | undefined; hint?: string; module?: string }) {
+function Row({ lesson, p, hint, module, resolveDue }: { lesson: Lesson; p: LessonProgress | undefined; hint?: string; module?: string; resolveDue?: boolean }) {
   const kind = KIND_LABEL[lesson.meta.type];
   const label = lesson.meta.type === "lesson" ? `${lesson.order}. ${lesson.meta.title}` : lesson.meta.title;
   if (!isRunnable(lesson)) {
@@ -71,6 +73,11 @@ function Row({ lesson, p, hint, module }: { lesson: Lesson; p: LessonProgress | 
         )}
       </span>
       {kind && <span className="badge kind">{kind}</span>}
+      {resolveDue && (
+        <Link className="badge due-chip" to={`/lesson/${lesson.meta.id}?resolve=1`} aria-label={`Re-solve ${lesson.meta.title}, due`}>
+          re-solve due
+        </Link>
+      )}
       <span className="muted small">{lesson.meta.estimatedMinutes ? `${lesson.meta.estimatedMinutes} min` : ""}</span>
       <Status p={p} />
     </li>
@@ -196,11 +203,63 @@ function WarmupCard({ progress }: { progress: Progress }) {
   );
 }
 
+/** The lessons and topics the learner keeps missing, with one click to practise them. Hidden when there are none. */
+function WeakSpotsPanel({ progress }: { progress: Progress }) {
+  const spots = useMemo(() => weakSpotsFor(progress), [progress]);
+  if (spots.length === 0) return null;
+  const shown = spots.slice(0, 6);
+  const n = progress.settings.weakClear;
+  return (
+    <section className="weak-card" aria-labelledby="weak-h">
+      <div className="weak-head">
+        <div>
+          <h2 id="weak-h">Weak spots</h2>
+          <p className="muted small">
+            {spots.length} to work on. Each clears after {n} right answer{n === 1 ? "" : "s"} in a row.
+          </p>
+        </div>
+        <Link className="btn primary" to="/warmup?weak=all">
+          Practice these
+        </Link>
+      </div>
+      <ul className="weak-list">
+        {shown.map((s) => (
+          <li key={s.unit}>
+            <div className="weak-main">
+              <strong>{s.title}</strong> <span className="badge">{s.kind === "lesson" ? "lesson" : "topic"}</span>
+              <div className="muted small">{s.reasons.join(" · ")}</div>
+            </div>
+            <span className="muted small" aria-label={`${s.run} of ${s.need} right in a row`}>
+              {s.run}/{s.need}
+            </span>
+            {s.cards > 0 ? (
+              <Link className="btn" to={`/warmup?weak=${encodeURIComponent(s.unit)}`} aria-label={`Practice ${s.title}`}>
+                Practice
+              </Link>
+            ) : (
+              <Link className="btn" to={`/lesson/${s.lessonId}?resolve=1`} aria-label={`Re-solve ${s.title}`}>
+                Re-solve
+              </Link>
+            )}
+            {s.lessonId && s.cards > 0 && (
+              <Link className="link" to={`/lesson/${s.lessonId}`}>
+                Open lesson
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+      {spots.length > shown.length && <p className="muted small">and {spots.length - shown.length} more</p>}
+    </section>
+  );
+}
+
 export function Home() {
   const progress = useAllProgress();
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const index = useMemo(() => indexLessons(modules), []);
+  const dueIds = useMemo(() => new Set(dueResolves(progress, localDate(new Date())).map((d) => d.lessonId)), [progress]);
   const searching = query.trim() !== "" || Object.values(filters).some(Boolean);
   const results: Hit[] | null = useMemo(() => {
     if (!searching) return null;
@@ -259,9 +318,9 @@ export function Home() {
           {m.recommends && <p className="muted small">Recommended first: {m.recommends}.</p>}
           {m.inProgress && <p className="muted small">More lessons are on the way for this module.</p>}
           <ul className="lesson-list">
-            {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} />}
+            {testOut && <Row lesson={testOut} p={progress.lessons[testOut.meta.id]} resolveDue={dueIds.has(testOut.meta.id)} />}
             {regular.map((l) => (
-              <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} />
+              <Row key={l.meta.id} lesson={l} p={progress.lessons[l.meta.id]} resolveDue={dueIds.has(l.meta.id)} />
             ))}
           </ul>
           {testOut && !moduleComplete && (
@@ -275,12 +334,13 @@ export function Home() {
     <main className="home">
       <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
       <ContinueCard progress={progress} />
+      <WeakSpotsPanel progress={progress} />
       <WarmupCard progress={progress} />
       <SearchBar query={query} setQuery={setQuery} filters={filters} setFilters={setFilters} count={results ? results.length : null} />
       {results && (
         <ul className="lesson-list results-list" aria-label="Search results">
           {results.map(({ entry, via }) => (
-            <Row key={entry.id} lesson={lessonById.get(entry.id)!} p={progress.lessons[entry.id]} module={entry.moduleTitle} hint={via} />
+            <Row key={entry.id} lesson={lessonById.get(entry.id)!} p={progress.lessons[entry.id]} module={entry.moduleTitle} hint={via} resolveDue={dueIds.has(entry.id)} />
           ))}
         </ul>
       )}

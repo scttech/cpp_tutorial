@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PREFS, resolveTheme, sanitizePrefs } from "./prefs";
+import { DEFAULT_PREFS, resolveLayout, resolveTheme, sanitizePrefs } from "./prefs";
 
 describe("sanitizePrefs", () => {
   it("falls back to the defaults for junk", () => {
@@ -9,10 +9,20 @@ describe("sanitizePrefs", () => {
     expect(sanitizePrefs({ theme: "neon", keys: "nano", motion: 3, textScale: "big" })).toEqual(DEFAULT_PREFS);
   });
   it("clamps numbers and keeps valid values", () => {
-    const p = sanitizePrefs({ theme: "light", textScale: 400, editorFont: 2, keys: "vim", wordWrap: true, motion: "reduce" });
-    expect(p).toEqual({ theme: "light", textScale: 150, editorFont: 12, keys: "vim", wordWrap: true, motion: "reduce" });
+    const p = sanitizePrefs({ theme: "light", textScale: 400, editorFont: 2, keys: "vim", wordWrap: true, motion: "reduce", layout: "wide" });
+    expect(p).toEqual({ theme: "light", textScale: 150, editorFont: 12, keys: "vim", wordWrap: true, motion: "reduce", layout: "wide" });
+    expect(sanitizePrefs({ layout: "huge" }).layout).toBe("auto");
   });
   it("defaults to the dark theme", () => expect(DEFAULT_PREFS.theme).toBe("dark"));
+});
+
+describe("resolveLayout", () => {
+  it("auto follows the screen width; the other choices are fixed", () => {
+    expect(resolveLayout("auto", true)).toBe("wide");
+    expect(resolveLayout("auto", false)).toBe("normal");
+    expect(resolveLayout("wide", false)).toBe("wide");
+    expect(resolveLayout("normal", true)).toBe("normal");
+  });
 });
 
 describe("resolveTheme", () => {

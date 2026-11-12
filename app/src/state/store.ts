@@ -5,6 +5,10 @@ import type { BadgeDef } from "../badges/engine";
 import { idbDelete, idbGet, idbSet } from "./idb";
 import { emptyLesson, emptyProgress, normalize } from "./model";
 import type { LessonProgress, Progress } from "./model";
+import { cardById } from "../warmup/bank";
+import { unitOf } from "../warmup/weak";
+import { applyResolve } from "./resolves";
+import type { ResolveOutcome } from "./resolves";
 import { applyReview } from "./reviews";
 import { applyRun } from "./recorder";
 import type { RunInput } from "./recorder";
@@ -140,6 +144,7 @@ export const revealHint = (id: string) => update(id, (p) => ({ ...p, hintsUsed: 
 /** One tutor request was answered: counts towards aiHelpUsed (and, for explain/discuss modes, towards Good Question). */
 export const recordAiHelp = (id: string, explains: boolean) => update(id, (p) => ({ ...p, aiHelpUsed: p.aiHelpUsed + 1, explainUsed: p.explainUsed || explains }));
 export const revealSolution = (id: string) => update(id, (p) => ({ ...p, solutionRevealed: true }));
+export const setWeakClear = (weakClear: number) => commit({ ...state, settings: { ...state.settings, weakClear } });
 export const setPace = (pace: "full" | "fast") => commit({ ...state, settings: { ...state.settings, pace } });
 
 /** Record a finished run, award any newly earned badges, and announce them. */
@@ -153,9 +158,21 @@ export function recordRun(input: Omit<RunInput, "sessionCompileErrors">, now = n
   return defs;
 }
 
+/** Record a finished re-solve of a completed lesson (it never touches the saved solution). */
+export function recordResolve(lessonId: string, outcome: ResolveOutcome, now = new Date()): void {
+  const after = applyResolve(state, lessonId, outcome, now);
+  const earned = newlyEarned(badgeDefs, after, catalog);
+  commit(awardBadges(after, earned, now.toISOString()));
+  for (const e of earned) {
+    const b = badgeDefs.find((d) => d.id === e.id);
+    if (b) pushToast({ kind: "badge", title: `Badge earned: ${b.name}${b.tier ? ` (${b.tier})` : ""}`, body: b.description, icon: b.icon, badgeId: b.id });
+  }
+}
+
 /** Record the answer to a warm-up card, award any newly earned badge, and announce it. */
 export function recordReview(cardId: string, correct: boolean, now = new Date()): BadgeDef[] {
-  const after = applyReview(state, cardId, correct, now);
+  const card = cardById.get(cardId);
+  const after = applyReview(state, cardId, correct, now, card ? unitOf(card) : undefined);
   const earned = newlyEarned(badgeDefs, after, catalog);
   commit(awardBadges(after, earned, now.toISOString()));
   const defs = earned.map((e) => badgeDefs.find((b) => b.id === e.id)).filter((b): b is BadgeDef => b !== undefined);

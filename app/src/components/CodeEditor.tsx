@@ -22,7 +22,7 @@ interface Props {
 
 const SEVERITY = { error: 8, warning: 4, note: 2 } as const; // monaco MarkerSeverity values
 
-const MONACO_THEME: Record<ResolvedTheme, string> = { dark: "vs-dark", light: "vs", contrast: "hc-black" };
+export const MONACO_THEME: Record<ResolvedTheme, string> = { dark: "vs-dark", light: "vs", contrast: "hc-black" };
 
 export function CodeEditor(p: Props) {
   const [ready, setReady] = useState(false);

@@ -132,7 +132,9 @@ h1, h2, h3, h4 { margin: 0.4em 0; }
 .toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--edge); background: var(--panel2); flex: none; flex-wrap: wrap; }
 .toolbar h1 { font-size: 1rem; margin: 0 8px; }
 .spacer { flex: 1; }
-.editor-wrap { flex: 3 1 0; min-height: 200px; }
+.panes { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.work { flex: 3 1 0; min-height: 200px; display: flex; flex-direction: column; }
+.editor-wrap { flex: 1; min-height: 0; }
 .editor { height: 100%; display: flex; flex-direction: column; }
 .editor > :last-child { flex: 1; min-height: 0; }
 .stdin { padding: 4px 12px; background: var(--panel2); border-top: 1px solid var(--edge); flex: none; }
@@ -174,6 +176,12 @@ h1, h2, h3, h4 { margin: 0.4em 0; }
 .hints li { margin-bottom: 10px; }
 .hints .locked { color: var(--muted); }
 .md-hint { margin-top: 4px; white-space: pre-wrap; }
+
+/* Wide layout: lesson text | editor | results */
+:root[data-layout="wide"] .lesson { grid-template-columns: minmax(320px, 26%) 1fr; }
+:root[data-layout="wide"] .panes { flex-direction: row; }
+:root[data-layout="wide"] .work { flex: 1 1 0; min-width: 0; }
+:root[data-layout="wide"] .results { flex: 0 0 clamp(420px, 36%, 800px); border-top: 0; border-left: 1px solid var(--edge); min-width: 0; }
 
 @media (max-width: 900px) {
   .lesson { grid-template-columns: 1fr; overflow: auto; }
@@ -327,3 +335,20 @@ h1:focus { outline: none; }
 kbd { border: 1px solid var(--field-edge); border-radius: 4px; padding: 0 5px; font-size: 0.9em; background: var(--code-bg); }
 .vim-status { flex: none; padding: 2px 10px; font: 13px/1.4 ui-monospace, Consolas, monospace; background: var(--code-bg); border-top: 1px solid var(--edge); min-height: 22px; }
 .vim-status input { background: transparent; color: var(--fg); border: 0; font: inherit; }
+.weak-card { background: var(--panel); border: 1px solid var(--bad); border-radius: 10px; padding: 12px 16px; margin: 0 0 16px; }
+.weak-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.weak-head h2 { margin: 0; font-size: 1.1rem; }
+.weak-head p { margin: 2px 0 0; }
+.weak-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.weak-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--edge); }
+.weak-list li:first-child { border-top: 0; }
+.weak-main { flex: 1; }
+.weak-card .btn { text-decoration: none; white-space: nowrap; }
+.compare { height: 100%; display: flex; flex-direction: column; }
+.compare-bar { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--panel2); border-bottom: 1px solid var(--edge); flex-wrap: wrap; flex: none; }
+.compare > .banner { margin: 4px 12px; flex: none; }
+.compare > :last-child { flex: 1; min-height: 0; }
+.editor-wrap[hidden], .stdin[hidden] { display: none; }
+.resolve-bar { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--tint-gold); border-bottom: 1px solid var(--gold); flex-wrap: wrap; flex: none; }
+.resolve-bar .btn { text-decoration: none; white-space: nowrap; }
+.due-chip { color: var(--fg); border: 1px solid var(--gold); background: var(--tint-gold); }
