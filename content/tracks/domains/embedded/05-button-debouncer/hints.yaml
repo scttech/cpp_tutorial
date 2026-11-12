@@ -1,0 +1,13 @@
+ladder:
+  - level: 1
+    text: "State: stable_ (bool), count_ (consecutive differing samples), held_ (ticks since Pressed), long_reported_ (bool), window_open_ (bool) and since_click_ (ticks since the click that opened the window); all counters std::uint16_t. The debounce limit is config.debounce_ticks, but 0 must be treated as 1. update() builds a std::uint8_t of flags with |=."
+  - level: 2
+    text: "Part A (timers, uses the state BEFORE this tick): if stable_: if held_ < 0xFFFF ++held_; if !long_reported_ && long_press_ticks > 0 && held_ == long_press_ticks: events |= kLongPress, long_reported_ = true. If window_open_: if since_click_ < 0xFFFF ++since_click_; if since_click_ > double_click_ticks the window closes."
+  - level: 3
+    text: "Part B (debounce): if raw != stable_ { if (++count_ >= limit) { stable_ = raw; count_ = 0; ... } } else count_ = 0. Becoming pressed: kPressed, held_ = 0, long_reported_ = false. Becoming released: kReleased and then: long_reported_ -> no click, window closes; else if window_open_ -> kDoubleClick (not kClick), window closes; else kClick, window opens with since_click_ = 0. held_ticks() is held_ while pressed and 0 otherwise."
+  - level: 4
+    text: |
+      // if (stable_) {
+      //     if (held_ < 0xFFFF) ++held_;
+      //     if (!long_reported_ && config_.long_press_ticks > 0 && held_ == config_.long_press_ticks) { events |= kLongPress; long_reported_ = true; }
+      // }

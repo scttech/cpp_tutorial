@@ -1,0 +1,20 @@
+ladder:
+  - level: 1
+    text: "ByteWriter: put_be(v, n) pushes (v >> 8*i) & 0xFF for i = n-1 down to 0; put_le for i = 0 up to n-1. put_varint: while (v >= 0x80) { push((v & 0x7F) | 0x80); v >>= 7; } push(v). put_svarint(n) = put_varint((uint64(n) << 1) ^ uint64(n >> 63)). put_string = varint(size) then the bytes. ByteReader: remaining() < n -> nullopt WITHOUT touching pos_; otherwise combine the bytes with shifts (cast each byte to uint64_t BEFORE shifting) and advance pos_ only on success."
+  - level: 2
+    text: "get_varint: look at data_[pos_ + i] for i = 0..9 WITHOUT moving pos_: running out of data -> nullopt; for i == 9 a byte above 1 -> nullopt (overflow); value |= uint64(b & 0x7F) << (7*i); when the top bit is clear: if i > 0 and b == 0 the encoding is not canonical -> nullopt; else pos_ += i + 1 and return value. Falling out of the loop (10 bytes, last one still has the top bit) -> nullopt. get_svarint: decode the varint u, then (u >> 1) ^ -(u & 1) as int64. get_string: remember pos_, read the varint, fail (and restore pos_) if the length > remaining(), else subspan and advance."
+  - level: 3
+    text: "encode_frame: ByteWriter with version, type, varint(payload.size()), payload; checksum = kChecksumSeed XOR every byte so far; push it. FrameDecoder::consume(byte) is a state machine with stages Version, Type, Length, Payload, Checksum and a running XOR: the checksum is seeded with kChecksumSeed and updated with every byte of the frame EXCEPT the checksum byte. Length stage: accumulate 7 bits per byte exactly as in get_varint (10th byte > 1, redundant zero byte, more than 10 bytes -> BadLength); when the last length byte arrives and length > max_payload -> TooLarge BEFORE storing anything; length 0 goes straight to the checksum. After the checksum, move the frame to a queue of finished frames and start over. feed returns the number of bytes consumed, stopping at the bad byte."
+  - level: 4
+    text: |
+      // std::optional<std::uint64_t> get_varint() {
+      //     std::uint64_t value = 0;
+      //     for (std::size_t i = 0; i < 10; ++i) {
+      //         if (pos_ + i >= data_.size()) return std::nullopt;
+      //         const std::uint8_t b = data_[pos_ + i];
+      //         if (i == 9 && b > 1) return std::nullopt;
+      //         value |= static_cast<std::uint64_t>(b & 0x7F) << (7 * i);
+      //         if ((b & 0x80) == 0) { if (i > 0 && b == 0) return std::nullopt; pos_ += i + 1; return value; }
+      //     }
+      //     return std::nullopt;
+      // }

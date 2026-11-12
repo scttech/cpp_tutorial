@@ -1,0 +1,288 @@
+[
+  {
+    "name": "destructor-leaks",
+    "why": "the destructor does not destroy the elements",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "~StaticVector() { clear(); }",
+        "new": "~StaticVector() {}"
+      }
+    ]
+  },
+  {
+    "name": "pop-back-skips-destroy",
+    "why": "pop_back forgets to destroy the element",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "            std::destroy_at(slot(size_));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pop-back-underflows",
+    "why": "pop_back on an empty vector underflows the size",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (size_ > 0) {\n            --size_;\n            std::destroy_at(slot(size_));\n        }",
+        "new": "        --size_;\n        std::destroy_at(slot(size_));"
+      }
+    ]
+  },
+  {
+    "name": "clear-forgets-destroy",
+    "why": "clear just resets the size",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        while (size_ > 0) pop_back();",
+        "new": "        size_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "full-check-off-by-one",
+    "why": "one element too many fits (overflow by one)",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (size_ == N) return nullptr;",
+        "new": "        if (size_ > N) return nullptr;"
+      }
+    ]
+  },
+  {
+    "name": "emplace-builds-a-temporary",
+    "why": "emplace_back constructs a temporary and moves it in",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        T* p = std::construct_at(slot(size_), std::forward<Args>(args)...);",
+        "new": "        T tmp(std::forward<Args>(args)...);\n        T* p = std::construct_at(slot(size_), std::move(tmp));"
+      }
+    ]
+  },
+  {
+    "name": "push-back-rvalue-copies",
+    "why": "push_back of an rvalue copies it",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "bool push_back(T&& value) { return emplace_back(std::move(value)) != nullptr; }",
+        "new": "bool push_back(T&& value) {\n        if constexpr (std::is_copy_constructible_v<T>) return emplace_back(static_cast<const T&>(value)) != nullptr;\n        else return emplace_back(std::move(value)) != nullptr;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "insert-skips-an-element",
+    "why": "insert leaves one element in place",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "for (std::size_t i = size_ - 1; i > index; --i)",
+        "new": "for (std::size_t i = size_ - 1; i > index + 1; --i)"
+      }
+    ]
+  },
+  {
+    "name": "insert-copies-instead-of-moves",
+    "why": "insert shifts with copies",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "*slot(i) = std::move(*slot(i - 1));",
+        "new": "if constexpr (std::is_copy_assignable_v<T>) *slot(i) = static_cast<const T&>(*slot(i - 1)); else *slot(i) = std::move(*slot(i - 1));"
+      }
+    ]
+  },
+  {
+    "name": "insert-assigns-the-new-last-slot",
+    "why": "insert assigns into the dead last slot instead of constructing",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        std::construct_at(slot(size_), std::move(*slot(size_ - 1)));  // the new last slot is a fresh object\n        for (std::size_t i = size_ - 1; i > index; --i) *slot(i) = std::move(*slot(i - 1));\n        *slot(index) = std::move(value);\n        ++size_;\n        return true;",
+        "new": "        ++size_;\n        for (std::size_t i = size_ - 1; i > index; --i) *slot(i) = std::move(*slot(i - 1));\n        *slot(index) = std::move(value);\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "insert-no-end-case",
+    "why": "insert at the end goes through the shifting code",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (index == size_) {\n            emplace_back(std::move(value));\n            return true;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "erase-copies-instead-of-moves",
+    "why": "erase shifts with copies",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "*slot(i) = std::move(*slot(i + 1));",
+        "new": "if constexpr (std::is_copy_assignable_v<T>) *slot(i) = static_cast<const T&>(*slot(i + 1)); else *slot(i) = std::move(*slot(i + 1));"
+      }
+    ]
+  },
+  {
+    "name": "erase-keeps-the-last",
+    "why": "erase does not shrink the vector",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        for (std::size_t i = index; i + 1 < size_; ++i) *slot(i) = std::move(*slot(i + 1));\n        pop_back();\n        return true;",
+        "new": "        for (std::size_t i = index; i + 1 < size_; ++i) *slot(i) = std::move(*slot(i + 1));\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "erase-accepts-size",
+    "why": "erase(size()) is accepted",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "if (index >= size_) return false;\n        for",
+        "new": "if (index > size_) return false;\n        for"
+      }
+    ]
+  },
+  {
+    "name": "swap-remove-keeps-order",
+    "why": "swap_remove shifts everything (O(n))",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (index + 1 != size_) *slot(index) = std::move(*slot(size_ - 1));\n        pop_back();",
+        "new": "        for (std::size_t i = index; i + 1 < size_; ++i) *slot(i) = std::move(*slot(i + 1));\n        pop_back();"
+      }
+    ]
+  },
+  {
+    "name": "swap-remove-forgets-the-move",
+    "why": "swap_remove only drops the last element",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (index + 1 != size_) *slot(index) = std::move(*slot(size_ - 1));\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "copy-constructor-copies-bytes",
+    "why": "the copy constructor copies the raw bytes",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        for (std::size_t i = 0; i < other.size_; ++i) emplace_back(other[i]);\n    }\n\n    StaticVector(StaticVector&& other) {",
+        "new": "        for (std::size_t i = 0; i < sizeof(storage_); ++i) storage_[i] = other.storage_[i];\n        size_ = other.size_;\n    }\n\n    StaticVector(StaticVector&& other) {"
+      }
+    ]
+  },
+  {
+    "name": "copy-assign-keeps-old-elements",
+    "why": "copy assignment does not clear first",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        if (this != &other) {\n            clear();\n            for (std::size_t i = 0; i < other.size_; ++i) emplace_back(other[i]);",
+        "new": "        if (this != &other) {\n            for (std::size_t i = 0; i < other.size_ && size_ < N; ++i) emplace_back(other[i]);"
+      }
+    ]
+  },
+  {
+    "name": "copy-assign-self-unguarded",
+    "why": "a = a destroys the data it copies",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "    StaticVector& operator=(const StaticVector& other) {\n        if (this != &other) {",
+        "new": "    StaticVector& operator=(const StaticVector& other) {\n        if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "move-assign-self-unguarded",
+    "why": "a = std::move(a) empties the vector",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "    StaticVector& operator=(StaticVector&& other) {\n        if (this != &other) {",
+        "new": "    StaticVector& operator=(StaticVector&& other) {\n        if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "move-constructor-leaves-source",
+    "why": "the moved-from vector keeps its (moved-from) elements",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "        for (std::size_t i = 0; i < other.size_; ++i) emplace_back(std::move(other[i]));\n        other.clear();\n    }\n\n    StaticVector& operator=(const",
+        "new": "        for (std::size_t i = 0; i < other.size_; ++i) emplace_back(std::move(other[i]));\n    }\n\n    StaticVector& operator=(const"
+      }
+    ]
+  },
+  {
+    "name": "move-assign-copies",
+    "why": "move assignment copies the elements",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "            clear();\n            for (std::size_t i = 0; i < other.size_; ++i) emplace_back(std::move(other[i]));\n            other.clear();",
+        "new": "            clear();\n            for (std::size_t i = 0; i < other.size_; ++i) emplace_back(other[i]);\n            other.clear();"
+      }
+    ]
+  },
+  {
+    "name": "storage-not-aligned",
+    "why": "the storage is not aligned for T",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "    alignas(T) std::byte storage_",
+        "new": "    std::byte storage_"
+      }
+    ]
+  },
+  {
+    "name": "at-unchecked",
+    "why": "at() does not check the index",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "T* at(std::size_t i) { return i < size_ ? slot(i) : nullptr; }",
+        "new": "T* at(std::size_t i) { return slot(i); }"
+      }
+    ]
+  },
+  {
+    "name": "back-is-front",
+    "why": "back() returns the first element",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "T& back() { return *slot(size_ - 1); }",
+        "new": "T& back() { return *slot(0); }"
+      }
+    ]
+  },
+  {
+    "name": "end-is-capacity",
+    "why": "end() points past the whole storage",
+    "edits": [
+      {
+        "file": "static_vector.hpp",
+        "old": "    T* end() { return slot(size_); }",
+        "new": "    T* end() { return slot(N); }"
+      }
+    ]
+  }
+]

@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Keep three more members: bool started_, std::size_t transitions_taken_ and handled_internal_. A private helper hooks_of(State) that walks hooks_[0 .. hook_count_) and returns a pointer to the entry for that state (or nullptr) keeps the hook code short. Always check function pointers for nullptr before calling them."
+  - level: 2
+    text: "start(): if started_ return; started_ = true; run on_entry of the current state's hooks (if any). dispatch(event): call start() first. Then loop over the rows in order: skip rows with another event or (not any_state and from != state_). Remember matched = true. If the row has a guard and it returns false, continue with the NEXT row (do not return yet). Otherwise take the row and return Handled. After the loop: return matched ? GuardRejected : NoTransition."
+  - level: 3
+    text: "Taking a row: if row.internal: run the action (if any), ++handled_internal_, done. Otherwise: run on_exit of the hooks of the CURRENT state, run the action, set state_ = row.to, run on_entry of the hooks of the NEW state, ++transitions_taken_. A row from A to A is not special: it simply does exit then entry on the same state. Do not evaluate any guard for rows that do not match."
+  - level: 4
+    text: |
+      // for (std::size_t i = 0; i < transition_count_; ++i) {
+      //     const TransitionT& row = transitions_[i];
+      //     if (row.event != event || !(row.any_state || row.from == state_)) continue;
+      //     matched = true;
+      //     if (row.guard != nullptr && !row.guard(*ctx_)) continue;
+      //     take(row);
+      //     return Result::Handled;
+      // }

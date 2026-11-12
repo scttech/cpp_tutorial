@@ -1,0 +1,320 @@
+[
+  {
+    "name": "balance-not-capped",
+    "why": "the balance can exceed the capacity",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (elapsed > room / refill_) balance_ = cap;  // would overflow or exceed the cap: saturate\n        else balance_ += elapsed * refill_;\n        if (balance_ > cap) balance_ = cap;",
+        "new": "        balance_ += elapsed * refill_;"
+      }
+    ]
+  },
+  {
+    "name": "refill-wraps",
+    "why": "a huge gap wraps around instead of saturating",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (elapsed > room / refill_) balance_ = cap;  // would overflow or exceed the cap: saturate\n        else balance_ += elapsed * refill_;\n        if (balance_ > cap) balance_ = cap;",
+        "new": "        balance_ += elapsed * refill_;\n        if (balance_ > cap) balance_ = cap;"
+      }
+    ]
+  },
+  {
+    "name": "fractions-lost",
+    "why": "only whole tokens are added",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        else balance_ += elapsed * refill_;",
+        "new": "        else balance_ += (elapsed * refill_ / period_) * period_;"
+      }
+    ]
+  },
+  {
+    "name": "time-from-last-success",
+    "why": "the clock only advances when a request succeeds",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        update(now);\n        if (n == 0) return true;\n        if (n > capacity_) return false;\n        const std::uint64_t need = n * period_;\n        if (balance_ < need) return false;\n        balance_ -= need;\n        return true;",
+        "new": "        const Tick keep = last_;\n        update(now);\n        if (n == 0) return true;\n        if (n > capacity_) return false;\n        const std::uint64_t need = n * period_;\n        if (balance_ < need) {\n            last_ = keep;\n            return false;\n        }\n        balance_ -= need;\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "backwards-clock-wraps",
+    "why": "a clock that goes backwards refills a huge amount",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (now <= last_) return;                     // no time has passed (or the clock went backwards)\n        const Tick elapsed = now - last_;",
+        "new": "        if (now == last_) return;\n        const Tick elapsed = now - last_;"
+      }
+    ]
+  },
+  {
+    "name": "backwards-clock-moves-last",
+    "why": "last moves back with the clock",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (now <= last_) return;                     // no time has passed (or the clock went backwards)",
+        "new": "        if (now < last_) {\n            last_ = now;\n            return;\n        }\n        if (now == last_) return;"
+      }
+    ]
+  },
+  {
+    "name": "start-full-ignored",
+    "why": "a bucket always starts empty",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "balance_(start_full ? capacity * (period == 0 ? 1 : period) : 0) {}\n\n    bool try_acquire",
+        "new": "balance_(0) {}\n\n    bool try_acquire"
+      }
+    ]
+  },
+  {
+    "name": "too-many-tokens-ok",
+    "why": "asking for more than the capacity is not refused up front",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (n > capacity_) return false;\n        const std::uint64_t need = n * period_;\n        if (balance_ < need) return false;",
+        "new": "        const std::uint64_t need = n * period_;\n        if (balance_ < need) return false;"
+      }
+    ]
+  },
+  {
+    "name": "partial-take-on-failure",
+    "why": "a failed multi-token request takes what is there",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (balance_ < need) return false;\n        balance_ -= need;\n        return true;",
+        "new": "        if (balance_ < need) {\n            balance_ = 0;\n            return false;\n        }\n        balance_ -= need;\n        return true;"
+      }
+    ]
+  },
+  {
+    "name": "available-rounds-up",
+    "why": "available rounds up",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        return balance_ / period_;",
+        "new": "        return (balance_ + period_ - 1) / period_;"
+      }
+    ]
+  },
+  {
+    "name": "wait-time-rounds-down",
+    "why": "wait_time promises the token a tick too early",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        return (deficit + refill_ - 1) / refill_;   // round up",
+        "new": "        return deficit / refill_;"
+      }
+    ]
+  },
+  {
+    "name": "wait-time-off-by-one",
+    "why": "wait_time is one tick too long",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        return (deficit + refill_ - 1) / refill_;   // round up",
+        "new": "        return (deficit + refill_ - 1) / refill_ + 1;"
+      }
+    ]
+  },
+  {
+    "name": "wait-time-ignores-balance",
+    "why": "wait_time pretends the bucket is empty",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        const std::uint64_t deficit = need - balance_;",
+        "new": "        const std::uint64_t deficit = need;"
+      }
+    ]
+  },
+  {
+    "name": "wait-time-never-nullopt",
+    "why": "wait_time promises a token that cannot exist",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (n > capacity_) return std::nullopt;\n        const std::uint64_t need = n * period_;\n        if (balance_ >= need) return Tick{0};",
+        "new": "        const std::uint64_t need = n * period_;\n        if (balance_ >= need) return Tick{0};"
+      }
+    ]
+  },
+  {
+    "name": "wait-time-zero-refill-div",
+    "why": "wait_time divides by a zero refill rate",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (refill_ == 0) return std::nullopt;\n        const std::uint64_t deficit",
+        "new": "        const std::uint64_t deficit"
+      }
+    ]
+  },
+  {
+    "name": "window-boundary-off-by-one",
+    "why": "an event counts one tick too long",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        while (!times_.empty() && times_.front() + window_ <= now) times_.pop_front();",
+        "new": "        while (!times_.empty() && times_.front() + window_ < now) times_.pop_front();"
+      }
+    ]
+  },
+  {
+    "name": "window-boundary-early",
+    "why": "an event stops counting one tick too early",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        while (!times_.empty() && times_.front() + window_ <= now) times_.pop_front();",
+        "new": "        while (!times_.empty() && times_.front() + window_ <= now + 1) times_.pop_front();"
+      }
+    ]
+  },
+  {
+    "name": "window-limit-off-by-one",
+    "why": "one event too many is allowed",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (times_.size() >= limit_) return false;\n        times_.push_back(now);",
+        "new": "        if (times_.size() > limit_) return false;\n        times_.push_back(now);"
+      }
+    ]
+  },
+  {
+    "name": "window-records-denied",
+    "why": "denied events are recorded too",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (times_.size() >= limit_) return false;\n        times_.push_back(now);\n        return true;",
+        "new": "        const bool ok = times_.size() < limit_;\n        times_.push_back(now);\n        return ok;"
+      }
+    ]
+  },
+  {
+    "name": "window-retry-wrong",
+    "why": "retry_after measures from the newest event",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        return times_.front() + window_ - now;",
+        "new": "        return times_.back() + window_ - now;"
+      }
+    ]
+  },
+  {
+    "name": "window-retry-zero-limit",
+    "why": "retry_after promises something for limit 0",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        if (limit_ == 0) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "window-count-no-evict",
+    "why": "count does not drop expired events",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        now = clamp(now);\n        evict(now);\n        return times_.size();",
+        "new": "        return times_.size();"
+      }
+    ]
+  },
+  {
+    "name": "window-vector-erase",
+    "why": "expired events are erased from the front of a vector",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "    void evict(Tick now) {\n        while (!times_.empty() && times_.front() + window_ <= now) times_.pop_front();\n    }",
+        "new": "    void evict(Tick now) {\n        std::size_t drop = 0;\n        while (drop < times_.size() && times_[drop] + window_ <= now) ++drop;\n        if (drop > 0) times_.erase(times_.begin(), times_.begin() + static_cast<std::ptrdiff_t>(drop));\n    }"
+      },
+      {
+        "file": "limiter.hpp",
+        "old": "    std::deque<Tick> times_;",
+        "new": "    std::vector<Tick> times_;"
+      },
+      {
+        "file": "limiter.hpp",
+        "old": "#include <deque>\n",
+        "new": "#include <deque>\n#include <vector>\n"
+      }
+    ]
+  },
+  {
+    "name": "keyed-shared-bucket",
+    "why": "all keys share one bucket",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "        auto it = buckets_.find(key);\n        if (it == buckets_.end()) it = buckets_.emplace(key, TokenBucket(capacity_, refill_, period_)).first;\n        return it->second.try_acquire(now, n);",
+        "new": "        auto it = buckets_.find(Key{});\n        if (it == buckets_.end()) it = buckets_.emplace(Key{}, TokenBucket(capacity_, refill_, period_)).first;\n        (void)key;\n        return it->second.try_acquire(now, n);"
+      }
+    ]
+  },
+  {
+    "name": "keyed-starts-empty",
+    "why": "new keys start with an empty bucket",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "buckets_.emplace(key, TokenBucket(capacity_, refill_, period_)).first;",
+        "new": "buckets_.emplace(key, TokenBucket(capacity_, refill_, period_, false)).first;"
+      }
+    ]
+  },
+  {
+    "name": "evict-everything",
+    "why": "evict_idle removes busy keys too",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "            if (it->second.full(now)) {",
+        "new": "            if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "evict-nothing",
+    "why": "evict_idle removes nothing",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "            if (it->second.full(now)) {",
+        "new": "            if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "evict-forgets-count",
+    "why": "evict_idle reports 0",
+    "edits": [
+      {
+        "file": "limiter.hpp",
+        "old": "                it = buckets_.erase(it);\n                ++removed;",
+        "new": "                it = buckets_.erase(it);"
+      }
+    ]
+  }
+]

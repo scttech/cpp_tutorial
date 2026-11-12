@@ -1,0 +1,266 @@
+[
+  {
+    "name": "start-runs-twice",
+    "why": "start() runs the entry hook every time",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (started_) return;\n        started_ = true;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "start-never-sets-flag",
+    "why": "dispatch runs the initial entry hook again and again",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        started_ = true;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "dispatch-does-not-start",
+    "why": "dispatch does not start the machine",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        start();\n        bool matched = false;",
+        "new": "        bool matched = false;"
+      }
+    ]
+  },
+  {
+    "name": "start-skips-entry",
+    "why": "start() does not run the entry hook",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);\n    }\n\n    Result dispatch",
+        "new": "    }\n\n    Result dispatch"
+      }
+    ]
+  },
+  {
+    "name": "first-match-wins-over-guards",
+    "why": "a failed guard ends the search",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            if (row.guard != nullptr && !row.guard(*ctx_)) continue;",
+        "new": "            if (row.guard != nullptr && !row.guard(*ctx_)) return Result::GuardRejected;"
+      }
+    ]
+  },
+  {
+    "name": "last-match-wins",
+    "why": "the last matching row is taken instead of the first",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            take(row);\n            return Result::Handled;\n        }\n        return matched",
+        "new": "            take(row);\n            continue;\n        }\n        return matched"
+      }
+    ]
+  },
+  {
+    "name": "guards-evaluated-first",
+    "why": "every row has its guard evaluated before the state and event are compared",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            if (row.event != event || !(row.any_state || row.from == state_)) continue;\n            matched = true;\n            if (row.guard != nullptr && !row.guard(*ctx_)) continue;",
+        "new": "            const bool ok = row.guard == nullptr || row.guard(*ctx_);\n            if (row.event != event || !(row.any_state || row.from == state_)) continue;\n            matched = true;\n            if (!ok) continue;"
+      }
+    ]
+  },
+  {
+    "name": "ignores-state",
+    "why": "rows match in every state",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "!(row.any_state || row.from == state_)",
+        "new": "false"
+      }
+    ]
+  },
+  {
+    "name": "wildcard-ignored",
+    "why": "any_state rows only match their own from-state",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "!(row.any_state || row.from == state_)",
+        "new": "!(row.from == state_)"
+      }
+    ]
+  },
+  {
+    "name": "event-ignored",
+    "why": "rows match every event",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "row.event != event || !(",
+        "new": "!("
+      }
+    ]
+  },
+  {
+    "name": "guard-rejected-reported-as-no-transition",
+    "why": "a rejected guard looks like an unhandled event",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "return matched ? Result::GuardRejected : Result::NoTransition;",
+        "new": "return Result::NoTransition;"
+      }
+    ]
+  },
+  {
+    "name": "no-match-reported-as-rejected",
+    "why": "an unhandled event is reported as a rejected guard",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "return matched ? Result::GuardRejected : Result::NoTransition;",
+        "new": "return Result::GuardRejected;"
+      }
+    ]
+  },
+  {
+    "name": "action-before-exit",
+    "why": "the action runs before the exit hook",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n        if (row.action != nullptr) row.action(*ctx_);",
+        "new": "        if (row.action != nullptr) row.action(*ctx_);\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);"
+      }
+    ]
+  },
+  {
+    "name": "entry-before-action",
+    "why": "the entry hook runs before the action",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (row.action != nullptr) row.action(*ctx_);\n        state_ = row.to;\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);",
+        "new": "        state_ = row.to;\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);\n        if (row.action != nullptr) row.action(*ctx_);"
+      }
+    ]
+  },
+  {
+    "name": "exit-hook-of-new-state",
+    "why": "the exit hook of the target state runs",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n        if (row.action",
+        "new": "        if (const HooksT* h = hooks_of(row.to); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n        if (row.action"
+      }
+    ]
+  },
+  {
+    "name": "entry-hook-of-old-state",
+    "why": "the entry hook of the old state runs",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        state_ = row.to;\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry",
+        "new": "        const State old = state_;\n        state_ = row.to;\n        if (const HooksT* h = hooks_of(old); h != nullptr && h->on_entry"
+      }
+    ]
+  },
+  {
+    "name": "self-transition-skips-hooks",
+    "why": "a row to the same state runs no hooks",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n        if (row.action != nullptr) row.action(*ctx_);\n        state_ = row.to;\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);",
+        "new": "        if (row.to == state_) {\n            if (row.action != nullptr) row.action(*ctx_);\n            ++transitions_taken_;\n            return;\n        }\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n        if (row.action != nullptr) row.action(*ctx_);\n        state_ = row.to;\n        if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);"
+      }
+    ]
+  },
+  {
+    "name": "internal-runs-hooks",
+    "why": "an internal row also runs the hooks",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (row.internal) {\n            if (row.action != nullptr) row.action(*ctx_);\n            ++handled_internal_;\n            return;\n        }",
+        "new": "        if (row.internal) {\n            if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_exit != nullptr) h->on_exit(*ctx_);\n            if (row.action != nullptr) row.action(*ctx_);\n            if (const HooksT* h = hooks_of(state_); h != nullptr && h->on_entry != nullptr) h->on_entry(*ctx_);\n            ++handled_internal_;\n            return;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "internal-changes-state",
+    "why": "an internal row also changes the state",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            if (row.action != nullptr) row.action(*ctx_);\n            ++handled_internal_;\n            return;",
+        "new": "            if (row.action != nullptr) row.action(*ctx_);\n            state_ = row.to;\n            ++handled_internal_;\n            return;"
+      }
+    ]
+  },
+  {
+    "name": "internal-counted-as-transition",
+    "why": "internal rows count as transitions",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            ++handled_internal_;\n            return;",
+        "new": "            ++handled_internal_;\n            ++transitions_taken_;\n            return;"
+      }
+    ]
+  },
+  {
+    "name": "transitions-not-counted",
+    "why": "transitions_taken never grows",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        ++transitions_taken_;\n    }\n\n    const HooksT*",
+        "new": "    }\n\n    const HooksT*"
+      }
+    ]
+  },
+  {
+    "name": "null-action-called",
+    "why": "a null action is called",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "        if (row.action != nullptr) row.action(*ctx_);\n        state_ = row.to;",
+        "new": "        row.action(*ctx_);\n        state_ = row.to;"
+      }
+    ]
+  },
+  {
+    "name": "hooks-looked-up-wrongly",
+    "why": "the hook table is searched by index instead of by state",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            if (hooks_[i].state == s) return &hooks_[i];",
+        "new": "            if (static_cast<std::size_t>(hooks_[i].state) == i && hooks_[i].state == s) return &hooks_[i];\n            if (i == 0 && hook_count_ > 0) return &hooks_[0];"
+      }
+    ]
+  },
+  {
+    "name": "guard-called-after-taken",
+    "why": "guards of later rows are still evaluated after a row was taken",
+    "edits": [
+      {
+        "file": "machine.hpp",
+        "old": "            take(row);\n            return Result::Handled;",
+        "new": "            take(row);\n            for (std::size_t j = i + 1; j < transition_count_; ++j)\n                if (transitions_[j].guard != nullptr) (void)transitions_[j].guard(*ctx_);\n            return Result::Handled;"
+      }
+    ]
+  }
+]

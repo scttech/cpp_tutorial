@@ -580,6 +580,36 @@
       "mutants": 16,
       "hash": "08819acac5868bf4"
     },
+    "domain.embedded.crc": {
+      "wasm": true,
+      "mutants": 26,
+      "hash": "a2b111f172f208d1"
+    },
+    "domain.embedded.debouncer": {
+      "wasm": true,
+      "mutants": 23,
+      "hash": "77f4fe93ab5695d2"
+    },
+    "domain.embedded.pid": {
+      "wasm": true,
+      "mutants": 36,
+      "hash": "c41c8a37d3f0e065"
+    },
+    "domain.embedded.registers": {
+      "wasm": true,
+      "mutants": 28,
+      "hash": "286965c2d79eeaaa"
+    },
+    "domain.embedded.state-machine": {
+      "wasm": true,
+      "mutants": 24,
+      "hash": "a9ef985d57d045ef"
+    },
+    "domain.embedded.static-vector": {
+      "wasm": true,
+      "mutants": 26,
+      "hash": "93ae948027ed1626"
+    },
     "domain.finance.event-queue": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
@@ -665,6 +695,45 @@
         "mutant \"index-range-not-checked\" passes every test (it is only caught on the server)"
       ],
       "hash": "5980c33143629dc5"
+    },
+    "domain.networking.base64": {
+      "wasm": true,
+      "mutants": 31,
+      "hash": "f0f2c7830ec1f4e1"
+    },
+    "domain.networking.binary-codec": {
+      "wasm": false,
+      "reason": "needs C++ exceptions",
+      "details": [
+        "mutant \"string-copy\" does not build: main.cpp:(.text+0x0): undefined reference to `__cxa_thread_atexit' | clang++: error: linker command failed with exit code 1 (use -v to see invocation)"
+      ],
+      "hash": "a4da0298e913cd28"
+    },
+    "domain.networking.dns": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"parse-short-header-ok\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "7d871a2f20d8097b"
+    },
+    "domain.networking.http-parser": {
+      "wasm": true,
+      "mutants": 44,
+      "hash": "716dadd1e4633207"
+    },
+    "domain.networking.rate-limiter": {
+      "wasm": true,
+      "mutants": 28,
+      "hash": "eb42192515397f55"
+    },
+    "domain.networking.urls": {
+      "wasm": false,
+      "reason": "gives different results in the browser (it is a 32-bit build)",
+      "details": [
+        "mutant \"dots-quadratic-copy\" passes every test (it is only caught on the server)"
+      ],
+      "hash": "4de29c4664c62454"
     },
     "domain.systems.bloom-filter": {
       "wasm": true,

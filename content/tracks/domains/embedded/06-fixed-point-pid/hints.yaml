@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "Store std::int32_t raw_. Write a private saturate(std::int64_t) that returns from_raw(INT32_MAX) above the maximum, from_raw(INT32_MIN) below the minimum and from_raw(static_cast<int32_t>(v)) otherwise - EVERY operator ends with it. Add, subtract and negate are done in int64_t: static_cast<int64_t>(a.raw_) + b.raw_ (negating INT32_MIN in 32 bits would overflow)."
+  - level: 2
+    text: "Multiply: p = int64(a.raw) * b.raw; magnitude = (|p| + 32768) / 65536; apply the sign afterwards (p < 0 ? -magnitude : magnitude); saturate. Divide: if b.raw == 0 return the maximum for a > 0, the minimum for a < 0, 0 for a == 0; otherwise q = (|a.raw| * 65536 + |b.raw| / 2) / |b.raw|, negative when the signs differ; saturate. from_ratio(n, d) is the same computation with int64 n and d. from_int(i) = saturate(int64(i) * 65536). to_int() = raw_ / 65536 (integer division truncates toward zero)."
+  - level: 3
+    text: "Pid::update: if dt.raw() <= 0 return last_output_ (no other change). error = setpoint - measurement; p = kp * error; integral_ = clamp(integral_ + (ki * error) * dt, out_min, out_max); d = has_previous_ ? -(kd * ((measurement - previous_) / dt)) : Fixed{}; then previous_ = measurement, has_previous_ = true; last_output_ = clamp((p + integral_) + d, out_min, out_max); return it. Keep exactly this order and these parentheses: rounding makes the order observable."
+  - level: 4
+    text: |
+      // friend constexpr Fixed operator*(Fixed a, Fixed b) {
+      //     const std::int64_t p = static_cast<std::int64_t>(a.raw_) * b.raw_;
+      //     const std::int64_t magnitude = ((p < 0 ? -p : p) + 32768) / 65536;
+      //     return saturate(p < 0 ? -magnitude : magnitude);
+      // }

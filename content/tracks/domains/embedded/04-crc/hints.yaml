@@ -1,0 +1,14 @@
+ladder:
+  - level: 1
+    text: "reflect(value): result = 0; repeat digits times: result = (result << 1) | (value & 1); value >>= 1 (cast back to T after each step: uint8_t and uint16_t are promoted to int). The register state_ must start at P.reflect_in ? reflect(P.init) : P.init - a default member initializer works, and reset() sets the same value."
+  - level: 2
+    text: "make_table(), for i in 0..255. Reflected input: v = i; 8 times: v = (v & 1) ? (v >> 1) ^ reflect(P.poly) : v >> 1. Direct input: v = i << (kBits - 8); top = 1 << (kBits - 1); 8 times: v = (v & top) ? (v << 1) ^ P.poly : v << 1. Cast every result back to T. Use if (P.reflect_in) inside the loop - make_table is constexpr so it is evaluated by the compiler."
+  - level: 3
+    text: "update, per byte b: reflected: state = table[(state ^ b) & 0xFF] ^ (state >> 8). Direct: state = table[((state >> (kBits - 8)) ^ b) & 0xFF] ^ (state << 8). Use if constexpr (P.reflect_in) to choose. For the string_view overload feed each char as std::uint8_t (static_cast, no sign extension). value(): r = state; if (P.reflect_in != P.reflect_out) r = reflect(r); return r ^ P.xor_out - and do not modify state_. compute(...) = a temporary Crc, update, value."
+  - level: 4
+    text: |
+      // constexpr T value() const {
+      //     T r = state_;
+      //     if (P.reflect_in != P.reflect_out) r = reflect(r);   // the register is in the input direction
+      //     return static_cast<T>(r ^ P.xor_out);
+      // }

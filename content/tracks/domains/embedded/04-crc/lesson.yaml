@@ -1,0 +1,15 @@
+id: domain.embedded.crc
+title: "CRC with a Compile-Time Table"
+module: domain.embedded
+type: challenge
+estimatedMinutes: 75
+concepts: [crc, checksums, lookup-tables, constexpr, bit-reflection, non-type-template-parameters, std-span, incremental-update, rocksoft-model, embedded]
+prerequisites: []
+files:
+  editable: [crc.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [reflected-algorithms-use-a-reflected-register, init-is-reflected-too, mixed-reflection-flags, table-built-at-compile-time, check-value-of-123456789, value-must-not-change-the-state, chunked-update-equals-one-shot]

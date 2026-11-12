@@ -1,0 +1,15 @@
+id: domain.networking.urls
+title: "URLs and Percent-Encoding"
+module: domain.networking
+type: challenge
+estimatedMinutes: 90
+concepts: [url-parsing, rfc-3986, percent-encoding, dot-segment-removal, reference-resolution, query-strings, normalization, ipv6-literals, std-optional, untrusted-input]
+prerequisites: []
+files:
+  editable: [urlkit.hpp]
+  readonly: [types.hpp, main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [decode-only-valid-escapes, unreserved-characters, remove-dot-segments-rfc-5-2-4, merge-paths, query-only-references, default-ports, lowercase-scheme-and-host, plus-is-a-space-only-in-queries]

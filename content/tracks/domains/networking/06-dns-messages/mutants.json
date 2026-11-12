@@ -1,0 +1,353 @@
+[
+  {
+    "name": "pointer-may-point-forward",
+    "why": "forward pointers are followed",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (target >= limit || target < 12) return std::nullopt;\n            limit = target;",
+        "new": "            if (target >= msg.size() || target < 12) return std::nullopt;\n            if (++jumps > 2000) return std::nullopt;\n            limit = target;"
+      },
+      {
+        "file": "dns.hpp",
+        "old": "    bool jumped = false;\n    std::size_t wire = 1;",
+        "new": "    bool jumped = false;\n    int jumps = 0;\n    std::size_t wire = 1;"
+      }
+    ]
+  },
+  {
+    "name": "pointer-only-before-itself",
+    "why": "a pointer must merely point before its own position (loops through labels are possible)",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (target >= limit || target < 12) return std::nullopt;\n            limit = target;",
+        "new": "            if (target >= p || target < 12) return std::nullopt;\n            if (++jumps > 2000) return std::nullopt;"
+      },
+      {
+        "file": "dns.hpp",
+        "old": "    bool jumped = false;\n    std::size_t wire = 1;",
+        "new": "    bool jumped = false;\n    int jumps = 0;\n    std::size_t wire = 1;"
+      }
+    ]
+  },
+  {
+    "name": "pointer-into-header-ok",
+    "why": "pointers into the header are followed",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (target >= limit || target < 12) return std::nullopt;",
+        "new": "            if (target >= limit) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "pointer-loop-unbounded",
+    "why": "pointer chains are not checked for decreasing offsets",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (target >= limit || target < 12) return std::nullopt;\n            limit = target;",
+        "new": "            if (target >= msg.size() || target < 12) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "pos-after-target",
+    "why": "pos ends up after the name the pointer led to",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    pos = jumped ? after : p;",
+        "new": "    pos = p;"
+      }
+    ]
+  },
+  {
+    "name": "pos-moves-on-failure",
+    "why": "a failed decode still moves pos",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    std::size_t p = pos;\n    std::size_t limit = pos;",
+        "new": "    std::size_t& p = pos;\n    std::size_t limit = pos;"
+      }
+    ]
+  },
+  {
+    "name": "reserved-label-types-ok",
+    "why": "label types 01 and 10 are treated as lengths",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        if ((len & 0xC0) != 0) return std::nullopt;   // the reserved label types 01 and 10\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "name-length-unchecked",
+    "why": "expanded names may be longer than 255 bytes",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        wire += len + 1u;\n        if (wire > 255) return std::nullopt;",
+        "new": "        wire += len + 1u;"
+      }
+    ]
+  },
+  {
+    "name": "name-length-256-ok",
+    "why": "expanded names may be 256 bytes",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        if (wire > 255) return std::nullopt;\n        for (std::size_t i = 0; i < len; ++i) {",
+        "new": "        if (wire > 256) return std::nullopt;\n        for (std::size_t i = 0; i < len; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "label-chars-unchecked",
+    "why": "any byte is accepted inside a label",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        for (std::size_t i = 0; i < len; ++i) {\n            if (!detail::label_char_ok(static_cast<char>(msg[p + 1 + i]))) return std::nullopt;\n        }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-lowercases",
+    "why": "decoded names are lower-cased",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        out.append(reinterpret_cast<const char*>(msg.data() + p + 1), len);",
+        "new": "        for (std::size_t i = 0; i < len; ++i) out += detail::lower(static_cast<char>(msg[p + 1 + i]));"
+      }
+    ]
+  },
+  {
+    "name": "root-without-dot",
+    "why": "the root name decodes to the empty string",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    return out.empty() ? std::string(\".\") : out;",
+        "new": "    return out;"
+      }
+    ]
+  },
+  {
+    "name": "split-allows-empty-label",
+    "why": "empty labels are accepted when encoding",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        if (label.empty() || label.size() > 63) return std::nullopt;",
+        "new": "        if (label.size() > 63) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "split-label-64-ok",
+    "why": "labels of 64 bytes are accepted when encoding",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        if (label.empty() || label.size() > 63) return std::nullopt;",
+        "new": "        if (label.empty() || label.size() > 64) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "split-name-length-unchecked",
+    "why": "names longer than 255 bytes are accepted when encoding",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        wire += label.size() + 1;\n        if (wire > 255) return std::nullopt;",
+        "new": "        wire += label.size() + 1;"
+      }
+    ]
+  },
+  {
+    "name": "split-keeps-trailing-dot-ambiguity",
+    "why": "a name with two trailing dots is accepted",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    if (!name.empty() && name.back() == '.') name.remove_suffix(1);",
+        "new": "    while (!name.empty() && name.back() == '.') name.remove_suffix(1);"
+      }
+    ]
+  },
+  {
+    "name": "parse-reserves-counts",
+    "why": "parse reserves memory for the claimed counts",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    Message m;\n    m.id = detail::be16(msg, 0);",
+        "new": "    Message m;\n    m.questions.reserve(detail::be16(msg, 4));\n    m.answers.reserve(detail::be16(msg, 6));\n    m.authorities.reserve(detail::be16(msg, 8));\n    m.additionals.reserve(detail::be16(msg, 10));\n    m.id = detail::be16(msg, 0);"
+      }
+    ]
+  },
+  {
+    "name": "parse-trailing-ok",
+    "why": "bytes after the last record are accepted",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    if (pos != msg.size()) return std::nullopt;   // trailing garbage\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-short-header-ok",
+    "why": "the header length is not checked",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    if (msg.size() < 12) return std::nullopt;\n    Message m;",
+        "new": "    Message m;\n    if (msg.size() < 12) msg = std::span<const std::uint8_t>();"
+      }
+    ]
+  },
+  {
+    "name": "rdata-name-end-unchecked",
+    "why": "a name in rdata may end before or after rdlength",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "                const auto target = decode_name(msg, p);\n                if (!target || p != end) return std::nullopt;\n                const auto wire = encode_name(*target == \".\" ? std::string_view() : std::string_view(*target));\n                if (!wire) return std::nullopt;\n                r.rdata = *wire;",
+        "new": "                const auto target = decode_name(msg, p);\n                if (!target) return std::nullopt;\n                const auto wire = encode_name(*target == \".\" ? std::string_view() : std::string_view(*target));\n                if (!wire) return std::nullopt;\n                r.rdata = *wire;"
+      }
+    ]
+  },
+  {
+    "name": "rdata-name-kept-compressed",
+    "why": "rdata of name types is kept as received (pointers and all)",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "                r.rdata = *wire;\n            } else if (r.type == 15) {",
+        "new": "                (void)wire;\n                r.rdata.assign(msg.begin() + static_cast<std::ptrdiff_t>(pos), msg.begin() + static_cast<std::ptrdiff_t>(end));\n            } else if (r.type == 15) {"
+      }
+    ]
+  },
+  {
+    "name": "mx-preference-lost",
+    "why": "the MX preference is dropped",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "                r.rdata.push_back(msg[pos]);\n                r.rdata.push_back(msg[pos + 1]);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "a-length-unchecked",
+    "why": "A records may have any length",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "                if ((r.type == 1 && rdlen != 4) || (r.type == 28 && rdlen != 16)) return std::nullopt;\n                r.rdata.assign",
+        "new": "                r.rdata.assign"
+      }
+    ]
+  },
+  {
+    "name": "serialize-case-sensitive",
+    "why": "compression only matches identical spellings",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "                for (char c : (*labels)[k]) suffix += detail::lower(c);",
+        "new": "                for (char c : (*labels)[k]) suffix += c;"
+      }
+    ]
+  },
+  {
+    "name": "serialize-high-offsets-registered",
+    "why": "offsets above 16383 are registered as pointer targets",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (out.size() < 0x4000) known.emplace(suffix, static_cast<std::uint16_t>(out.size()));",
+        "new": "            known.emplace(suffix, static_cast<std::uint16_t>(out.size()));"
+      }
+    ]
+  },
+  {
+    "name": "serialize-whole-names-only",
+    "why": "only complete names are compressed, never suffixes",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        for (std::size_t i = 0; i < labels->size(); ++i) {\n            std::string suffix;",
+        "new": "        for (std::size_t i = 0; i < labels->size(); i += labels->size()) {\n            std::string suffix;"
+      }
+    ]
+  },
+  {
+    "name": "serialize-wrong-pointer-bits",
+    "why": "pointers are written with the wrong marker bits",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "0xC000 | it->second",
+        "new": "0x8000 | it->second"
+      }
+    ]
+  },
+  {
+    "name": "serialize-rdlength-not-patched",
+    "why": "rdlength is written as 0",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            out[len_pos] = static_cast<std::uint8_t>(rdlen >> 8);\n            out[len_pos + 1] = static_cast<std::uint8_t>(rdlen & 0xFF);",
+        "new": "            (void)rdlen;"
+      }
+    ]
+  },
+  {
+    "name": "serialize-rdata-names-uncompressed",
+    "why": "names in rdata are written without compression",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "            if (detail::has_name(r.type)) {\n                if (!put_wire_name(r.rdata)) return std::nullopt;",
+        "new": "            if (detail::has_name(r.type)) {\n                out.insert(out.end(), r.rdata.begin(), r.rdata.end());"
+      }
+    ]
+  },
+  {
+    "name": "serialize-size-unchecked",
+    "why": "messages longer than 65535 bytes are produced",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "    if (out.size() > 65535) return std::nullopt;\n    return out;",
+        "new": "    return out;"
+      }
+    ]
+  },
+  {
+    "name": "serialize-compressed-rdata-ok",
+    "why": "a compressed name inside rdata is accepted",
+    "edits": [
+      {
+        "file": "dns.hpp",
+        "old": "        if (!name || p != wire.size()) return false;",
+        "new": "        if (!name) return false;"
+      }
+    ]
+  }
+]

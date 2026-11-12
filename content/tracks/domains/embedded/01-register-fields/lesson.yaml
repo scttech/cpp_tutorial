@@ -1,0 +1,15 @@
+id: domain.embedded.registers
+title: "Typed Register Fields"
+module: domain.embedded
+type: challenge
+estimatedMinutes: 60
+concepts: [memory-mapped-registers, bit-fields, masks-and-shifts, read-modify-write, write-one-to-clear, constexpr, templates, polling, variadic-templates, fold-expressions]
+prerequisites: []
+files:
+  editable: [registers.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [one-read-one-write, mask-the-value-before-inserting, clear-the-old-bits, write-one-to-clear-needs-no-read, width-32-shift, poll-at-most-n-times, fields-must-fit-the-register]

@@ -1,0 +1,12 @@
+ladder:
+  - level: 1
+    text: "Start with the small functions. percent_decode: copy characters; on '%' you need i + 2 < size and two hex digits (hex_value returns -1 for a non-digit), otherwise return nullopt. percent_encode: keep unreserved characters and the ones in `keep`, write everything else as '%' plus two UPPER-case hex digits of the unsigned byte. parse_query: split at '&', skip empty pieces, split a piece at its FIRST '=', turn '+' into ' ' and then decode (an invalid escape stays as text)."
+  - level: 2
+    text: "remove_dot_segments, RFC 5.2.4, with `rest` a string_view and `out` a std::string: while rest is not empty: if it starts with '../' drop 3; else './' drop 2; else '/./' drop 2 (keep the slash); else rest == '/.' becomes '/'; else '/../' drop 3 AND remove the last segment of out (erase from the last '/' to the end); else rest == '/..' becomes '/' and remove the last segment; else rest == '.' or '..' becomes empty; else move one segment (a leading '/' plus the characters up to the next '/') from rest to out."
+  - level: 3
+    text: "parse: scheme (letter, then letters/digits/+-.) followed by '://'; the authority runs to the first of / ? #; userinfo = before the LAST '@'; if the host starts with '[' find ']' (an IPv6 literal, keep the brackets) else split at the last ':'. Port: only digits, value <= 65535, an empty port is no port. Then strip the fragment FIRST (find '#'), then the query (find '?'), the rest is the path. Check every component with a helper that validates the escapes and rewrites their hex digits in upper case; reject spaces and control characters. resolve: see the lesson for the five cases; merge = base path up to and including its last '/' plus the reference path ('/' + reference when the base path is empty); always run remove_dot_segments on the result."
+  - level: 4
+    text: |
+      // merge for a relative path:
+      // std::string merged = base.path.empty() ? "/" + ref_path : base.path.substr(0, base.path.rfind('/') + 1) + ref_path;
+      // target.path = remove_dot_segments(merged);

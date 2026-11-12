@@ -1,0 +1,315 @@
+[
+  {
+    "name": "mask-one-bit-short",
+    "why": "the mask is one bit narrower than the field",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "static constexpr T max_value = static_cast<T>(~T{0}) >> (std::numeric_limits<T>::digits - Width);",
+        "new": "static constexpr T max_value = static_cast<T>(static_cast<T>(~T{0}) >> (std::numeric_limits<T>::digits - Width)) >> 1;"
+      }
+    ]
+  },
+  {
+    "name": "max-value-power-of-two",
+    "why": "max_value is 2^Width instead of 2^Width - 1 (and breaks for full width)",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "static constexpr T max_value = static_cast<T>(~T{0}) >> (std::numeric_limits<T>::digits - Width);\n    static constexpr T mask = static_cast<T>(max_value << Offset);",
+        "new": "static constexpr T max_value = static_cast<T>((Width >= std::numeric_limits<T>::digits ? ~T{0} : T{1} << Width) - 1);\n    static constexpr T mask = static_cast<T>(max_value << Offset);"
+      }
+    ]
+  },
+  {
+    "name": "mask-forgets-offset",
+    "why": "the mask is not shifted to the field",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "static constexpr T mask = static_cast<T>(max_value << Offset);",
+        "new": "static constexpr T mask = max_value;"
+      }
+    ]
+  },
+  {
+    "name": "get-does-not-shift",
+    "why": "get returns the field in place",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return static_cast<T>((reg & mask) >> Offset); }",
+        "new": "return static_cast<T>(reg & mask); }"
+      }
+    ]
+  },
+  {
+    "name": "get-does-not-mask",
+    "why": "get returns everything above the field too",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return static_cast<T>((reg & mask) >> Offset); }",
+        "new": "return static_cast<T>(reg >> Offset); }"
+      }
+    ]
+  },
+  {
+    "name": "insert-keeps-old-bits",
+    "why": "insert ORs the new value over the old one",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return static_cast<T>((reg & static_cast<T>(~mask)) | ((value << Offset) & mask)); }",
+        "new": "return static_cast<T>(reg | ((value << Offset) & mask)); }"
+      }
+    ]
+  },
+  {
+    "name": "insert-does-not-truncate",
+    "why": "a too-wide value spills into the neighbours",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return static_cast<T>((reg & static_cast<T>(~mask)) | ((value << Offset) & mask)); }",
+        "new": "return static_cast<T>((reg & static_cast<T>(~mask)) | (value << Offset)); }"
+      }
+    ]
+  },
+  {
+    "name": "insert-clears-everything-else",
+    "why": "insert clears the neighbouring fields",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return static_cast<T>((reg & static_cast<T>(~mask)) | ((value << Offset) & mask)); }",
+        "new": "return static_cast<T>((value << Offset) & mask); }"
+      }
+    ]
+  },
+  {
+    "name": "fits-off-by-one",
+    "why": "fits rejects the largest value",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return value <= max_value; }",
+        "new": "return value < max_value; }"
+      }
+    ]
+  },
+  {
+    "name": "full-width-shift",
+    "why": "the mask is computed as (1 << Width) - 1 (undefined for a full-width field)",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "static constexpr T max_value = static_cast<T>(~T{0}) >> (std::numeric_limits<T>::digits - Width);",
+        "new": "static constexpr T max_value = static_cast<T>((T{1} << (Width % std::numeric_limits<T>::digits)) - 1);"
+      }
+    ]
+  },
+  {
+    "name": "read-not-counted",
+    "why": "read() does not count",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        ++reads_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "write-not-counted",
+    "why": "write() does not count",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        ++writes_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "peek-counts",
+    "why": "peek() counts as a read",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "T peek() const { return value_; }",
+        "new": "T peek() { ++reads_; return value_; }"
+      }
+    ]
+  },
+  {
+    "name": "read-field-writes-back",
+    "why": "read_field writes the value back",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "return F::get(read());",
+        "new": "const T v = read();\n        write(v);\n        return F::get(v);"
+      }
+    ]
+  },
+  {
+    "name": "write-field-reads-twice",
+    "why": "write_field reads the register twice",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "write(F::insert(read(), v));",
+        "new": "(void)read();\n        write(F::insert(read(), v));"
+      }
+    ]
+  },
+  {
+    "name": "write-field-without-read",
+    "why": "write_field overwrites the other fields",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "write(F::insert(read(), v));",
+        "new": "write(F::insert(T{0}, v));"
+      }
+    ]
+  },
+  {
+    "name": "modify-writes-per-field",
+    "why": "modify does one read-modify-write per field",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        T v = read();\n        ((v = Assigns::field::insert(v, assigns.value)), ...);\n        write(v);",
+        "new": "        ((write(Assigns::field::insert(read(), assigns.value))), ...);"
+      }
+    ]
+  },
+  {
+    "name": "modify-reads-per-field",
+    "why": "modify reads the register for every field",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        ((v = Assigns::field::insert(v, assigns.value)), ...);",
+        "new": "        ((v = Assigns::field::insert(read(), assigns.value)), ...);"
+      }
+    ]
+  },
+  {
+    "name": "modify-first-wins",
+    "why": "for the same bits the first assignment wins",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        ((v = Assigns::field::insert(v, assigns.value)), ...);",
+        "new": "        ((v = (Assigns::field::get(v) == 0 ? Assigns::field::insert(v, assigns.value) : v)), ...);"
+      }
+    ]
+  },
+  {
+    "name": "set-bits-overwrites",
+    "why": "set_bits overwrites the register",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "void set_bits(T m) { write(static_cast<T>(read() | m)); }",
+        "new": "void set_bits(T m) { write(m); }"
+      }
+    ]
+  },
+  {
+    "name": "toggle-is-set",
+    "why": "toggle_bits sets the bits",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "void toggle_bits(T m) { write(static_cast<T>(read() ^ m)); }",
+        "new": "void toggle_bits(T m) { write(static_cast<T>(read() | m)); }"
+      }
+    ]
+  },
+  {
+    "name": "w1c-read-modify-write",
+    "why": "write_one_to_clear does a read-modify-write (clears other flags)",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "void write_one_to_clear(T m) { write(m); }",
+        "new": "void write_one_to_clear(T m) { write(static_cast<T>(read() | m)); }"
+      }
+    ]
+  },
+  {
+    "name": "w1c-reads-first",
+    "why": "write_one_to_clear reads the register first",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "void write_one_to_clear(T m) { write(m); }",
+        "new": "void write_one_to_clear(T m) { (void)read(); write(m); }"
+      }
+    ]
+  },
+  {
+    "name": "wait-one-poll-too-many",
+    "why": "wait_for polls max_polls + 1 times",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "for (unsigned i = 0; i < max_polls; ++i) {",
+        "new": "for (unsigned i = 0; i <= max_polls; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "wait-one-poll-too-few",
+    "why": "wait_for polls max_polls - 1 times",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "for (unsigned i = 0; i < max_polls; ++i) {",
+        "new": "for (unsigned i = 0; i + 1 < max_polls; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "wait-keeps-polling",
+    "why": "wait_for reads on after it has found the value",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "            if (F::get(read()) == expected) return true;\n        }\n        return false;",
+        "new": "            if (F::get(read()) == expected) found = true;\n        }\n        return found;"
+      },
+      {
+        "file": "registers.hpp",
+        "old": "        for (unsigned i = 0; i < max_polls; ++i) {",
+        "new": "        bool found = false;\n        for (unsigned i = 0; i < max_polls; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "wait-reads-before-loop",
+    "why": "wait_for always does one read before polling",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "        for (unsigned i = 0; i < max_polls; ++i) {",
+        "new": "        (void)read();\n        for (unsigned i = 0; i < max_polls; ++i) {"
+      }
+    ]
+  },
+  {
+    "name": "wait-compares-whole-register",
+    "why": "wait_for compares the whole register, not the field",
+    "edits": [
+      {
+        "file": "registers.hpp",
+        "old": "if (F::get(read()) == expected) return true;",
+        "new": "if (read() == expected) return true;"
+      }
+    ]
+  }
+]

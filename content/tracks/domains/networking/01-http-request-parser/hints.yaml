@@ -1,0 +1,11 @@
+ladder:
+  - level: 1
+    text: "Keep a phase (request line, headers, fixed body, chunk size, chunk data, end of chunk data, trailers), a std::string line_ for the line being collected, and counters (remaining bytes, header lines, total chunk bytes). feed() loops while there is input and the state is NeedMore, calling a step() that consumes at least one byte and returns how many; it returns {state_, total consumed}. After Complete or Error nothing is consumed because the loop condition is false."
+  - level: 2
+    text: "Collecting a line: find('\\n') in the NEW data only; append up to and including it (or all of the data if there is no LF). Check the length limit while appending: if line_ is already longer than max_line + 1 (the CR of an unfinished CRLF) without an LF, fail with HeaderTooLarge now. When the LF arrives, the line must end in CR LF, contain no other CR, and be at most max_line long without them; then strip the CRLF and hand the line to the phase's handler. Body phases skip line collection: append min(remaining, data.size()) bytes."
+  - level: 3
+    text: "Request line: find the first two spaces; the three parts must be non-empty (otherwise BadRequestLine); then method (A-Z only -> BadMethod), target ('*' or starts with '/', no control characters -> BadTarget), version (exactly HTTP/1.1 or HTTP/1.0 -> BadVersion). Header: first char not space/tab; name = everything before the first ':', non-empty, only token characters; value = trimmed rest, no control characters except tab. At the empty line decide the framing: Transfer-Encoding and Content-Length -> ConflictingFraming; TE must equal chunked case-insensitively; Content-Length digits only with an overflow check before value * 10 + digit, duplicates must be equal."
+  - level: 4
+    text: |
+      // if (value > (static_cast<std::size_t>(-1) - digit) / 10) -> BadContentLength   (checked BEFORE value = value * 10 + digit)
+      // Chunk size line: strip everything from ';'; 1..16 hex digits; 0 -> trailers; otherwise check size > max_body || total + size > max_body -> BodyTooLarge.

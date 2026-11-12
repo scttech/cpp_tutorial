@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "TokenBucket keeps balance_ in units of 1/period of a token: a token costs `period` units and each elapsed tick adds `refill` units; the cap is capacity * period. A private update(now) does the refill: if now <= last_ return (nothing happens, last_ stays); elapsed = now - last_; last_ = now; then add elapsed * refill to balance_ but SATURATE: if elapsed > (cap - balance_) / refill the bucket is simply full. Call update(now) first in every public function, also when the request will be denied."
+  - level: 2
+    text: "try_acquire(now, n): update; n == 0 -> true; n > capacity -> false; need = n * period; if balance_ < need return false; balance_ -= need; return true. available = balance_ / period. full = balance_ == capacity * period. wait_time: update; n == 0 -> 0; n > capacity -> nullopt; need = n * period; balance_ >= need -> 0; refill == 0 -> nullopt; otherwise the deficit divided by refill ROUNDED UP: (deficit + refill - 1) / refill."
+  - level: 3
+    text: "SlidingWindowLog keeps a std::deque<Tick> of the accepted timestamps. First clamp now to the newest timestamp if the clock went backwards, then evict from the FRONT while front + window <= now (an event counts for exactly `window` ticks). try_acquire: if size() >= limit false (and record nothing), else push_back(now) and true. retry_after: limit 0 -> nullopt; size() < limit -> 0; else front + window - now. KeyedLimiter: an unordered_map<Key, TokenBucket>; emplace a full bucket on first sight; evict_idle walks the map with it = map.erase(it) for the buckets that report full(now)."
+  - level: 4
+    text: |
+      // void update(Tick now) {
+      //     if (now <= last_) return;
+      //     const Tick elapsed = now - last_;
+      //     last_ = now;
+      //     const std::uint64_t cap = capacity_ * period_;
+      //     if (refill_ == 0) return;
+      //     if (elapsed > (cap - balance_) / refill_) balance_ = cap; else balance_ += elapsed * refill_;
+      // }

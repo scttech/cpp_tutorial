@@ -1,0 +1,17 @@
+ladder:
+  - level: 1
+    text: "Three layers. (1) split_labels(name): strip ONE trailing dot; empty = root; every label 1..63 printable ASCII without '.', total wire length (labels + length bytes + final zero) <= 255. encode_name writes length byte + label for each, then 0. (2) decode_name(msg, pos): copy pos into a local p; loop: p >= size -> nullopt; len = msg[p]; 0 ends the name; (len & 0xC0) == 0xC0 is a pointer (needs one more byte); other non-zero top bits are reserved -> nullopt; otherwise a label of len bytes that must fit. (3) parse/serialize on top, with be16/be32 helpers that you call only after checking there are enough bytes."
+  - level: 2
+    text: "Pointer rule that makes loops impossible: keep `limit = pos` (the start of this name). On a pointer, target = ((len & 0x3F) << 8) | msg[p + 1]; require target >= 12 (not the header) and target < limit; then limit = target and p = target. Remember `after = p + 2` at the FIRST pointer only and set pos = after at the end (pos = p after a plain zero terminator). Add len + 1 to a running wire length for every label and fail above 255 (the final zero counts as 1). Write the name as labels joined by '.', and return \".\" for the root."
+  - level: 3
+    text: "parse: header (12 bytes, be16 fields), then for each question: name, 4 bytes; for each record: name, then 10 bytes (type, class, ttl, rdlength), rdata must end inside the message. Counts are only claims: loop `for i < count` and let decode_name or the length checks fail on the first missing byte - never reserve(count). For NS/CNAME/PTR decode the name starting at the rdata start (p must equal the rdata end afterwards) and store encode_name(name); MX: 2 preference bytes then the same; A needs 4 bytes, AAAA 16; at the very end pos must equal msg.size()."
+  - level: 4
+    text: |
+      // serialize's name writer (known: unordered_map<std::string, uint16_t> from the LOWER-CASE suffix to the offset of its first occurrence):
+      // for (i = 0; i < labels.size(); ++i) {
+      //     suffix = lower(join(labels[i..], '.'));
+      //     if (known has suffix) { put16(0xC000 | known[suffix]); return; }
+      //     if (out.size() < 0x4000) known[suffix] = out.size();
+      //     out.push_back(label.size()); out.insert(label bytes);
+      // }
+      // out.push_back(0);

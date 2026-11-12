@@ -1,0 +1,442 @@
+[
+  {
+    "name": "decode-accepts-invalid",
+    "why": "an invalid escape is passed through",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (h < 0 || l < 0) return std::nullopt;\n        out += static_cast<char>(h * 16 + l);",
+        "new": "        if (h < 0 || l < 0) {\n            out += text[i];\n            continue;\n        }\n        out += static_cast<char>(h * 16 + l);"
+      }
+    ]
+  },
+  {
+    "name": "decode-plus-is-space",
+    "why": "plus signs are decoded to spaces in paths too",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (text[i] != '%') {\n            out += text[i];\n            continue;\n        }",
+        "new": "        if (text[i] != '%') {\n            out += text[i] == '+' ? ' ' : text[i];\n            continue;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "decode-lowercase-hex-only",
+    "why": "upper-case hex digits are rejected when decoding",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (c >= 'A' && c <= 'F') return c - 'A' + 10;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-escape-at-end-rejected",
+    "why": "an escape at the very end is rejected",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (i + 2 >= text.size()) return std::nullopt;\n        const int h = detail::hex_value(text[i + 1]), l = detail::hex_value(text[i + 2]);\n        if (h < 0 || l < 0) return std::nullopt;\n        out += static_cast<char>",
+        "new": "        if (i + 3 >= text.size()) return std::nullopt;\n        const int h = detail::hex_value(text[i + 1]), l = detail::hex_value(text[i + 2]);\n        if (h < 0 || l < 0) return std::nullopt;\n        out += static_cast<char>"
+      }
+    ]
+  },
+  {
+    "name": "decode-twice",
+    "why": "the result is decoded a second time",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        out += static_cast<char>(h * 16 + l);\n        i += 2;\n    }\n    return out;\n}\n\ninline std::string percent_encode",
+        "new": "        out += static_cast<char>(h * 16 + l);\n        i += 2;\n    }\n    if (out.find('%') != std::string::npos) {\n        if (auto again = percent_decode(out)) return again;\n    }\n    return out;\n}\n\ninline std::string percent_encode"
+      }
+    ]
+  },
+  {
+    "name": "encode-lowercase-hex",
+    "why": "hex digits are written in lower case",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            out += \"0123456789ABCDEF\"[u >> 4];\n            out += \"0123456789ABCDEF\"[u & 15];",
+        "new": "            out += \"0123456789abcdef\"[u >> 4];\n            out += \"0123456789abcdef\"[u & 15];"
+      }
+    ]
+  },
+  {
+    "name": "encode-tilde",
+    "why": "the tilde is encoded",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "inline bool is_unreserved(char c) { return is_alpha(c) || is_digit(c) || c == '-' || c == '.' || c == '_' || c == '~'; }",
+        "new": "inline bool is_unreserved(char c) { return is_alpha(c) || is_digit(c) || c == '-' || c == '.' || c == '_'; }"
+      }
+    ]
+  },
+  {
+    "name": "encode-ignores-keep",
+    "why": "the keep set is ignored",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "if (detail::is_unreserved(c) || keep.find(c) != std::string_view::npos) {",
+        "new": "if (detail::is_unreserved(c)) {"
+      }
+    ]
+  },
+  {
+    "name": "encode-space-is-plus",
+    "why": "a space is written as a plus sign",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (detail::is_unreserved(c) || keep.find(c) != std::string_view::npos) {\n            out += c;\n        } else {",
+        "new": "        if (detail::is_unreserved(c) || keep.find(c) != std::string_view::npos) {\n            out += c;\n        } else if (c == ' ') {\n            out += '+';\n        } else {"
+      }
+    ]
+  },
+  {
+    "name": "dots-trailing-double-dot",
+    "why": "a trailing /.. is treated as an ordinary segment",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        } else if (rest == \"/..\") {\n            rest = \"/\";\n            drop_last_segment();\n",
+        "new": "        } else if (false) {\n"
+      }
+    ]
+  },
+  {
+    "name": "dots-parent-keeps-segment",
+    "why": "a /../ does not remove the previous segment",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            rest.remove_prefix(3);\n            drop_last_segment();\n        } else if (rest == \"/..\")",
+        "new": "            rest.remove_prefix(3);\n        } else if (rest == \"/..\")"
+      }
+    ]
+  },
+  {
+    "name": "dots-current-not-removed",
+    "why": "a /./ is kept",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        } else if (starts(\"/./\")) {\n            rest.remove_prefix(2);",
+        "new": "        } else if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "dots-leading-parent-kept",
+    "why": "a leading ../ is kept",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (starts(\"../\")) {\n            rest.remove_prefix(3);\n        } else if (starts(\"./\")) {",
+        "new": "        if (false) {\n        } else if (starts(\"./\")) {"
+      }
+    ]
+  },
+  {
+    "name": "dots-quadratic-copy",
+    "why": "removing a segment copies the output buffer",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (slash == std::string::npos) out.clear();\n        else out.erase(slash);",
+        "new": "        if (slash == std::string::npos) out.clear();\n        else out = out.substr(0, slash);"
+      }
+    ]
+  },
+  {
+    "name": "parse-scheme-case",
+    "why": "the scheme keeps its case",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "for (std::size_t k = 0; k < i; ++k) url.scheme += detail::lower(text[k]);",
+        "new": "for (std::size_t k = 0; k < i; ++k) url.scheme += text[k];"
+      }
+    ]
+  },
+  {
+    "name": "parse-host-case",
+    "why": "the host keeps its case",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "for (char c : *h) url.host += detail::lower(c);",
+        "new": "url.host = *h;"
+      }
+    ]
+  },
+  {
+    "name": "parse-port-overflow",
+    "why": "ports above 65535 wrap around",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (value > 65535) return std::nullopt;\n        url.port = static_cast<std::uint16_t>(value);",
+        "new": "        url.port = static_cast<std::uint16_t>(value);"
+      }
+    ]
+  },
+  {
+    "name": "parse-empty-host-ok",
+    "why": "an empty host is accepted",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (host.empty()) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-userinfo-first-at",
+    "why": "the userinfo ends at the first @",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "const std::size_t at = authority.rfind('@');",
+        "new": "const std::size_t at = authority.find('@');"
+      }
+    ]
+  },
+  {
+    "name": "parse-ipv6-split-at-colon",
+    "why": "IPv6 literals are split at their colons",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (!hostport.empty() && hostport.front() == '[') {",
+        "new": "    if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "parse-escapes-not-uppercased",
+    "why": "escape digits keep their case",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            out += \"0123456789ABCDEF\"[h];\n            out += \"0123456789ABCDEF\"[l];",
+        "new": "            out += text[i + 1];\n            out += text[i + 2];"
+      }
+    ]
+  },
+  {
+    "name": "parse-space-in-path-ok",
+    "why": "spaces and control characters are accepted",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            if (!allow_space_and_control && (c == ' ' || is_control(c))) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "parse-query-before-fragment",
+    "why": "the query is cut before the fragment is removed",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    const std::size_t hash = rest.find('#');\n    if (hash != std::string_view::npos) {\n        const auto f = detail::clean_component(rest.substr(hash + 1));\n        if (!f) return std::nullopt;\n        url.fragment = *f;\n        rest = rest.substr(0, hash);\n    }\n    const std::size_t qm = rest.find('?');",
+        "new": "    const std::size_t qm0 = rest.find('?');\n    const std::size_t hash = qm0 != std::string_view::npos ? rest.find('#', qm0) : rest.find('#');\n    if (hash != std::string_view::npos) {\n        const auto f = detail::clean_component(rest.substr(hash + 1));\n        if (!f) return std::nullopt;\n        url.fragment = *f;\n        rest = rest.substr(0, hash);\n    }\n    const std::size_t qm = rest.find('?');"
+      }
+    ]
+  },
+  {
+    "name": "parse-empty-query-is-absent",
+    "why": "an empty query is stored as absent",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        url.query = *q;\n        rest = rest.substr(0, qm);\n    }\n    const auto p",
+        "new": "        if (!q->empty()) url.query = *q;\n        rest = rest.substr(0, qm);\n    }\n    const auto p"
+      }
+    ]
+  },
+  {
+    "name": "to-string-keeps-default-port",
+    "why": "default ports are written",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (url.port && *url.port != detail::default_port(url.scheme)) out +=",
+        "new": "    if (url.port) out +="
+      }
+    ]
+  },
+  {
+    "name": "to-string-no-slash",
+    "why": "an empty http path stays empty",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (url.path.empty() && detail::path_defaults_to_slash(url.scheme)) out += \"/\";\n    else out += url.path;",
+        "new": "    out += url.path;"
+      }
+    ]
+  },
+  {
+    "name": "to-string-slash-for-all",
+    "why": "an empty path becomes / for every scheme",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "if (url.path.empty() && detail::path_defaults_to_slash(url.scheme)) out += \"/\";",
+        "new": "if (url.path.empty()) out += \"/\";"
+      }
+    ]
+  },
+  {
+    "name": "to-string-no-userinfo",
+    "why": "the userinfo is dropped",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    if (!url.userinfo.empty()) out += url.userinfo + \"@\";\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "resolve-merge-whole-base",
+    "why": "the merge appends to the whole base path",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "                merged = (last == std::string::npos ? std::string() : base.path.substr(0, last + 1)) + *path;",
+        "new": "                (void)last;\n                merged = base.path + *path;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-empty-path-drops-query",
+    "why": "an empty-path reference loses the base query",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        target.query = query ? query : base.query;",
+        "new": "        target.query = query;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-keeps-base-fragment",
+    "why": "the base fragment is inherited",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "    target.fragment = fragment;\n    return target;",
+        "new": "    target.fragment = fragment ? fragment : base.fragment;\n    return target;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-no-dot-removal",
+    "why": "dot segments are not removed after merging",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            target.path = remove_dot_segments(merged);",
+        "new": "            target.path = merged;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-absolute-path-keeps-dots",
+    "why": "an absolute-path reference keeps its dot segments",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            target.path = remove_dot_segments(*path);",
+        "new": "            target.path = *path;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-query-only-loses-path",
+    "why": "a query-only reference drops the base path",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        target.path = base.path;\n        target.query = query ? query : base.query;",
+        "new": "        target.path = \"\";\n        target.query = query ? query : base.query;"
+      }
+    ]
+  },
+  {
+    "name": "resolve-network-path-keeps-authority",
+    "why": "a //host reference keeps the base host",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        std::string synthetic = base.scheme + \":\" + std::string(reference);",
+        "new": "        std::string synthetic = base.scheme + \"://\" + base.host + \"/\" + std::string(reference.substr(2));"
+      }
+    ]
+  },
+  {
+    "name": "resolve-query-not-reset",
+    "why": "a reference with a path inherits the base query",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        target.query = query;\n    }\n    target.fragment",
+        "new": "        target.query = query ? query : base.query;\n    }\n    target.fragment"
+      }
+    ]
+  },
+  {
+    "name": "query-plus-kept",
+    "why": "plus signs in query strings are not spaces",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            if (c == '+') c = ' ';",
+        "new": "            if (c == '+') c = '+';"
+      }
+    ]
+  },
+  {
+    "name": "query-split-last-equals",
+    "why": "pairs are split at the last =",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "            const std::size_t eq = piece.find('=');",
+        "new": "            const std::size_t eq = piece.rfind('=');"
+      }
+    ]
+  },
+  {
+    "name": "query-empty-pieces-kept",
+    "why": "empty pieces become empty pairs",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        if (!piece.empty()) {",
+        "new": "        if (true) {"
+      }
+    ]
+  },
+  {
+    "name": "build-query-no-encoding",
+    "why": "values are not encoded",
+    "edits": [
+      {
+        "file": "urlkit.hpp",
+        "old": "        out += percent_encode(pairs[i].first) + \"=\" + percent_encode(pairs[i].second);",
+        "new": "        out += percent_encode(pairs[i].first) + \"=\" + pairs[i].second;"
+      }
+    ]
+  }
+]

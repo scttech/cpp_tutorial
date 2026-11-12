@@ -1,0 +1,491 @@
+[
+  {
+    "name": "lowercase-method-ok",
+    "why": "lower-case method letters are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (c < 'A' || c > 'Z') {",
+        "new": "            if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {"
+      }
+    ]
+  },
+  {
+    "name": "digit-method-ok",
+    "why": "digits are allowed in the method",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (c < 'A' || c > 'Z') {",
+        "new": "            if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {"
+      }
+    ]
+  },
+  {
+    "name": "target-needs-no-slash",
+    "why": "any target is accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (!(target == \"*\" || target.front() == '/')) {",
+        "new": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "control-char-in-target",
+    "why": "control characters in the target are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (is_control(c) || c == ' ') {",
+        "new": "            if (c == ' ') {"
+      }
+    ]
+  },
+  {
+    "name": "http-version-any-case",
+    "why": "the version comparison ignores case",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (version != \"HTTP/1.1\" && version != \"HTTP/1.0\") {",
+        "new": "        if (!iequals(version, \"HTTP/1.1\") && !iequals(version, \"HTTP/1.0\")) {"
+      }
+    ]
+  },
+  {
+    "name": "http-version-2-ok",
+    "why": "HTTP/2.0 is accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (version != \"HTTP/1.1\" && version != \"HTTP/1.0\") {",
+        "new": "        if (version != \"HTTP/1.1\" && version != \"HTTP/1.0\" && version != \"HTTP/2.0\") {"
+      }
+    ]
+  },
+  {
+    "name": "request-line-double-space-ok",
+    "why": "empty parts of the request line are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "sp1 == 0 || sp2 == sp1 + 1 || sp2 + 1 >= line.size()",
+        "new": "sp1 == 0"
+      }
+    ]
+  },
+  {
+    "name": "space-before-colon-ok",
+    "why": "a space in the header name is accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (!is_token_char(line[i])) return fail(ErrorCode::BadHeader), false;",
+        "new": "            if (!is_token_char(line[i]) && line[i] != ' ') return fail(ErrorCode::BadHeader), false;"
+      }
+    ]
+  },
+  {
+    "name": "control-in-value-ok",
+    "why": "control characters in header values are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (is_control(c) && c != '\\t') return fail(ErrorCode::BadHeader), false;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "value-not-trimmed",
+    "why": "header values keep their surrounding blanks",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        const std::string_view value = trim(std::string_view(line).substr(colon + 1));",
+        "new": "        const std::string_view value = std::string_view(line).substr(colon + 1);"
+      }
+    ]
+  },
+  {
+    "name": "value-trimmed-left-only",
+    "why": "only leading blanks are removed from values",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        const std::string_view value = trim(std::string_view(line).substr(colon + 1));",
+        "new": "        std::string_view value = std::string_view(line).substr(colon + 1);\n        while (!value.empty() && (value.front() == ' ' || value.front() == '\\t')) value.remove_prefix(1);"
+      }
+    ]
+  },
+  {
+    "name": "header-lookup-case-sensitive",
+    "why": "header() compares names case-sensitively",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (iequals(h.name, name)) return &h.value;",
+        "new": "            if (h.name == name) return &h.value;"
+      }
+    ]
+  },
+  {
+    "name": "header-lookup-last-match",
+    "why": "header() returns the last match",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        for (const Header& h : headers_) {\n            if (iequals(h.name, name)) return &h.value;\n        }\n        return nullptr;",
+        "new": "        const std::string* found = nullptr;\n        for (const Header& h : headers_) {\n            if (iequals(h.name, name)) found = &h.value;\n        }\n        return found;"
+      }
+    ]
+  },
+  {
+    "name": "header-lookup-prefix",
+    "why": "header() matches name prefixes",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (iequals(h.name, name)) return &h.value;",
+        "new": "            if (iequals(std::string_view(h.name).substr(0, name.size()), name)) return &h.value;"
+      }
+    ]
+  },
+  {
+    "name": "duplicate-headers-merged",
+    "why": "a repeated header replaces the first one",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        headers_.push_back(std::move(h));",
+        "new": "        for (Header& e : headers_) {\n            if (iequals(e.name, h.name)) {\n                e.value = h.value;\n                return;\n            }\n        }\n        headers_.push_back(std::move(h));"
+      }
+    ]
+  },
+  {
+    "name": "content-length-signed-ok",
+    "why": "a sign is accepted in Content-Length",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (c < '0' || c > '9') return fail(ErrorCode::BadContentLength), false;",
+        "new": "            if (c == '+') continue;\n            if (c < '0' || c > '9') return fail(ErrorCode::BadContentLength), false;"
+      }
+    ]
+  },
+  {
+    "name": "content-length-prefix-parse",
+    "why": "Content-Length stops at the first non-digit",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (c < '0' || c > '9') return fail(ErrorCode::BadContentLength), false;",
+        "new": "            if (c < '0' || c > '9') break;"
+      }
+    ]
+  },
+  {
+    "name": "content-length-empty-ok",
+    "why": "an empty Content-Length means 0",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (text.empty()) return fail(ErrorCode::BadContentLength), false;",
+        "new": "        if (text.empty()) { out = 0; return true; }"
+      }
+    ]
+  },
+  {
+    "name": "content-length-overflow-wraps",
+    "why": "Content-Length overflow wraps around",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (value > (static_cast<std::size_t>(-1) - digit) / 10) return fail(ErrorCode::BadContentLength), false;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "content-length-conflict-ok",
+    "why": "different Content-Length values are accepted (the last wins)",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "                if (have_cl && value != length) {\n                    fail(ErrorCode::BadContentLength);\n                    return;\n                }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "cl-te-conflict-ok",
+    "why": "Content-Length and Transfer-Encoding together are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (te != nullptr && have_cl) {\n            fail(ErrorCode::ConflictingFraming);\n            return;\n        }",
+        "new": "        if (te != nullptr && have_cl) have_cl = false;"
+      }
+    ]
+  },
+  {
+    "name": "te-case-sensitive",
+    "why": "Transfer-Encoding: Chunked is rejected",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (!iequals(*te, \"chunked\")) {",
+        "new": "            if (*te != \"chunked\") {"
+      }
+    ]
+  },
+  {
+    "name": "te-anything-ok",
+    "why": "any Transfer-Encoding value is treated as chunked",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (!iequals(*te, \"chunked\")) {",
+        "new": "            if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "two-te-headers-ok",
+    "why": "two Transfer-Encoding headers are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "                if (te != nullptr) {\n                    fail(ErrorCode::UnsupportedTransferEncoding);   // two Transfer-Encoding headers: not \"exactly chunked\"\n                    return;\n                }\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "body-limit-ignored",
+    "why": "Content-Length is not checked against max_body",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (have_cl && length > limits_.max_body) {\n            fail(ErrorCode::BodyTooLarge);\n            return;\n        }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "chunk-total-limit-ignored",
+    "why": "the sum of the chunks is not limited",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "size > limits_.max_body || total_chunked_ + size > limits_.max_body",
+        "new": "size > limits_.max_body"
+      }
+    ]
+  },
+  {
+    "name": "chunk-hex-lowercase-only",
+    "why": "upper-case hex digits are rejected",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            else if (c >= 'A' && c <= 'F') v = c - 'A' + 10;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "chunk-extension-not-ignored",
+    "why": "chunk extensions are treated as part of the size",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        const std::size_t semicolon = line.find(';');",
+        "new": "        const std::size_t semicolon = std::string::npos;"
+      }
+    ]
+  },
+  {
+    "name": "chunk-size-17-digits-ok",
+    "why": "overlong chunk sizes are accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "if (digits.empty() || digits.size() > 16) {",
+        "new": "if (digits.empty()) {"
+      }
+    ]
+  },
+  {
+    "name": "chunk-data-end-unchecked",
+    "why": "the CRLF after chunk data is not checked",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "                if (!line.empty()) fail(ErrorCode::BadChunk);\n                else phase_ = Phase::ChunkSize;",
+        "new": "                phase_ = Phase::ChunkSize;"
+      }
+    ]
+  },
+  {
+    "name": "trailers-ignored",
+    "why": "the request is complete after the 0 chunk line (trailers stay unread)",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (size == 0) {\n            phase_ = Phase::Trailers;\n            return;\n        }",
+        "new": "        if (size == 0) {\n            state_ = State::Complete;\n            return;\n        }"
+      }
+    ]
+  },
+  {
+    "name": "too-many-headers-off-by-one",
+    "why": "one header too many is allowed",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (++header_lines_ > limits_.max_headers) {\n            fail(ErrorCode::TooManyHeaders);",
+        "new": "        if (++header_lines_ > limits_.max_headers + 1) {\n            fail(ErrorCode::TooManyHeaders);"
+      }
+    ]
+  },
+  {
+    "name": "connection-substring",
+    "why": "close is matched as a substring of the Connection value",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "                if (iequals(token, \"close\")) has_close = true;",
+        "new": "                if (token.size() >= 5 && iequals(token.substr(0, 5), \"close\")) has_close = true;"
+      }
+    ]
+  },
+  {
+    "name": "connection-case-sensitive",
+    "why": "the Connection tokens are case-sensitive",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "                if (iequals(token, \"close\")) has_close = true;",
+        "new": "                if (token == \"close\") has_close = true;"
+      }
+    ]
+  },
+  {
+    "name": "consumed-counts-everything",
+    "why": "feed reports the whole input as consumed",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        return Feed{state_, used};",
+        "new": "        return Feed{state_, data.size()};"
+      }
+    ]
+  },
+  {
+    "name": "consumes-after-complete",
+    "why": "feed keeps consuming after the request is complete",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        while (used < data.size() && state_ == State::NeedMore) used += step(data.substr(used));",
+        "new": "        while (used < data.size() && (state_ == State::NeedMore || state_ == State::Complete)) {\n            if (state_ == State::Complete) {\n                used += data.size() - used;\n                break;\n            }\n            used += step(data.substr(used));\n        }"
+      }
+    ]
+  },
+  {
+    "name": "line-rescanned-every-time",
+    "why": "the whole accumulated line is searched again on every feed (quadratic)",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        const std::size_t lf = data.find('\\n');",
+        "new": "        std::size_t lf = data.find('\\n');\n        volatile std::size_t sink = 0;\n        for (char c : line_) sink = sink + static_cast<unsigned char>(c);\n        (void)sink;"
+      }
+    ]
+  },
+  {
+    "name": "body-rebuilt-every-time",
+    "why": "the body string is rebuilt on every append (quadratic)",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        body_.append(data.data(), n);",
+        "new": "        body_ = std::string(body_) + std::string(data.data(), n);"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-headers",
+    "why": "reset() keeps the previous headers",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        headers_.clear();\n        phase_ = Phase::RequestLine;",
+        "new": "        phase_ = Phase::RequestLine;"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-body",
+    "why": "reset() keeps the previous body",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        body_.clear();\n        minor_ = 1;",
+        "new": "        minor_ = 1;"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-header-count",
+    "why": "reset() keeps the header counter",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        header_lines_ = 0;\n        total_chunked_ = 0;",
+        "new": "        total_chunked_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "lf-alone-accepted",
+    "why": "a line may end with a bare LF",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "            if (line_.size() < 2 || line_[line_.size() - 2] != '\\r') {\n                bad_ending = true;\n            } else {",
+        "new": "            if (line_.size() >= 2 && line_[line_.size() - 2] != '\\r') {\n                line_.resize(line_.size() - 1);\n            } else if (line_.size() < 2) {\n                bad_ending = true;\n            } else {"
+      }
+    ]
+  },
+  {
+    "name": "line-limit-checked-late",
+    "why": "a line is only checked when it is complete (hostile input is buffered)",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (take > room) {\n            line_.append(data.data(), room);\n            too_long_ = true;\n            return room;\n        }\n",
+        "new": ""
+      },
+      {
+        "file": "http_parser.hpp",
+        "old": "        } else if (line_.size() >= cap) {\n            too_long_ = true;\n        }",
+        "new": "        }"
+      }
+    ]
+  },
+  {
+    "name": "header-may-start-with-a-blank",
+    "why": "a header line that starts with a blank is accepted",
+    "edits": [
+      {
+        "file": "http_parser.hpp",
+        "old": "        if (line[0] == ' ' || line[0] == '\\t') return fail(ErrorCode::BadHeader), false;\n        const std::size_t colon = line.find(':');\n        if (colon == std::string::npos || colon == 0) return fail(ErrorCode::BadHeader), false;\n        for (std::size_t i = 0; i < colon; ++i) {\n            if (!is_token_char(line[i])) return fail(ErrorCode::BadHeader), false;\n        }",
+        "new": "        const std::size_t colon = line.find(':');\n        if (colon == std::string::npos || colon == 0) return fail(ErrorCode::BadHeader), false;"
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Field<T, Offset, Width>: max_value = ~T{0} >> (std::numeric_limits<T>::digits - Width) (an all-ones value shifted right never needs 1 << Width, which is undefined for a full-width field), mask = max_value << Offset. get(reg) = (reg & mask) >> Offset; fits(v) = v <= max_value. For 8- and 16-bit T wrap results in static_cast<T>(...) because the operators promote to int."
+  - level: 2
+    text: "insert(reg, value) = (reg & ~mask) | ((value << Offset) & mask): the first part clears the field's OLD bits, the & mask truncates a too-wide value so it cannot spill into the neighbours. Register: read() does ++reads_ and returns value_; write(v) does ++writes_ and stores; peek() touches no counter."
+  - level: 3
+    text: "read_field<F>() = F::get(read()). write_field<F>(v) = write(F::insert(read(), v)) - one read, one write. set_bits/clear_bits/toggle_bits = write(read() | m), write(read() & ~m), write(read() ^ m) (cast back to T). write_one_to_clear(m) = write(m) and NOTHING else: no read. wait_for<F>(expected, n): for i in 0..n-1 { if (F::get(read()) == expected) return true; } return false."
+  - level: 4
+    text: |
+      // template <class... Assigns>
+      // void modify(Assigns... assigns) {
+      //     T v = read();                                              // one read
+      //     ((v = Assigns::field::insert(v, assigns.value)), ...);     // fold over the pack
+      //     write(v);                                                  // one write
+      // }

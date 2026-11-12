@@ -1,0 +1,6 @@
+id: domain.networking
+title: "Networking and Parsing"
+track: networking
+order: 105
+summary: "Parsers and codecs that survive hostile input: an incremental HTTP/1.1 request parser, a binary protocol codec, URL handling, Base64 and hex, a rate limiter and a DNS-style message with name compression."
+recommends: "Modules 1 to 7 (up to Inheritance and Polymorphism)"

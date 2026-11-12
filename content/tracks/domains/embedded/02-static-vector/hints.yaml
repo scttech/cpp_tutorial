@@ -1,0 +1,15 @@
+ladder:
+  - level: 1
+    text: "Storage: alignas(T) std::byte storage_[N * sizeof(T)]; and std::size_t size_ = 0; Slots 0..size_-1 hold live objects, the rest are raw bytes - never construct them. slot(i) already gives you a T* to slot i. Build with std::construct_at(slot(size_), args...) then ++size_; end with --size_ then std::destroy_at(slot(size_)). emplace_back returns nullptr when size_ == N."
+  - level: 2
+    text: "push_back(const T&) = emplace_back(value) != nullptr; push_back(T&&) = emplace_back(std::move(value)) != nullptr (this keeps the copy/move distinction). clear() = while (size_ > 0) pop_back(). The destructor calls clear(). copy constructor: for each of other's elements emplace_back(other[i]); move constructor: emplace_back(std::move(other[i])) for each, then other.clear(). Assignments: if (this != &other) { clear(); ...the same loop... } return *this."
+  - level: 3
+    text: "erase(i): if i >= size_ return false; for k = i .. size_-2: *slot(k) = std::move(*slot(k + 1)) (assignment into LIVE objects); then pop_back() destroys the last. insert(i, value): false if full or i > size_; if i == size_ just emplace_back(std::move(value)); else std::construct_at(slot(size_), std::move(*slot(size_ - 1))) (a dead slot becomes alive: CONSTRUCT), then for k = size_-1 down to i+1: *slot(k) = std::move(*slot(k - 1)); *slot(i) = std::move(value); ++size_. swap_remove(i): if i is not the last, *slot(i) = std::move(*slot(size_ - 1)); then pop_back()."
+  - level: 4
+    text: |
+      // bool erase(std::size_t index) {
+      //     if (index >= size_) return false;
+      //     for (std::size_t i = index; i + 1 < size_; ++i) *slot(i) = std::move(*slot(i + 1));
+      //     pop_back();
+      //     return true;
+      // }

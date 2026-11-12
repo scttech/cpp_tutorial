@@ -1,0 +1,255 @@
+[
+  {
+    "name": "debounce-zero-means-two",
+    "why": "a debounce of 0 is treated as 2",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "debounce_(config.debounce_ticks == 0 ? 1 : config.debounce_ticks)",
+        "new": "debounce_(config.debounce_ticks == 0 ? 2 : config.debounce_ticks)"
+      }
+    ]
+  },
+  {
+    "name": "debounce-one-too-many",
+    "why": "the state flips one tick late",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "if (++count_ >= debounce_) {",
+        "new": "if (++count_ > debounce_) {"
+      }
+    ]
+  },
+  {
+    "name": "debounce-counts-total",
+    "why": "bounces back to the old level do not reset the count",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "        } else {\n            count_ = 0;\n        }\n        return events;",
+        "new": "        }\n        return events;"
+      }
+    ]
+  },
+  {
+    "name": "debounce-count-not-restarted",
+    "why": "the count is not cleared after a flip",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                stable_ = raw;\n                count_ = 0;",
+        "new": "                stable_ = raw;"
+      }
+    ]
+  },
+  {
+    "name": "timers-after-debounce",
+    "why": "the timers run after the debounce logic",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "        // A. timers of the state we were in\n        if (stable_) {",
+        "new": "        if (false) {"
+      }
+    ]
+  },
+  {
+    "name": "held-not-reset-on-press",
+    "why": "held keeps its old value after a new press",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    held_ = 0;\n                    long_reported_ = false;",
+        "new": "                    long_reported_ = false;"
+      }
+    ]
+  },
+  {
+    "name": "long-reported-not-cleared",
+    "why": "only the first press of all time can be a long press",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    held_ = 0;\n                    long_reported_ = false;",
+        "new": "                    held_ = 0;"
+      }
+    ]
+  },
+  {
+    "name": "long-press-repeats",
+    "why": "LongPress is reported on every tick after the limit",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "if (!long_reported_ && config_.long_press_ticks > 0 && held_ == config_.long_press_ticks) {",
+        "new": "if (config_.long_press_ticks > 0 && held_ >= config_.long_press_ticks) {"
+      }
+    ]
+  },
+  {
+    "name": "long-press-one-late",
+    "why": "LongPress arrives one tick late",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "held_ == config_.long_press_ticks) {",
+        "new": "held_ == config_.long_press_ticks + 1) {"
+      }
+    ]
+  },
+  {
+    "name": "long-press-keeps-click",
+    "why": "a long press still produces a click",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    if (long_reported_) {\n                        window_open_ = false;\n                    } else if",
+        "new": "                    if (false) {\n                        window_open_ = false;\n                    } else if"
+      }
+    ]
+  },
+  {
+    "name": "long-press-leaves-window-open",
+    "why": "a long press leaves the click window as it was",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    if (long_reported_) {\n                        window_open_ = false;",
+        "new": "                    if (long_reported_) {"
+      }
+    ]
+  },
+  {
+    "name": "double-keeps-click-flag",
+    "why": "a double click also reports Click",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "events |= kDoubleClick;",
+        "new": "events |= kDoubleClick | kClick;"
+      }
+    ]
+  },
+  {
+    "name": "double-leaves-window-open",
+    "why": "after a double click the window stays open (a third click is also double)",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                        events |= kDoubleClick;\n                        window_open_ = false;",
+        "new": "                        events |= kDoubleClick;"
+      }
+    ]
+  },
+  {
+    "name": "click-window-never-closes",
+    "why": "the click window never times out",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "            if (since_click_ > config_.double_click_ticks) window_open_ = false;",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "click-window-one-short",
+    "why": "the window is one tick shorter than configured",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "if (since_click_ > config_.double_click_ticks) window_open_ = false;",
+        "new": "if (since_click_ >= config_.double_click_ticks) window_open_ = false;"
+      }
+    ]
+  },
+  {
+    "name": "click-window-not-started",
+    "why": "the window counter is not restarted by a click",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                        window_open_ = true;\n                        since_click_ = 0;",
+        "new": "                        window_open_ = true;"
+      }
+    ]
+  },
+  {
+    "name": "held-wraps",
+    "why": "held wraps around instead of saturating",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "if (held_ < 0xFFFF) ++held_;",
+        "new": "++held_;"
+      }
+    ]
+  },
+  {
+    "name": "released-forgets-flag",
+    "why": "the Released flag is not reported",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    events |= kReleased;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pressed-forgets-flag",
+    "why": "the Pressed flag is not reported",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    events |= kPressed;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "held-ticks-while-released",
+    "why": "held_ticks keeps the old value after the release",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "std::uint16_t held_ticks() const { return stable_ ? held_ : std::uint16_t{0}; }",
+        "new": "std::uint16_t held_ticks() const { return held_; }"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-window",
+    "why": "reset leaves the click window open",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "        window_open_ = false;\n        since_click_ = 0;\n    }",
+        "new": "        since_click_ = 0;\n    }"
+      }
+    ]
+  },
+  {
+    "name": "reset-keeps-state",
+    "why": "reset does not release the button",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "    void reset() {\n        stable_ = false;",
+        "new": "    void reset() {"
+      }
+    ]
+  },
+  {
+    "name": "double-ignores-long",
+    "why": "a long press followed by a quick click is a double click",
+    "edits": [
+      {
+        "file": "button.hpp",
+        "old": "                    if (long_reported_) {\n                        window_open_ = false;\n                    } else if (window_open_) {",
+        "new": "                    if (long_reported_ && !window_open_) {\n                        window_open_ = false;\n                    } else if (window_open_) {"
+      }
+    ]
+  }
+]

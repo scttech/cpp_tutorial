@@ -1,0 +1,15 @@
+id: domain.embedded.pid
+title: "Fixed-Point PID Controller"
+module: domain.embedded
+type: challenge
+estimatedMinutes: 90
+concepts: [fixed-point, q16-16, saturating-arithmetic, pid-controller, anti-windup, derivative-on-measurement, rounding, integer-overflow, control-loops, no-floating-point]
+prerequisites: []
+files:
+  editable: [pid.hpp]
+  readonly: [main.cpp]
+flags: ["-std=c++20", "-Wall", "-Wextra"]
+limits: { wallMs: 10000, memoryMb: 256 }
+requires: []
+tiers: { works: true, robust: true, fast: true, clean: true }
+gotchas: [saturate-do-not-wrap, widen-before-multiplying, round-to-nearest, division-by-zero, clamp-the-integral, derivative-on-measurement, first-sample-has-no-derivative, non-positive-dt]

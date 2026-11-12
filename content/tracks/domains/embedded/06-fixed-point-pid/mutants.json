@@ -1,0 +1,398 @@
+[
+  {
+    "name": "mul-truncates",
+    "why": "multiplication truncates instead of rounding",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const std::int64_t magnitude = (abs64(p) + kOne / 2) / kOne;",
+        "new": "        const std::int64_t magnitude = abs64(p) / kOne;"
+      }
+    ]
+  },
+  {
+    "name": "mul-shift-floor",
+    "why": "multiplication rounds toward minus infinity (arithmetic shift)",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const std::int64_t magnitude = (abs64(p) + kOne / 2) / kOne;\n        return saturate(p < 0 ? -magnitude : magnitude);",
+        "new": "        return saturate((p + kOne / 2) >> 16);"
+      }
+    ]
+  },
+  {
+    "name": "mul-ties-toward-zero",
+    "why": "ties round toward zero",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "(abs64(p) + kOne / 2) / kOne;",
+        "new": "(abs64(p) + kOne / 2 - 1) / kOne;"
+      }
+    ]
+  },
+  {
+    "name": "mul-in-32-bits",
+    "why": "the product is computed in 32 bits",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const std::int64_t p = static_cast<std::int64_t>(a.raw_) * b.raw_;",
+        "new": "        const std::int64_t p = static_cast<std::int32_t>(static_cast<std::uint32_t>(a.raw_) * static_cast<std::uint32_t>(b.raw_));"
+      }
+    ]
+  },
+  {
+    "name": "mul-wraps",
+    "why": "multiplication wraps instead of saturating",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        return saturate(p < 0 ? -magnitude : magnitude);\n    }\n    friend constexpr Fixed operator/",
+        "new": "        return from_raw(static_cast<std::int32_t>(p < 0 ? -magnitude : magnitude));\n    }\n    friend constexpr Fixed operator/"
+      }
+    ]
+  },
+  {
+    "name": "mul-negative-rounds-up",
+    "why": "a negative product is rounded toward zero",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const std::int64_t magnitude = (abs64(p) + kOne / 2) / kOne;\n        return saturate(p < 0 ? -magnitude : magnitude);",
+        "new": "        return saturate(p < 0 ? -((abs64(p)) / kOne) : (p + kOne / 2) / kOne);"
+      }
+    ]
+  },
+  {
+    "name": "add-wraps",
+    "why": "addition wraps",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "friend constexpr Fixed operator+(Fixed a, Fixed b) { return saturate(static_cast<std::int64_t>(a.raw_) + b.raw_); }",
+        "new": "friend constexpr Fixed operator+(Fixed a, Fixed b) { return from_raw(static_cast<std::int32_t>(static_cast<std::uint32_t>(a.raw_) + static_cast<std::uint32_t>(b.raw_))); }"
+      }
+    ]
+  },
+  {
+    "name": "sub-wraps",
+    "why": "subtraction wraps",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "friend constexpr Fixed operator-(Fixed a, Fixed b) { return saturate(static_cast<std::int64_t>(a.raw_) - b.raw_); }",
+        "new": "friend constexpr Fixed operator-(Fixed a, Fixed b) { return from_raw(static_cast<std::int32_t>(static_cast<std::uint32_t>(a.raw_) - static_cast<std::uint32_t>(b.raw_))); }"
+      }
+    ]
+  },
+  {
+    "name": "negate-min-stays-min",
+    "why": "negating the minimum value gives the minimum",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "friend constexpr Fixed operator-(Fixed a) { return saturate(-static_cast<std::int64_t>(a.raw_)); }",
+        "new": "friend constexpr Fixed operator-(Fixed a) { return from_raw(static_cast<std::int32_t>(0u - static_cast<std::uint32_t>(a.raw_))); }"
+      }
+    ]
+  },
+  {
+    "name": "abs-min-stays-min",
+    "why": "abs of the minimum value is negative",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "friend constexpr Fixed abs(Fixed a) { return saturate(abs64(a.raw_)); }",
+        "new": "friend constexpr Fixed abs(Fixed a) { return from_raw(a.raw_ < 0 ? static_cast<std::int32_t>(0u - static_cast<std::uint32_t>(a.raw_)) : a.raw_); }"
+      }
+    ]
+  },
+  {
+    "name": "div-truncates",
+    "why": "division truncates toward zero",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const std::int64_t q = (num + den / 2) / den;",
+        "new": "        const std::int64_t q = num / den;"
+      }
+    ]
+  },
+  {
+    "name": "div-no-widening",
+    "why": "the dividend is not scaled before dividing (loses the fraction)",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        return saturate(round_div(abs64(a.raw_) * kOne, abs64(b.raw_), (a.raw_ < 0) != (b.raw_ < 0)));",
+        "new": "        return saturate(round_div(abs64(a.raw_), abs64(b.raw_), (a.raw_ < 0) != (b.raw_ < 0)) * kOne);"
+      }
+    ]
+  },
+  {
+    "name": "div-by-zero-crashes",
+    "why": "division by zero is not guarded",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (b.raw_ == 0) return by_zero(a.raw_);\n        return saturate(round_div(abs64(a.raw_)",
+        "new": "        return saturate(round_div(abs64(a.raw_)"
+      }
+    ]
+  },
+  {
+    "name": "div-by-zero-zero",
+    "why": "division by zero gives 0",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (b.raw_ == 0) return by_zero(a.raw_);",
+        "new": "        if (b.raw_ == 0) return Fixed{};"
+      }
+    ]
+  },
+  {
+    "name": "div-by-zero-ignores-sign",
+    "why": "division by zero always gives the maximum",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "    static constexpr Fixed by_zero(std::int64_t numerator) {\n        if (numerator > 0)",
+        "new": "    static constexpr Fixed by_zero(std::int64_t numerator) {\n        if (numerator >= 0)"
+      }
+    ]
+  },
+  {
+    "name": "div-sign-wrong",
+    "why": "dividing a negative by a positive gives a positive",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "(a.raw_ < 0) != (b.raw_ < 0)));\n    }\n    friend constexpr bool operator==",
+        "new": "(a.raw_ < 0) == (b.raw_ < 0)));\n    }\n    friend constexpr bool operator=="
+      }
+    ]
+  },
+  {
+    "name": "div-wraps",
+    "why": "division wraps instead of saturating",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        return saturate(round_div(abs64(a.raw_) * kOne, abs64(b.raw_), (a.raw_ < 0) != (b.raw_ < 0)));",
+        "new": "        return from_raw(static_cast<std::int32_t>(round_div(abs64(a.raw_) * kOne, abs64(b.raw_), (a.raw_ < 0) != (b.raw_ < 0))));"
+      }
+    ]
+  },
+  {
+    "name": "from-int-wraps",
+    "why": "from_int wraps",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "static constexpr Fixed from_int(int i) { return saturate(static_cast<std::int64_t>(i) * kOne); }",
+        "new": "static constexpr Fixed from_int(int i) { return from_raw(static_cast<std::int32_t>(static_cast<std::uint32_t>(i) << 16)); }"
+      }
+    ]
+  },
+  {
+    "name": "from-ratio-truncates",
+    "why": "from_ratio truncates",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        return saturate(round_div(abs64(num) * kOne, abs64(den), (num < 0) != (den < 0)));",
+        "new": "        return saturate(((num < 0) != (den < 0) ? -1 : 1) * (abs64(num) * kOne / abs64(den)));"
+      }
+    ]
+  },
+  {
+    "name": "from-ratio-zero-den",
+    "why": "from_ratio with a zero denominator is not guarded",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (den == 0) return by_zero(num);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "to-int-floors",
+    "why": "to_int rounds toward minus infinity",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "constexpr int to_int() const { return static_cast<int>(raw_ / kOne); }",
+        "new": "constexpr int to_int() const { return static_cast<int>(raw_ >> 16); }"
+      }
+    ]
+  },
+  {
+    "name": "to-int-rounds",
+    "why": "to_int rounds to nearest",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "constexpr int to_int() const { return static_cast<int>(raw_ / kOne); }",
+        "new": "constexpr int to_int() const { return static_cast<int>((raw_ + (raw_ < 0 ? -32768 : 32768)) / kOne); }"
+      }
+    ]
+  },
+  {
+    "name": "pid-integral-unclamped",
+    "why": "the integral term is not limited",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        integral_ = clamp(integral_ + (config_.ki * error) * dt, config_.out_min, config_.out_max);",
+        "new": "        integral_ = integral_ + (config_.ki * error) * dt;"
+      }
+    ]
+  },
+  {
+    "name": "pid-integral-without-dt",
+    "why": "the integral ignores dt",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "(config_.ki * error) * dt, config_.out_min",
+        "new": "(config_.ki * error), config_.out_min"
+      }
+    ]
+  },
+  {
+    "name": "pid-integral-clamped-to-half",
+    "why": "the integral is limited to half the output range",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        integral_ = clamp(integral_ + (config_.ki * error) * dt, config_.out_min, config_.out_max);",
+        "new": "        integral_ = clamp(integral_ + (config_.ki * error) * dt, config_.out_min / Fixed::from_int(2), config_.out_max / Fixed::from_int(2));"
+      }
+    ]
+  },
+  {
+    "name": "pid-output-unclamped",
+    "why": "the output is not limited",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        last_output_ = clamp((p + integral_) + d, config_.out_min, config_.out_max);",
+        "new": "        last_output_ = (p + integral_) + d;"
+      }
+    ]
+  },
+  {
+    "name": "pid-derivative-on-error",
+    "why": "the derivative acts on the error (derivative kick)",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const Fixed d = has_previous_ ? -(config_.kd * ((measurement - previous_) / dt)) : Fixed{};\n        previous_ = measurement;",
+        "new": "        const Fixed d = has_previous_ ? (config_.kd * (((setpoint - measurement) - previous_) / dt)) : Fixed{};\n        previous_ = setpoint - measurement;"
+      }
+    ]
+  },
+  {
+    "name": "pid-derivative-sign",
+    "why": "the derivative term has the wrong sign",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "-(config_.kd * ((measurement - previous_) / dt))",
+        "new": "(config_.kd * ((measurement - previous_) / dt))"
+      }
+    ]
+  },
+  {
+    "name": "pid-derivative-without-dt",
+    "why": "the derivative is not divided by dt",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "(config_.kd * ((measurement - previous_) / dt))",
+        "new": "(config_.kd * (measurement - previous_))"
+      }
+    ]
+  },
+  {
+    "name": "pid-first-sample-derivative",
+    "why": "the first sample has a derivative against a previous measurement of 0",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "const Fixed d = has_previous_ ? -(config_.kd * ((measurement - previous_) / dt)) : Fixed{};",
+        "new": "const Fixed d = -(config_.kd * ((measurement - previous_) / dt));"
+      }
+    ]
+  },
+  {
+    "name": "pid-dt-zero-updates",
+    "why": "a non-positive dt is not handled",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (dt.raw() <= 0) return last_output_;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "pid-dt-negative-accepted",
+    "why": "only dt == 0 is rejected, a negative dt is used",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (dt.raw() <= 0) return last_output_;",
+        "new": "        if (dt.raw() == 0) return last_output_;"
+      }
+    ]
+  },
+  {
+    "name": "pid-dt-returns-zero",
+    "why": "a rejected dt returns 0 instead of the previous output",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        if (dt.raw() <= 0) return last_output_;",
+        "new": "        if (dt.raw() <= 0) return Fixed{};"
+      }
+    ]
+  },
+  {
+    "name": "pid-reset-keeps-integral",
+    "why": "reset keeps the integral",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "    void reset() {\n        integral_ = Fixed{};",
+        "new": "    void reset() {"
+      }
+    ]
+  },
+  {
+    "name": "pid-reset-keeps-previous",
+    "why": "reset keeps the previous measurement",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        has_previous_ = false;\n        last_output_ = Fixed{};\n    }",
+        "new": "        last_output_ = Fixed{};\n    }"
+      }
+    ]
+  },
+  {
+    "name": "pid-p-term-wrong-sign",
+    "why": "the error is measurement - setpoint",
+    "edits": [
+      {
+        "file": "pid.hpp",
+        "old": "        const Fixed error = setpoint - measurement;",
+        "new": "        const Fixed error = measurement - setpoint;"
+      }
+    ]
+  }
+]

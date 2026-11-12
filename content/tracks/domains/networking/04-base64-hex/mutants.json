@@ -1,0 +1,343 @@
+[
+  {
+    "name": "alphabet-62-63-swapped",
+    "why": "the standard alphabet has / and + swapped",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "ghijklmnopqrstuvwxyz0123456789+/\";\ninline constexpr char kUrlSafe",
+        "new": "ghijklmnopqrstuvwxyz0123456789/+\";\ninline constexpr char kUrlSafe"
+      }
+    ]
+  },
+  {
+    "name": "urlsafe-is-standard",
+    "why": "the URL-safe alphabet is the standard one",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "ghijklmnopqrstuvwxyz0123456789-_\";\n\nconstexpr",
+        "new": "ghijklmnopqrstuvwxyz0123456789+/\";\n\nconstexpr"
+      }
+    ]
+  },
+  {
+    "name": "encoded-size-floor",
+    "why": "encoded_size rounds down",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (pad) return (n + 2) / 3 * 4;",
+        "new": "    if (pad) return n / 3 * 4;"
+      }
+    ]
+  },
+  {
+    "name": "unpadded-size-wrong",
+    "why": "the unpadded size is one character short for 2 leftover bytes",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    return n / 3 * 4 + (n % 3 == 0 ? 0 : n % 3 + 1);",
+        "new": "    return n / 3 * 4 + (n % 3 == 0 ? 0 : n % 3);"
+      }
+    ]
+  },
+  {
+    "name": "max-decoded-low",
+    "why": "max_decoded_size is too small for unpadded input",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "constexpr std::size_t max_decoded_size(std::size_t len) { return len / 4 * 3 + (len % 4) * 3 / 4; }",
+        "new": "constexpr std::size_t max_decoded_size(std::size_t len) { return len / 4 * 3; }"
+      }
+    ]
+  },
+  {
+    "name": "encode-tail-shift",
+    "why": "the tail group of 1 byte uses the wrong shift",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        const std::uint32_t v = std::uint32_t{in[i]} << 16;",
+        "new": "        const std::uint32_t v = std::uint32_t{in[i]} << 8;"
+      }
+    ]
+  },
+  {
+    "name": "encode-two-byte-tail-lost",
+    "why": "the second byte of a 2-byte tail is dropped",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        const std::uint32_t v = (std::uint32_t{in[i]} << 16) | (std::uint32_t{in[i + 1]} << 8);",
+        "new": "        const std::uint32_t v = (std::uint32_t{in[i]} << 16);"
+      }
+    ]
+  },
+  {
+    "name": "encode-no-padding-ever",
+    "why": "no padding is written",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (pad) {\n            out[o++] = '=';\n            out[o++] = '=';\n        }",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "encode-one-pad-only",
+    "why": "a 1-byte tail gets a single =",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (pad) {\n            out[o++] = '=';\n            out[o++] = '=';\n        }",
+        "new": "        if (pad) out[o++] = '=';"
+      }
+    ]
+  },
+  {
+    "name": "encode-pads-when-unpadded",
+    "why": "padding is written even when it was not wanted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (pad) out[o++] = '=';\n    }\n    return o;",
+        "new": "        out[o++] = '=';\n    }\n    return o;"
+      }
+    ]
+  },
+  {
+    "name": "encode-to-no-capacity-check",
+    "why": "encode_to does not check the capacity",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (out.size() < need) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "encode-to-writes-extra",
+    "why": "encode_to writes a terminating zero",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    return o;\n}\n\ninline std::string encode(",
+        "new": "    if (o < out.size()) out[o] = '\\0';\n    return o;\n}\n\ninline std::string encode("
+      }
+    ]
+  },
+  {
+    "name": "decode-table-invalid-is-zero",
+    "why": "unknown characters decode as A",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    for (auto& v : t) v = 0xFF;",
+        "new": "    for (auto& v : t) v = 0;"
+      }
+    ]
+  },
+  {
+    "name": "decode-table-signed-index",
+    "why": "the table is indexed with a signed char",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "const std::uint8_t v = table[static_cast<unsigned char>(ch)];",
+        "new": "const std::uint8_t v = table[static_cast<std::size_t>(static_cast<signed char>(ch)) & 0x7F];"
+      }
+    ]
+  },
+  {
+    "name": "decode-accepts-data-after-padding",
+    "why": "characters may follow the padding",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (pad_chars > 0) return std::nullopt;          // data after padding\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-accepts-one-char-group",
+    "why": "a group of a single character is accepted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (rem == 1) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-ignores-trailing-bits",
+    "why": "non-zero trailing bits are accepted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (bits > 0 && (acc & ((1u << bits) - 1)) != 0) return std::nullopt;   // non-canonical: the unused bits must be zero\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-padding-count-unchecked",
+    "why": "any number of = is accepted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (pad_chars > 0 && pad_chars != needed_pad) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-padding-required-always-off",
+    "why": "missing padding is always accepted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (pad_chars == 0 && needed_pad > 0 && options.require_padding) return std::nullopt;",
+        "new": "    if (false) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "decode-padding-required-always-on",
+    "why": "missing padding is always refused",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "options.require_padding) return std::nullopt;",
+        "new": "true) return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "decode-whitespace-always",
+    "why": "whitespace is skipped even when not allowed",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (options.allow_whitespace && detail::is_space(ch)) continue;",
+        "new": "        if (detail::is_space(ch)) continue;"
+      }
+    ]
+  },
+  {
+    "name": "decode-whitespace-never",
+    "why": "whitespace is never skipped",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (options.allow_whitespace && detail::is_space(ch)) continue;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "whitespace-includes-vt",
+    "why": "vertical tab counts as whitespace",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n'; }",
+        "new": "inline bool is_space(char c) { return c == ' ' || c == '\\t' || c == '\\r' || c == '\\n' || c == '\\v'; }"
+      }
+    ]
+  },
+  {
+    "name": "decode-to-no-capacity-check",
+    "why": "decode_to writes past the buffer",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "            if (produced >= out.size()) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decode-to-checks-after-writing",
+    "why": "decode_to checks the capacity too late (writes one byte past the end)",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "            if (produced >= out.size()) return std::nullopt;\n            out[produced++] = static_cast<std::uint8_t>((acc >> bits) & 0xFF);",
+        "new": "            if (produced > out.size()) return std::nullopt;\n            if (produced < out.size()) out[produced] = static_cast<std::uint8_t>((acc >> bits) & 0xFF);\n            else if (out.size() > 0) out[out.size() - 1] = static_cast<std::uint8_t>((acc >> bits) & 0xFF);\n            ++produced;"
+      }
+    ]
+  },
+  {
+    "name": "decode-allocates-twice",
+    "why": "decode copies the result",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    out.resize(*n);\n    return out;",
+        "new": "    out.resize(*n);\n    std::vector<std::uint8_t> copy(out.begin(), out.end());\n    return copy;"
+      }
+    ]
+  },
+  {
+    "name": "hex-encode-wrong-case",
+    "why": "upper-case is lower-case and vice versa",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "const char* digits = upper ? \"0123456789ABCDEF\" : \"0123456789abcdef\";",
+        "new": "const char* digits = upper ? \"0123456789abcdef\" : \"0123456789ABCDEF\";"
+      }
+    ]
+  },
+  {
+    "name": "hex-encode-nibbles-swapped",
+    "why": "the nibbles are swapped",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        out[2 * i] = digits[in[i] >> 4];\n        out[2 * i + 1] = digits[in[i] & 15];",
+        "new": "        out[2 * i] = digits[in[i] & 15];\n        out[2 * i + 1] = digits[in[i] >> 4];"
+      }
+    ]
+  },
+  {
+    "name": "hex-decode-odd-ok",
+    "why": "an odd number of digits is accepted",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "    if (text.size() % 2 != 0) return std::nullopt;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "hex-decode-lowercase-only",
+    "why": "upper-case digits are rejected",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (c >= 'A' && c <= 'F') return c - 'A' + 10;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "hex-decode-letters-to-z",
+    "why": "letters up to z are accepted as digits",
+    "edits": [
+      {
+        "file": "codec64.hpp",
+        "old": "        if (c >= 'a' && c <= 'f') return c - 'a' + 10;",
+        "new": "        if (c >= 'a' && c <= 'z') return c - 'a' + 10;"
+      }
+    ]
+  }
+]

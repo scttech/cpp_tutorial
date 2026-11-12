@@ -1,0 +1,398 @@
+[
+  {
+    "name": "be-le-swapped",
+    "why": "big-endian writes come out little-endian",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    void put_u32be(std::uint32_t v) { put_be(v, 4); }",
+        "new": "    void put_u32be(std::uint32_t v) { put_le(v, 4); }"
+      }
+    ]
+  },
+  {
+    "name": "u16-written-as-u8",
+    "why": "put_u16be drops the high byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    void put_u16be(std::uint16_t v) { put_be(v, 2); }",
+        "new": "    void put_u16be(std::uint16_t v) { put_be(v, 1); }"
+      }
+    ]
+  },
+  {
+    "name": "u64-written-as-u32",
+    "why": "put_u64le writes only 4 bytes",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    void put_u64le(std::uint64_t v) { put_le(v, 8); }",
+        "new": "    void put_u64le(std::uint64_t v) { put_le(v, 4); }"
+      }
+    ]
+  },
+  {
+    "name": "varint-no-continuation",
+    "why": "varint bytes never set the continuation bit",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "bytes_.push_back(static_cast<std::uint8_t>((v & 0x7F) | 0x80));",
+        "new": "bytes_.push_back(static_cast<std::uint8_t>(v & 0x7F));"
+      }
+    ]
+  },
+  {
+    "name": "varint-boundary",
+    "why": "values 128..255 are written in one byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        while (v >= 0x80) {",
+        "new": "        while (v >= 0x100) {"
+      }
+    ]
+  },
+  {
+    "name": "varint-high-bytes-first",
+    "why": "varint groups are written most significant first",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    void put_varint(std::uint64_t v) {\n        while (v >= 0x80) {\n            bytes_.push_back(static_cast<std::uint8_t>((v & 0x7F) | 0x80));\n            v >>= 7;\n        }\n        bytes_.push_back(static_cast<std::uint8_t>(v));\n    }",
+        "new": "    void put_varint(std::uint64_t v) {\n        std::uint8_t tmp[10];\n        int n = 0;\n        do {\n            tmp[n++] = static_cast<std::uint8_t>(v & 0x7F);\n            v >>= 7;\n        } while (v != 0);\n        for (int i = n - 1; i >= 0; --i) bytes_.push_back(static_cast<std::uint8_t>(tmp[i] | (i > 0 ? 0x80 : 0)));\n    }"
+      }
+    ]
+  },
+  {
+    "name": "zigzag-shift-logical",
+    "why": "zigzag uses a logical shift for the sign (negatives become huge)",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "put_varint((static_cast<std::uint64_t>(v) << 1) ^ static_cast<std::uint64_t>(v >> 63));",
+        "new": "put_varint((static_cast<std::uint64_t>(v) << 1) ^ (static_cast<std::uint64_t>(v) >> 63));"
+      }
+    ]
+  },
+  {
+    "name": "zigzag-missing",
+    "why": "signed values are written as plain varints",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "put_varint((static_cast<std::uint64_t>(v) << 1) ^ static_cast<std::uint64_t>(v >> 63));",
+        "new": "put_varint(static_cast<std::uint64_t>(v));"
+      }
+    ]
+  },
+  {
+    "name": "string-without-length",
+    "why": "put_string writes no length prefix",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        put_varint(text.size());\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "string-length-one-byte",
+    "why": "the string length is written as a single byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        put_varint(text.size());",
+        "new": "        put_u8(static_cast<std::uint8_t>(text.size()));"
+      }
+    ]
+  },
+  {
+    "name": "read-be-as-le",
+    "why": "big-endian reads assemble the bytes the wrong way round",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "v |= big_endian ? b << (8 * (n - 1 - i)) : b << (8 * i);",
+        "new": "v |= big_endian ? b << (8 * i) : b << (8 * i);"
+      }
+    ]
+  },
+  {
+    "name": "read-moves-on-failure",
+    "why": "a failed fixed-size read still advances",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (remaining() < n) return std::nullopt;\n        std::uint64_t v = 0;",
+        "new": "        if (remaining() < n) {\n            pos_ = data_.size();\n            return std::nullopt;\n        }\n        std::uint64_t v = 0;"
+      }
+    ]
+  },
+  {
+    "name": "read-allows-one-past",
+    "why": "a read may go one byte past the end",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (remaining() < n) return std::nullopt;\n        std::uint64_t v = 0;",
+        "new": "        if (remaining() + 1 < n) return std::nullopt;\n        std::uint64_t v = 0;"
+      }
+    ]
+  },
+  {
+    "name": "get-u8-unchecked",
+    "why": "get_u8 does not check the end",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (remaining() < 1) return std::nullopt;\n        return data_[pos_++];",
+        "new": "        return data_[pos_++];"
+      }
+    ]
+  },
+  {
+    "name": "varint-accepts-overlong",
+    "why": "a redundant zero byte is accepted",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                if (i > 0 && b == 0) return std::nullopt;        // redundant zero byte: not canonical\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "varint-accepts-overflow",
+    "why": "the 10th byte may be anything",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "            if (i == 9 && b > 1) return std::nullopt;            // would not fit in 64 bits\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "varint-moves-on-failure",
+    "why": "a failed varint read consumes what it looked at",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "            if (pos_ + i >= data_.size()) return std::nullopt;   // truncated",
+        "new": "            if (pos_ + i >= data_.size()) {\n                pos_ = data_.size();\n                return std::nullopt;\n            }"
+      }
+    ]
+  },
+  {
+    "name": "varint-reads-continuation-as-data",
+    "why": "the continuation bit is kept in the value",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "value |= static_cast<std::uint64_t>(b & 0x7F) << (7 * i);",
+        "new": "value |= static_cast<std::uint64_t>(b) << (7 * i);"
+      }
+    ]
+  },
+  {
+    "name": "zigzag-decode-wrong",
+    "why": "zigzag decoding does not restore the sign",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "return static_cast<std::int64_t>((*u >> 1) ^ (~(*u & 1) + 1));",
+        "new": "return static_cast<std::int64_t>(*u >> 1);"
+      }
+    ]
+  },
+  {
+    "name": "bytes-off-by-one",
+    "why": "get_bytes refuses exactly the remaining amount",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (n > remaining()) return std::nullopt;\n        const auto s = data_.subspan(pos_, n);",
+        "new": "        if (n >= remaining()) return std::nullopt;\n        const auto s = data_.subspan(pos_, n);"
+      }
+    ]
+  },
+  {
+    "name": "string-length-unchecked",
+    "why": "get_string trusts the announced length",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (!len || *len > remaining()) {",
+        "new": "        if (!len) {"
+      }
+    ]
+  },
+  {
+    "name": "string-failure-moves",
+    "why": "a failed get_string leaves the position after the length",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "            pos_ = start;\n            return std::nullopt;",
+        "new": "            (void)start;\n            return std::nullopt;"
+      }
+    ]
+  },
+  {
+    "name": "string-copy",
+    "why": "get_string copies the bytes into a buffer first",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        return std::string_view(reinterpret_cast<const char*>(s.data()), s.size());",
+        "new": "        static thread_local std::vector<char> hold;\n        hold.assign(s.begin(), s.end());\n        return std::string_view(hold.data(), hold.size());"
+      }
+    ]
+  },
+  {
+    "name": "frame-checksum-skips-header",
+    "why": "the checksum ignores the version and type",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    std::uint8_t sum = kChecksumSeed;\n    for (std::uint8_t b : w.bytes()) sum = static_cast<std::uint8_t>(sum ^ b);",
+        "new": "    std::uint8_t sum = kChecksumSeed;\n    for (std::size_t i = 2; i < w.bytes().size(); ++i) sum = static_cast<std::uint8_t>(sum ^ w.bytes()[i]);"
+      }
+    ]
+  },
+  {
+    "name": "frame-checksum-no-seed",
+    "why": "the checksum has no seed",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    std::uint8_t sum = kChecksumSeed;",
+        "new": "    std::uint8_t sum = 0;"
+      }
+    ]
+  },
+  {
+    "name": "frame-length-fixed-byte",
+    "why": "the frame length is one byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "    w.put_varint(payload.size());\n    w.put_bytes(payload);",
+        "new": "    w.put_u8(static_cast<std::uint8_t>(payload.size()));\n    w.put_bytes(payload);"
+      }
+    ]
+  },
+  {
+    "name": "decoder-version-unchecked",
+    "why": "any version byte is accepted",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                if (b != kFrameVersion) return fail(FrameError::BadVersion);",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decoder-too-large-late",
+    "why": "the length limit is checked after the payload has arrived",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                if (length_ > max_payload_) return fail(FrameError::TooLarge);\n                current_.payload.reserve(static_cast<std::size_t>(length_) < 4096 ? static_cast<std::size_t>(length_) : 4096);",
+        "new": "                current_.payload.reserve(static_cast<std::size_t>(length_));"
+      }
+    ]
+  },
+  {
+    "name": "decoder-limit-off-by-one",
+    "why": "a payload of exactly max_payload bytes is refused",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "if (length_ > max_payload_) return fail(FrameError::TooLarge);",
+        "new": "if (length_ >= max_payload_) return fail(FrameError::TooLarge);"
+      }
+    ]
+  },
+  {
+    "name": "decoder-length-overlong-ok",
+    "why": "a redundant zero length byte is accepted",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                if (length_bytes_ > 1 && b == 0) return fail(FrameError::BadLength);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decoder-checksum-ignored",
+    "why": "the checksum byte is not verified",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                if (b != sum_) return fail(FrameError::BadChecksum);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decoder-checksum-includes-itself",
+    "why": "the running checksum also covers the checksum byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        if (stage_ != Stage::Checksum) sum_ =",
+        "new": "        if (true) sum_ ="
+      }
+    ]
+  },
+  {
+    "name": "decoder-zero-length-hangs",
+    "why": "an empty payload waits for a payload byte",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "                stage_ = length_ == 0 ? Stage::Checksum : Stage::Payload;",
+        "new": "                stage_ = Stage::Payload;"
+      }
+    ]
+  },
+  {
+    "name": "decoder-keeps-consuming-after-error",
+    "why": "feed keeps reading after an error",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "            if (error_ != FrameError::None) break;\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "decoder-reset-keeps-frames",
+    "why": "reset keeps the queued frames",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        current_ = Frame{};\n        done_.clear();\n    }",
+        "new": "        current_ = Frame{};\n    }"
+      }
+    ]
+  },
+  {
+    "name": "decoder-reset-keeps-error",
+    "why": "reset keeps the error",
+    "edits": [
+      {
+        "file": "codec.hpp",
+        "old": "        error_ = FrameError::None;\n        stage_ = Stage::Version;\n        current_ = Frame{};\n        done_.clear();",
+        "new": "        stage_ = Stage::Version;\n        current_ = Frame{};\n        done_.clear();"
+      }
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+id: domain.embedded
+title: "Embedded Systems"
+track: embedded
+order: 104
+summary: "Firmware building blocks without a heap: typed register fields with exact read-modify-write behaviour, fixed-capacity containers, a table-driven state machine, compile-time CRC tables, an interrupt-safe command queue and a fixed-point PID controller."
+recommends: "Modules 1 to 6 (up to the Standard Library)"

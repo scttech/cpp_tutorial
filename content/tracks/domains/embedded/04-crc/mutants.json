@@ -1,0 +1,288 @@
+[
+  {
+    "name": "reflect-skips-last-bit",
+    "why": "reflect forgets one bit",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "    for (unsigned i = 0; i < std::numeric_limits<T>::digits; ++i) {\n        result =",
+        "new": "    for (unsigned i = 0; i + 1 < std::numeric_limits<T>::digits; ++i) {\n        result ="
+      }
+    ]
+  },
+  {
+    "name": "reflect-8-bits-only",
+    "why": "reflect always handles 8 bits",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "    for (unsigned i = 0; i < std::numeric_limits<T>::digits; ++i) {\n        result =",
+        "new": "    for (unsigned i = 0; i < 8; ++i) {\n        result ="
+      }
+    ]
+  },
+  {
+    "name": "table-reflected-poly-not-reflected",
+    "why": "the reflected table uses the unreflected polynomial",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "(v >> 1) ^ reflect(P.poly)",
+        "new": "(v >> 1) ^ P.poly"
+      }
+    ]
+  },
+  {
+    "name": "table-direct-start-not-shifted",
+    "why": "the direct table starts from i instead of i << (bits-8)",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "T v = static_cast<T>(static_cast<T>(i) << (kBits - 8));",
+        "new": "T v = static_cast<T>(i);"
+      }
+    ]
+  },
+  {
+    "name": "table-seven-rounds",
+    "why": "the table is built with 7 shift rounds instead of 8",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "                for (int bit = 0; bit < 8; ++bit) v = (v & 1)",
+        "new": "                for (int bit = 0; bit < 7; ++bit) v = (v & 1)"
+      }
+    ]
+  },
+  {
+    "name": "table-direct-seven-rounds",
+    "why": "the direct table is built with 7 rounds",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "                for (int bit = 0; bit < 8; ++bit) v = (v & top)",
+        "new": "                for (int bit = 0; bit < 7; ++bit) v = (v & top)"
+      }
+    ]
+  },
+  {
+    "name": "table-direct-wrong-top-bit",
+    "why": "the direct table tests the wrong bit",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "const T top = static_cast<T>(T{1} << (kBits - 1));",
+        "new": "const T top = static_cast<T>(T{1} << (kBits - 2));"
+      }
+    ]
+  },
+  {
+    "name": "update-reflected-shift-7",
+    "why": "the reflected update shifts by 7",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "(state_ ^ b) & 0xFF] ^ (state_ >> 8)",
+        "new": "(state_ ^ b) & 0xFF] ^ (state_ >> 7)"
+      }
+    ]
+  },
+  {
+    "name": "update-reflected-mask-7-bits",
+    "why": "the table index is masked to 7 bits",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "table[(state_ ^ b) & 0xFF]",
+        "new": "table[(state_ ^ b) & 0x7F]"
+      }
+    ]
+  },
+  {
+    "name": "update-direct-top-byte-wrong",
+    "why": "the direct update takes the wrong byte of the register",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "table[((state_ >> (kBits - 8)) ^ b) & 0xFF]",
+        "new": "table[((state_ >> (kBits - 9)) ^ b) & 0xFF]"
+      }
+    ]
+  },
+  {
+    "name": "update-direct-shift-right",
+    "why": "the direct update shifts the register the wrong way",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "^ (state_ << 8));",
+        "new": "^ (state_ >> 8));"
+      }
+    ]
+  },
+  {
+    "name": "start-not-reflected",
+    "why": "the reflected register starts from init instead of reflect(init)",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "return P.reflect_in ? reflect(P.init) : P.init;",
+        "new": "return P.init;"
+      }
+    ]
+  },
+  {
+    "name": "start-always-reflected",
+    "why": "the direct register starts from reflect(init)",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "return P.reflect_in ? reflect(P.init) : P.init;",
+        "new": "return reflect(P.init);"
+      }
+    ]
+  },
+  {
+    "name": "start-is-zero",
+    "why": "the register always starts from 0",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "return P.reflect_in ? reflect(P.init) : P.init;",
+        "new": "return T{0};"
+      }
+    ]
+  },
+  {
+    "name": "reset-to-zero",
+    "why": "reset() starts from zero",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "constexpr void reset() { state_ = start(); }",
+        "new": "constexpr void reset() { state_ = 0; }"
+      }
+    ]
+  },
+  {
+    "name": "reset-forgets",
+    "why": "reset() does nothing",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "constexpr void reset() { state_ = start(); }",
+        "new": "constexpr void reset() {}"
+      }
+    ]
+  },
+  {
+    "name": "final-reflect-always",
+    "why": "the result is always reflected",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "if (P.reflect_in != P.reflect_out) r = reflect(r);",
+        "new": "r = reflect(r);"
+      }
+    ]
+  },
+  {
+    "name": "final-reflect-by-out-only",
+    "why": "the result is reflected when reflect_out is set (ignoring reflect_in)",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "if (P.reflect_in != P.reflect_out) r = reflect(r);",
+        "new": "if (P.reflect_out) r = reflect(r);"
+      }
+    ]
+  },
+  {
+    "name": "final-reflect-by-in-only",
+    "why": "the result is reflected when reflect_in is set",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "if (P.reflect_in != P.reflect_out) r = reflect(r);",
+        "new": "if (P.reflect_in) r = reflect(r);"
+      }
+    ]
+  },
+  {
+    "name": "final-never-reflects",
+    "why": "the result is never reflected",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "        if (P.reflect_in != P.reflect_out) r = reflect(r);\n",
+        "new": ""
+      }
+    ]
+  },
+  {
+    "name": "final-xor-missing",
+    "why": "the final XOR is forgotten",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "return static_cast<T>(r ^ P.xor_out);",
+        "new": "return r;"
+      }
+    ]
+  },
+  {
+    "name": "value-changes-state",
+    "why": "value() applies the final XOR to the running register",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "    constexpr T value() const {\n        T r = state_;",
+        "new": "    constexpr T value() {\n        T r = state_;\n        state_ = static_cast<T>(state_ ^ P.xor_out);"
+      }
+    ]
+  },
+  {
+    "name": "update-restarts",
+    "why": "every update starts from the initial value",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "    constexpr void update(std::span<const std::uint8_t> data) {\n        for",
+        "new": "    constexpr void update(std::span<const std::uint8_t> data) {\n        state_ = start();\n        for"
+      }
+    ]
+  },
+  {
+    "name": "span-drops-last-byte",
+    "why": "the span overload ignores the last byte",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "        for (std::uint8_t b : data) {\n            if constexpr (P.reflect_in) {",
+        "new": "        for (std::uint8_t b : data.first(data.empty() ? 0 : data.size() - 1)) {\n            if constexpr (P.reflect_in) {"
+      }
+    ]
+  },
+  {
+    "name": "string-sign-extends",
+    "why": "bytes above 127 are sign-extended in the string overload",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "        for (char c : text) update_byte(static_cast<std::uint8_t>(c));",
+        "new": "        for (char c : text) update_byte(static_cast<std::uint8_t>(static_cast<int>(c) & 0x7F));"
+      }
+    ]
+  },
+  {
+    "name": "compute-shares-state",
+    "why": "compute() keeps a static register between calls",
+    "edits": [
+      {
+        "file": "crc.hpp",
+        "old": "    static constexpr T compute(std::span<const std::uint8_t> data) {\n        Crc c;\n        c.update(data);\n        return c.value();",
+        "new": "    static T compute(std::span<const std::uint8_t> data) {\n        static Crc c;\n        c.update(data);\n        return c.value();"
+      }
+    ]
+  }
+]

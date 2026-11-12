@@ -1,0 +1,16 @@
+ladder:
+  - level: 1
+    text: "Two 64-character alphabets (they differ in the last two) and, for decoding, a std::array<std::uint8_t, 256> per alphabet built by a constexpr function: fill with 0xFF (invalid), then table[alphabet[i]] = i. Index it with static_cast<unsigned char>(c). Sizes: padded encoded_size = (n + 2) / 3 * 4; unpadded = n / 3 * 4 + (n % 3 == 0 ? 0 : n % 3 + 1). max_decoded_size(len) = len / 4 * 3 + (len % 4) * 3 / 4."
+  - level: 2
+    text: "encode_to: check out.size() >= encoded_size first (otherwise nullopt and write nothing). Process 3 bytes at a time: v = b0 << 16 | b1 << 8 | b2, then four characters table[(v >> 18) & 63] ... table[v & 63]. The tail: 1 byte -> v = b0 << 16 and two characters (then '==' if padding); 2 bytes -> v = b0 << 16 | b1 << 8 and three characters (then '=' if padding). Return the number written."
+  - level: 3
+    text: "decode_to, one pass: keep an accumulator acc and a bit count. For each character: skip whitespace only if allowed; '=' counts padding; a data character after a '=' is an error; table lookup 0xFF is an error. acc = (acc << 6) | value; bits += 6; when bits >= 8 emit (acc >> (bits - 8)) & 0xFF (checking the output capacity BEFORE writing) and bits -= 8. At the end: data_chars % 4 == 1 is an error; any leftover bits (bits > 0) must be zero: (acc & ((1 << bits) - 1)) == 0; the padding count must be 0 or exactly 4 - data_chars % 4 (and must be present if require_padding and the group is incomplete)."
+  - level: 4
+    text: |
+      // after the loop:
+      // const std::size_t rem = data_chars % 4;
+      // if (rem == 1) return std::nullopt;
+      // if (bits > 0 && (acc & ((1u << bits) - 1)) != 0) return std::nullopt;   // non-canonical
+      // const std::size_t needed_pad = rem == 0 ? 0 : 4 - rem;
+      // if (pad_chars > 0 && pad_chars != needed_pad) return std::nullopt;
+      // if (pad_chars == 0 && needed_pad > 0 && options.require_padding) return std::nullopt;

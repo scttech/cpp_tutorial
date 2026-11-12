@@ -17,6 +17,14 @@ const SOME_FINANCE = [
   ["domain.finance.money", "finance/01-fixed-point-money", "Fixed-point money"],
   ["domain.finance.event-queue", "finance/06-event-queue", "SPSC event queue (threads + TSan)"],
 ];
+const SOME_EMBEDDED = [
+  ["domain.embedded.registers", "embedded/01-register-fields", "Typed register fields"],
+  ["domain.embedded.crc", "embedded/04-crc", "CRC with a compile-time table"],
+];
+const SOME_NETWORKING = [
+  ["domain.networking.http-parser", "networking/01-http-request-parser", "HTTP request parser"],
+  ["domain.networking.base64", "networking/04-base64-hex", "Base64 and hex"],
+];
 const SOME_SYSTEMS = [
   ["domain.systems.lru-cache", "systems/01-lru-cache", "LRU cache"],
   ["domain.systems.timer-wheel", "systems/07-timer-wheel", "Timer wheel"],
@@ -32,9 +40,12 @@ try {
 
   const domain = (title) => page.locator("section.module").filter({ has: page.locator("h2", { hasText: title }) });
   const games = domain("Games"), finance = domain("Finance and Trading"), systems = domain("Systems and Infrastructure");
+  const embedded = domain("Embedded Systems"), networking = domain("Networking and Parsing");
   check((await games.locator(".lesson-list a").count()) === 6, "Games lists six challenges");
   check((await finance.locator(".lesson-list a").count()) === 6, "Finance lists six challenges");
   check((await systems.locator(".lesson-list a").count()) === 7, "Systems lists seven challenges");
+  check((await embedded.locator(".lesson-list a").count()) === 6, "Embedded lists six challenges");
+  check((await networking.locator(".lesson-list a").count()) === 6, "Networking lists six challenges");
   check(/Recommended first/.test((await games.textContent()) ?? ""), "each domain recommends the course modules to do first");
 
   // the course sections come before the domain sections, and the domains are not mixed into the course
@@ -64,13 +75,18 @@ try {
   // Finance and Systems: a sample through the real UI (the full set is validated by validate-content in the same Docker runner)
   for (const [id, dir, label] of SOME_FINANCE) await solve(page, id, dir, label);
   for (const [id, dir, label] of SOME_SYSTEMS) await solve(page, id, dir, label);
+  for (const [id, dir, label] of SOME_EMBEDDED) await solve(page, id, dir, label);
+  for (const [id, dir, label] of SOME_NETWORKING) await solve(page, id, dir, label);
   await page.goto(`${APP}/#/`);
   check(!/module complete/.test((await finance.locator("h2").textContent()) ?? ""), "two of six Finance challenges do not complete the track");
   check(!/module complete/.test((await systems.locator("h2").textContent()) ?? ""), "two of seven Systems challenges do not complete the track");
   await page.goto(`${APP}/#/profile`);
   check((await page.locator(".badge-card.earned", { hasText: "Quant" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Systems Hacker" }).count()) === 0,
     "no Quant or Systems Hacker badge before those tracks are finished");
-  check((await page.locator("details.soon .badge-card", { hasText: "Embedded Engineer" }).count()) === 1, "the Embedded Engineer badge waits in 'coming soon'");
+  check((await page.locator("details.soon .badge-card", { hasText: "Data Wrangler" }).count()) === 1, "the Data Wrangler badge (a domain that is not written yet) waits in 'coming soon'");
+  check((await page.locator("details.soon .badge-card", { hasText: "Embedded Engineer" }).count()) === 0, "the Embedded Engineer badge is available now: its domain exists");
+  check((await page.locator(".badge-card.earned", { hasText: "Embedded Engineer" }).count()) === 0 && (await page.locator(".badge-card.earned", { hasText: "Protocol Wizard" }).count()) === 0,
+    "no Embedded Engineer or Protocol Wizard badge before those tracks are finished");
   await page.close();
 } catch (e) {
   t.crashed(e);
