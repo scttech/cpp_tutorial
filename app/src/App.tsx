@@ -1,5 +1,6 @@
-import { Suspense, lazy, useEffect, useState } from "react";
-import { HashRouter, Link, Route, Routes } from "react-router-dom";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { HashRouter, Link, Route, Routes, useLocation } from "react-router-dom";
+import { getLesson } from "./content/loader";
 import { badgeDefs, catalog } from "./badges/catalog";
 import { isAvailable } from "./badges/engine";
 import { ToastHost } from "./components/ToastHost";
@@ -53,9 +54,53 @@ function Nav() {
   );
 }
 
+function focusMain(preventScroll: boolean) {
+  const main = document.querySelector<HTMLElement>("main");
+  if (!main) return;
+  main.tabIndex = -1; // focusable by script only, not a tab stop
+  main.focus({ preventScroll });
+}
+
+const TITLES: [RegExp, string][] = [
+  [/^\/$/, "Course map"],
+  [/^\/profile/, "Profile"],
+  [/^\/settings/, "Settings"],
+  [/^\/warmup/, "Warm-up"],
+];
+
+/** On every navigation: a title that names the page (screen readers announce it) and focus moved to the new content. */
+function RouteEffects() {
+  const { pathname } = useLocation();
+  const last = useRef<string | null>(null);
+  useEffect(() => {
+    const lesson = /^\/lesson\/(.+)$/.exec(pathname);
+    const name = lesson ? getLesson(decodeURIComponent(lesson[1]!))?.meta.title ?? "Lesson" : TITLES.find(([re]) => re.test(pathname))?.[1] ?? "Not found";
+    document.title = `${name} · CPP: Zero to Hero`;
+    // Not on the first load (the skip link must stay the first Tab stop), and not when React re-runs the effect for the same page.
+    const moved = last.current !== null && last.current !== pathname;
+    last.current = pathname;
+    if (!moved) return;
+    // Wait a frame so lazily loaded pages have rendered their <main>.
+    const t = requestAnimationFrame(() => focusMain(true));
+    return () => cancelAnimationFrame(t);
+  }, [pathname]);
+  return null;
+}
+
 export function App() {
   return (
     <HashRouter>
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          focusMain(false);
+        }}
+      >
+        Skip to content
+      </a>
+      <RouteEffects />
       <header className="topbar">
         <Link to="/" className="brand">
           CPP: <span className="z">Zero</span> to <span className="h">Hero</span>

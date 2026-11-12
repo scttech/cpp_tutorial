@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getLesson } from "../content/loader";
+import { Tabs, panelProps } from "./Tabs";
 import { explainReport } from "../diagnostics/runtimeReports";
 import type { CompileDiagnostic, ReportFrame, RunResult, RuntimeReport, Tier, TestResult } from "../runner/types";
 
@@ -19,6 +20,8 @@ const STATUS: Record<TestResult["status"], { icon: string; label: string }> = {
   timeout: { icon: "⏱", label: "Timed out" },
 };
 
+type ResultTab = "tests" | "console" | "problems";
+
 interface Props {
   result: RunResult | null;
   kind: "run" | "test" | null;
@@ -31,22 +34,27 @@ interface Props {
 }
 
 export function ResultsPanel({ result, kind, busy, error, declaredTiers, onJump, onExplain }: Props) {
-  const [tab, setTab] = useState<"tests" | "console" | "problems">("tests");
+  const [tab, setTab] = useState<ResultTab>("tests");
   const problems = result?.diagnostics.filter((d) => d.severity !== "note") ?? [];
   const nErr = problems.filter((d) => d.severity === "error").length;
 
   return (
     <section className="results" aria-label="Results">
-      <div className="tabs" role="tablist">
-        {(["tests", "console", "problems"] as const).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "tab on" : "tab"} onClick={() => setTab(t)}>
-            {t === "tests" ? "Tests" : t === "console" ? "Console" : `Problems${problems.length ? ` (${problems.length})` : ""}`}
-          </button>
-        ))}
+      <Tabs<ResultTab>
+        prefix="results"
+        label="Results"
+        tabs={[
+          { id: "tests", label: "Tests" },
+          { id: "console", label: "Console" },
+          { id: "problems", label: `Problems${problems.length ? ` (${problems.length})` : ""}` },
+        ]}
+        value={tab}
+        onChange={setTab}
+      >
         {busy && <span className="spinner" role="status">Running…</span>}
         {result && !busy && <span className="timing">compile {result.timings.compileMs} ms · run {result.timings.runMs} ms</span>}
-      </div>
-      <div className="panel-body">
+      </Tabs>
+      <div className="panel-body" {...panelProps("results", tab)} tabIndex={0}>
         {error && <p className="banner error" role="alert">{error}</p>}
         {!result && !error && <p className="muted">Press <b>Run Tests</b> (Ctrl+Shift+Enter) to check your solution, or <b>Run</b> (Ctrl+Enter) to just run it.</p>}
         {result?.report && tab !== "problems" && <RuntimeCard report={result.report} raw={result.stderr} stopped={result.tests.filter((t) => t.message?.startsWith("stopped by a sanitizer")).length} />}

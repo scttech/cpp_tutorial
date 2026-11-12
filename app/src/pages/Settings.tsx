@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { EDITOR_FONT, TEXT_SCALE, resetPrefs, savePrefs, usePrefs } from "../prefs/prefs";
+import type { KeyMode, ThemePref } from "../prefs/prefs";
 import { applyImport, exportProgress, parseImport, resetAll, setPace, summarize, useAllProgress, useStorageKind } from "../state/store";
 import type { ImportSummary } from "../state/store";
 import type { Progress } from "../state/model";
@@ -91,6 +93,76 @@ function TutorSettingsSection() {
   );
 }
 
+const THEME_CHOICES: { id: ThemePref; label: string; hint: string }[] = [
+  { id: "dark", label: "Dark", hint: "The default." },
+  { id: "light", label: "Light", hint: "Dark text on a light page." },
+  { id: "contrast", label: "High contrast", hint: "Black and white with bright accents and strong borders." },
+  { id: "system", label: "Match my system", hint: "Follows your operating system's light, dark and high-contrast settings." },
+];
+
+const KEY_CHOICES: { id: KeyMode; label: string; hint: string }[] = [
+  { id: "default", label: "Standard", hint: "Ordinary editing keys." },
+  { id: "vim", label: "Vim", hint: "Modal editing; the mode shows under the editor." },
+  { id: "emacs", label: "Emacs", hint: "Ctrl+A, Ctrl+E, Ctrl+K and friends." },
+];
+
+function AppearanceSection() {
+  const p = usePrefs();
+  return (
+    <section aria-labelledby="appearance-h">
+      <h2 id="appearance-h">Appearance</h2>
+      <fieldset className="choice-set">
+        <legend>Theme</legend>
+        {THEME_CHOICES.map((t) => (
+          <label key={t.id} className="radio">
+            <input type="radio" name="theme" checked={p.theme === t.id} onChange={() => savePrefs({ theme: t.id })} /> {t.label} <span className="muted small">{t.hint}</span>
+          </label>
+        ))}
+      </fieldset>
+      <label>
+        Text size: {p.textScale}%
+        <input type="range" min={TEXT_SCALE.min} max={TEXT_SCALE.max} step={TEXT_SCALE.step} value={p.textScale} onChange={(e) => savePrefs({ textScale: Number(e.target.value) })} />
+      </label>
+      <label className="radio">
+        <input type="checkbox" checked={p.motion === "reduce"} onChange={(e) => savePrefs({ motion: e.target.checked ? "reduce" : "system" })} /> Reduce motion{" "}
+        <span className="muted small">Turns off animations and transitions. Already on if your system asks for it.</span>
+      </label>
+    </section>
+  );
+}
+
+function EditorSection() {
+  const p = usePrefs();
+  return (
+    <section aria-labelledby="editor-h">
+      <h2 id="editor-h">Code editor</h2>
+      <label>
+        Font size: {p.editorFont}px
+        <input type="range" min={EDITOR_FONT.min} max={EDITOR_FONT.max} step={1} value={p.editorFont} onChange={(e) => savePrefs({ editorFont: Number(e.target.value) })} />
+      </label>
+      <label className="radio">
+        <input type="checkbox" checked={p.wordWrap} onChange={(e) => savePrefs({ wordWrap: e.target.checked })} /> Wrap long lines
+      </label>
+      <fieldset className="choice-set">
+        <legend>Keybindings</legend>
+        {KEY_CHOICES.map((k) => (
+          <label key={k.id} className="radio">
+            <input type="radio" name="keys" checked={p.keys === k.id} onChange={() => savePrefs({ keys: k.id })} /> {k.label} <span className="muted small">{k.hint}</span>
+          </label>
+        ))}
+      </fieldset>
+      <p className="muted small">
+        Keyboard users: Tab inserts a tab inside the editor. Press <kbd>Ctrl</kbd>+<kbd>M</kbd> to make Tab move focus out instead. Run is <kbd>Ctrl</kbd>+<kbd>Enter</kbd>, Run Tests is <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>.
+      </p>
+      <p className="row">
+        <button className="btn" onClick={resetPrefs}>
+          Restore display defaults
+        </button>
+      </p>
+    </section>
+  );
+}
+
 export function Settings() {
   const state = useAllProgress();
   const storage = useStorageKind();
@@ -137,6 +209,9 @@ export function Settings() {
   return (
     <main className="page settings">
       <h1>Settings</h1>
+
+      <AppearanceSection />
+      <EditorSection />
 
       <section>
         <h2>Pace</h2>

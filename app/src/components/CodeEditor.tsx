@@ -1,8 +1,11 @@
 import Editor from "@monaco-editor/react";
 import type { OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../monaco";
+import { activeTheme, usePrefs } from "../prefs/prefs";
+import type { ResolvedTheme } from "../prefs/prefs";
+import { Tabs, panelProps } from "./Tabs";
 import type { CompileDiagnostic } from "../runner/types";
 
 interface Props {
@@ -19,7 +22,10 @@ interface Props {
 
 const SEVERITY = { error: 8, warning: 4, note: 2 } as const; // monaco MarkerSeverity values
 
+const MONACO_THEME: Record<ResolvedTheme, string> = { dark: "vs-dark", light: "vs", contrast: "hc-black" };
+
 export function CodeEditor(p: Props) {
+  const [ready, setReady] = useState(false);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof Monaco | null>(null);
   // Keep latest callbacks reachable from Monaco commands registered once at mount.
@@ -44,6 +50,7 @@ export function CodeEditor(p: Props) {
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    setReady(true);
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => cb.current.run());
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => cb.current.tests());
   };
@@ -76,35 +83,70 @@ export function CodeEditor(p: Props) {
     }
   }, [p.jumpTo, p.active]);
 
+  // Vim or Emacs keys: loaded on demand so the default editor does not pay for them.
+  const prefs = usePrefs();
+  const statusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!ready || !editor || prefs.keys === "default") return;
+    let off: { dispose(): void } | null = null;
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (prefs.keys === "vim") {
+          const { initVimMode } = await import("monaco-vim");
+          if (!cancelled && statusRef.current) off = initVimMode(editor, statusRef.current);
+        } else {
+          const { EmacsExtension } = await import("monaco-emacs");
+          if (cancelled) return;
+          const emacs = new EmacsExtension(editor);
+          emacs.start();
+          off = emacs;
+        }
+      } catch (e) {
+        console.error("Could not load the keybindings; using the default ones.", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      off?.dispose();
+    };
+  }, [ready, prefs.keys]);
+
   const names = Object.keys(p.files);
+  const label = `Code editor, ${p.active}${p.readonlyFiles.includes(p.active) ? ", read-only" : ""}. Press Ctrl+M to make the Tab key move focus out of the editor.`;
   return (
     <div className="editor">
-      <div className="tabs" role="tablist" aria-label="Source files">
-        {names.map((n) => (
-          <button key={n} role="tab" aria-selected={n === p.active} className={n === p.active ? "tab on" : "tab"} onClick={() => p.onSelect(n)}>
-            {n}
-            {p.readonlyFiles.includes(n) && <span className="ro"> (read-only)</span>}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        prefix="files"
+        label="Source files"
+        tabs={names.map((n) => ({ id: n, label: <>{n}{p.readonlyFiles.includes(n) && <span className="ro"> (read-only)</span>}</> }))}
+        value={p.active}
+        onChange={p.onSelect}
+      />
       <Editor
         height="100%"
-        theme="vs-dark"
+        theme={MONACO_THEME[activeTheme()]}
         language="cpp"
         path={p.active}
         value={p.files[p.active] ?? ""}
         onChange={handleChange}
         onMount={onMount}
+        wrapperProps={panelProps("files", p.active)}
         options={{
           readOnly: p.readonlyFiles.includes(p.active),
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: prefs.editorFont,
+          wordWrap: prefs.wordWrap ? "on" : "off",
           scrollBeyondLastLine: false,
           automaticLayout: true,
           tabSize: 4,
           renderWhitespace: "selection",
+          ariaLabel: label,
+          accessibilitySupport: "auto",
         }}
       />
+      {prefs.keys === "vim" && <div ref={statusRef} className="vim-status" aria-live="polite" />}
     </div>
   );
 }

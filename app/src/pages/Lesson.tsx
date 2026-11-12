@@ -4,6 +4,8 @@ import { CodeEditor } from "../components/CodeEditor";
 import { GotchaList } from "../components/GotchaList";
 import { HintLadder } from "../components/HintLadder";
 import { TutorPanel } from "../components/TutorPanel";
+import { Tabs, panelProps } from "../components/Tabs";
+import type { TabDef } from "../components/Tabs";
 import type { TutorRequest } from "../components/TutorPanel";
 import { useTutorSettings } from "../tutor/settings";
 import { Markdown } from "../components/Markdown";
@@ -162,23 +164,19 @@ ${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
   }
 
   const revealed = Math.min(progress.hintsUsed, lesson.hints.length);
-  const tab = (id: LeftTab, label: string) => (
-    <button role="tab" aria-selected={leftTab === id} className={leftTab === id ? "tab on" : "tab"} onClick={() => setLeftTab(id)}>
-      {label}
-    </button>
-  );
+  const leftTabs: TabDef<LeftTab>[] = [
+    { id: "lesson", label: "Lesson" },
+    { id: "fast", label: "Fast summary" },
+    ...(lesson.gotchas.length > 0 ? [{ id: "gotchas" as const, label: `Gotchas (${lesson.gotchas.length})` }] : []),
+    { id: "hints", label: "Hints" },
+    { id: "tutor", label: "Tutor" },
+  ];
 
   return (
-    <div className="lesson">
-      <aside className="left">
-        <div className="tabs" role="tablist">
-          {tab("lesson", "Lesson")}
-          {tab("fast", "Fast summary")}
-          {lesson.gotchas.length > 0 && tab("gotchas", `Gotchas (${lesson.gotchas.length})`)}
-          {tab("hints", "Hints")}
-          {tab("tutor", "Tutor")}
-        </div>
-        <div className="left-body">
+    <main className="lesson">
+      <aside className="left" aria-label="Lesson material">
+        <Tabs<LeftTab> prefix="left" label="Lesson material" tabs={leftTabs} value={leftTab} onChange={setLeftTab} />
+        <div className="left-body" {...panelProps("left", leftTab)} tabIndex={0}>
           {leftTab === "lesson" && <Markdown>{lesson.lessonMd}</Markdown>}
           {leftTab === "fast" && <Markdown>{lesson.fastMd || "No fast summary for this lesson yet."}</Markdown>}
           {/* always mounted (just hidden) so the conversation lasts for the whole lesson visit */}
@@ -264,6 +262,6 @@ ${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
         </details>
         <ResultsPanel result={result} kind={kind} busy={busy} error={error} declaredTiers={declared} onJump={onJump} onExplain={hasTutorKey ? explainError : undefined} />
       </section>
-    </div>
+    </main>
   );
 }
