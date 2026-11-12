@@ -1,0 +1,87 @@
+price-priority-then-time-priority:
+  title: "Best price first, then the earliest order"
+  text: "A buy matches the lowest sell price first, and among equal prices the order that arrived first. Keep each price level as a FIFO queue, and the levels sorted by price."
+trade-price-is-the-resting-orders-price:
+  title: "A trade happens at the resting order's price"
+  text: "When an incoming order crosses the book, the trade price is the price of the order that was already resting, not the incoming order's limit. A buy at 105 against a sell at 100 trades at 100."
+equal-prices-cross:
+  title: "Equal prices cross"
+  text: "A buy at 100 and a sell at 100 can trade: a book is crossed when the best bid is greater than or equal to the best ask. Compare with `>=`, not `>`."
+partial-fills:
+  title: "Handle partial fills"
+  text: "An incoming order for 10 against a resting order for 4 fills 4, then goes on to the next order. The resting order that is fully filled is removed, and a partly filled one keeps its place with the reduced size."
+remove-empty-levels:
+  title: "Remove empty price levels"
+  text: "When the last order at a price is filled or cancelled, erase the level from the map. An empty level makes the best price wrong and `size()` of the book misleading."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <list>
+        #include <map>
+
+        int main() {
+            std::map<int, std::list<int>> levels;   // price -> order ids
+            levels[100].push_back(1);
+            levels[100].pop_front();                // the level is now empty
+            std::cout << levels.size() << "\n";     // but it is still there
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <list>
+        #include <map>
+
+        int main() {
+            std::map<int, std::list<int>> levels;
+            levels[100].push_back(1);
+            levels[100].pop_front();
+            if (levels[100].empty()) levels.erase(100);   // drop empty levels
+            std::cout << levels.size() << "\n";
+        }
+      out: "0\n"
+cancel-must-not-search:
+  title: "Cancel must not scan the book"
+  text: "Keep, for each order id, an iterator to its position in its level (a `std::list` iterator stays valid). Cancel is then O(1) plus the level lookup, instead of a search through all orders."
+duplicate-ids:
+  title: "A duplicate id is an error"
+  text: "An order whose id is already in the book must be rejected, not silently replace the first. Check before inserting, and leave the book unchanged on failure."
+invalid-orders:
+  title: "Reject invalid orders"
+  text: "A quantity of 0, a negative price or a missing side makes no sense. Validate before touching the book, so a rejected order has no effect."
+list-iterators-survive-insertion:
+  title: "`std::list` iterators stay valid"
+  text: "Unlike a `vector`, inserting into or erasing from a `std::list` does not invalidate the other iterators. That is why an id-to-iterator index can stay correct while the book changes."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+never-leave-a-crossed-book:
+  title: "Never leave the book crossed"
+  text: "After processing an order, the best bid must be below the best ask. Match until it is, or until the incoming order is used up, and rest only what is left."
+ids-reusable-after-fill:
+  title: "An id can be reused after the order is gone"
+  text: "Once an order is completely filled or cancelled, its id is free again. Remove it from the id index at that moment, so a later order with the same id is accepted."

@@ -1,0 +1,106 @@
+network-byte-order:
+  title: "Network byte order is big-endian"
+  text: "Multi-byte integers on the wire have the most significant byte first, whatever the machine. Write them with shifts (`v >> 24` first), and never `memcpy` an integer onto the wire."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <cstring>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t v = 0x01020304;
+            unsigned char buf[4];
+            std::memcpy(buf, &v, 4);                 // the machine's own byte order
+            std::cout << static_cast<int>(buf[0]) << "\n";
+        }
+      out: "4\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t v = 0x01020304;
+            unsigned char buf[4] = {static_cast<unsigned char>(v >> 24), static_cast<unsigned char>(v >> 16),
+                                    static_cast<unsigned char>(v >> 8), static_cast<unsigned char>(v)};   // big-endian, by definition
+            std::cout << static_cast<int>(buf[0]) << "\n";
+        }
+      out: "1\n"
+varint-canonical-form:
+  title: "A varint has exactly one valid encoding"
+  text: "The value 1 can be written as `01` or as `81 00`, but only the shortest form is canonical. A decoder should reject the longer one, or two encodings of one value will compare unequal."
+varint-overflow:
+  title: "A varint can be too long"
+  text: "A 64-bit value needs at most 10 bytes. A decoder that keeps reading continuation bytes shifts past 63 (undefined behavior) and overflows. Stop after 10 bytes and report an error."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            unsigned width = 31 + argc;            // 32
+            unsigned mask = (1u << width) - 1;     // shifting by the full width is undefined
+            std::cout << mask << "\n";
+        }
+      reports: "shift exponent"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            unsigned width = 31 + argc;
+            unsigned mask = width >= 32 ? 0xFFFFFFFFu : (1u << width) - 1;   // the full width is a special case
+            std::cout << mask << "\n";
+        }
+      out: "4294967295\n"
+failed-read-moves-nothing:
+  title: "A failed read must not move the cursor"
+  text: "If decoding a field fails halfway, the reader's position must stay where it was, so the caller can ask for more data and retry. Advance only after the whole field is decoded."
+validate-length-before-allocating:
+  title: "Validate a length before you allocate"
+  text: "A length prefix of 4 billion in a 10-byte message must not make you allocate 4 GB. Compare it with the bytes that remain (and with a maximum), and only then reserve space."
+checksum-covers-the-header:
+  title: "The checksum covers the header too"
+  text: "A checksum computed only over the payload does not notice a corrupt length or type field. Cover everything the receiver depends on, and compute it over the bytes as sent."
+frames-split-anywhere:
+  title: "A frame can arrive split anywhere"
+  text: "The decoder gets arbitrary chunks, so a header or a varint may be cut in half. Buffer what you have, and test by feeding every message one byte at a time."
+zigzag-for-signed:
+  title: "Encode signed numbers with zigzag"
+  text: "A negative `int64` as an unsigned varint always takes 10 bytes. Zigzag maps small magnitudes, positive or negative, to small unsigned numbers: `(n << 1) ^ (n >> 63)`."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int varint_size(std::uint64_t v) {
+            int n = 1;
+            while (v >= 0x80) { v >>= 7; ++n; }
+            return n;
+        }
+
+        int main() {
+            std::int64_t value = -1;
+            std::cout << varint_size(static_cast<std::uint64_t>(value)) << "\n";   // a negative number as unsigned
+        }
+      out: "10\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int varint_size(std::uint64_t v) {
+            int n = 1;
+            while (v >= 0x80) { v >>= 7; ++n; }
+            return n;
+        }
+
+        int main() {
+            std::int64_t value = -1;
+            std::uint64_t zigzag = (static_cast<std::uint64_t>(value) << 1) ^ static_cast<std::uint64_t>(value >> 63);
+            std::cout << varint_size(zigzag) << "\n";
+        }
+      out: "1\n"

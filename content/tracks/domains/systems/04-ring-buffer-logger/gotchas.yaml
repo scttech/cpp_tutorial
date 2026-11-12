@@ -1,0 +1,50 @@
+records-wrap-around-the-end:
+  title: "A record can wrap around the end of the buffer"
+  text: "When a record does not fit before the end, part of it goes at the end and the rest at the start. Write and read byte by byte (or in two pieces), never with one copy that runs past the end."
+header-can-straddle-the-end:
+  title: "Even the header can straddle the end"
+  text: "A record header of 8 bytes may start 3 bytes before the end of the buffer. Treat the header as bytes like any other data, and read it with the same wrapping routine."
+evict-until-it-fits:
+  title: "Evict old records until the new one fits"
+  text: "If a new record needs more room than is free, drop the oldest records, one at a time, until it fits. Evicting a single record may not be enough."
+truncate-instead-of-overflow:
+  title: "Truncate a message that is too long"
+  text: "A message longer than the whole buffer can never fit, however many records you evict. Cut it to the maximum length (and say so), rather than overflowing or looping forever."
+filtered-logs-use-no-sequence-number:
+  title: "A filtered record uses no sequence number"
+  text: "A message below the log level is dropped before it is written, and must not consume a sequence number. Otherwise the readers see gaps that look like lost records."
+no-allocation-while-logging:
+  title: "Logging must not allocate"
+  text: "A logger called from anywhere, including from an allocator, cannot allocate in `log`. Use a fixed buffer, format into it directly, and test with an allocation counter."
+head-plus-used-modulo-capacity:
+  title: "The end of the data is `(head + used) % capacity`"
+  text: "Keep the position of the oldest byte and the number of bytes in use. The next write position is `(head + used) % capacity`; storing a separate tail makes the two easy to get out of step."
+encode-bytes-explicitly:
+  title: "Encode integers byte by byte"
+  text: "Copying a struct or an integer with `memcpy` writes its padding and the machine's byte order. Write each field with shifts (`v >> 24`, `v >> 16`, ...), so the format is the same on every platform."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <cstring>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t v = 0x01020304;
+            unsigned char buf[4];
+            std::memcpy(buf, &v, 4);                 // the machine's own byte order
+            std::cout << static_cast<int>(buf[0]) << "\n";
+        }
+      out: "4\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t v = 0x01020304;
+            unsigned char buf[4] = {static_cast<unsigned char>(v >> 24), static_cast<unsigned char>(v >> 16),
+                                    static_cast<unsigned char>(v >> 8), static_cast<unsigned char>(v)};   // big-endian, by definition
+            std::cout << static_cast<int>(buf[0]) << "\n";
+        }
+      out: "1\n"

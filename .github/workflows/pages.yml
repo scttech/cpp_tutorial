@@ -57,11 +57,11 @@ jobs:
           npm run compat --prefix tools/validate-content
           git diff --exit-code content/wasm-compat.json
 
-      # The Gotchas tab: every explanation is well-formed, and every runnable demo does what it declares on the in-browser
-      # compiler (the sanitizer demos are checked by `npm run validate` against the Docker runner). Missing explanations are only
-      # reported for now; this becomes `--strict` when they are all written.
-      - name: Gotcha explanations and demos
-        run: node gotchas-check.mjs --wasm
+      # The Gotchas tab: every gotcha a lesson lists has a well-formed explanation (--strict fails on a missing one), and every demo
+      # is structurally valid. Running all ~500 demo programs takes too long for every push: do that with `npm run gotchas:demos`
+      # (the in-browser compiler) and `npm run validate` (also the Docker runner, for the sanitizer and thread demos).
+      - name: Gotcha explanations
+        run: node gotchas-check.mjs --strict
         working-directory: tools/validate-content
 
   deploy:

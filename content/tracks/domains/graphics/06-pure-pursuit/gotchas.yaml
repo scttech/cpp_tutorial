@@ -1,0 +1,44 @@
+wrap-angles:
+  title: "Wrap angle differences to [-pi, pi]"
+  text: "The error between headings 350 and 10 degrees is +20, not -340. Wrap the difference (with `std::remainder`, or a loop), or the robot turns the long way round and spins."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double target = 10, heading = 350;                 // degrees
+            std::cout << target - heading << "\n";              // the long way round
+        }
+      out: "-340\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double target = 10, heading = 350;
+            std::cout << std::remainder(target - heading, 360) << "\n";   // wrapped to [-180, 180]
+        }
+      out: "20\n"
+exact-arc-integration:
+  title: "Integrate the motion along the exact arc"
+  text: "Moving straight for each time step and then turning drifts away from the true circular path. Use the exact arc formulas (and a straight line when the curvature is 0), so the result does not depend on the step size."
+stable-circle-segment-intersection:
+  title: "Intersect the circle with a segment stably"
+  text: "The look-ahead point is where a circle meets the path segment. Use the stable quadratic formula, and accept only roots with the parameter in [0, 1], so a point beyond the segment is not chosen."
+never-go-back-along-the-path:
+  title: "The target never moves back along the path"
+  text: "The look-ahead point should only advance. Search from the segment the robot already reached, so the robot does not target an earlier part of a path that crosses itself."
+target-behind-the-robot:
+  title: "A target behind the robot"
+  text: "If the look-ahead point is behind the robot, the curvature formula gives a huge or wrong sign. Decide what to do (turn in place, or stop) and test a path that starts behind the robot."
+finish-line-and-slowing:
+  title: "Slow down near the end of the path"
+  text: "Approaching the final point at full speed overshoots. Scale the speed with the remaining distance, and report \"finished\" when the robot is within the tolerance of the last point."
+bounded-commands:
+  title: "Bound the speed and curvature commands"
+  text: "The controller can ask for a curvature or a turn rate the robot cannot do. Clamp both to the limits, and clamp the speed first, so the turn rate that follows is consistent."
+reject-bad-parameters:
+  title: "Reject bad parameters"
+  text: "A look-ahead distance of 0 or less, a negative speed limit, or a path with fewer than two points makes no sense. Validate when the controller is created, and report which parameter was wrong."

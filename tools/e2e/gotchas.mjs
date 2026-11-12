@@ -63,13 +63,14 @@ try {
   check(((await bounds.locator(".snip.bad .snip-out.err").first().innerText()) ?? "").includes("out of bounds"), "a sanitizer demo shows the runtime report");
   await shot(page, "g2-demo");
 
-  // a lesson whose explanations are not written yet: readable titles, no text, no crash
+  // every lesson is explained now: a domain lesson shows all its gotchas with titles and explanations (the fallback for a missing
+  // explanation is covered by the unit tests of gotchaEntries)
   await t.open(page, "domain.games.ecs");
   await page.locator(".left .tab", { hasText: "Gotchas" }).click();
   const n = await page.locator(".gotchas li").count();
   const first = (await page.locator(".gotchas .g-title").first().textContent()) ?? "";
-  check(n === 12 && first === "Stale handles", `an unexplained lesson still lists its ${n} gotchas with readable titles (${first})`);
-  check((await page.locator(".gotchas .g-text").count()) === 0, "…and shows no empty explanation boxes");
+  check(n === 12 && first === "A handle must notice that its entity is gone", `a domain lesson lists its ${n} gotchas (${first})`);
+  check((await page.locator(".gotchas .g-text").count()) === 12, "…every one with its explanation");
   await page.close();
 } catch (e) {
   t.crashed(e);

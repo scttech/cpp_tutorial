@@ -1,0 +1,24 @@
+decode-only-valid-escapes:
+  title: "Decode only valid percent escapes"
+  text: "`%41` is `A`, but `%4` and `%zz` are not escapes. Leave a malformed escape alone (or report it, as specified), and never read past the end of the string looking for two hex digits."
+unreserved-characters:
+  title: "Unreserved characters can be decoded, reserved ones cannot"
+  text: "Normalizing `%41` to `A` is safe, because letters, digits and `-._~` are unreserved. Decoding `%2F` to `/` changes the meaning of the path, so reserved characters must stay encoded."
+remove-dot-segments-rfc-5-2-4:
+  title: "Remove dot segments as RFC 3986 section 5.2.4 says"
+  text: "`/a/b/../c` becomes `/a/c` and `/a/./b` becomes `/a/b`. Follow the algorithm exactly, including `..` at the root, which stays at the root, and a trailing `/..`."
+merge-paths:
+  title: "Merging a relative path keeps the base's directory"
+  text: "Resolving `c` against `/a/b` gives `/a/c`: remove everything after the last `/` of the base and append the reference. Resolving against a base with an empty path needs a leading `/`."
+query-only-references:
+  title: "A query-only reference keeps the path"
+  text: "Resolving `?x=1` against `http://h/a/b?old` gives `http://h/a/b?x=1`: the path is kept and only the query is replaced. Do not drop the path or merge it."
+default-ports:
+  title: "Default ports are dropped when normalizing"
+  text: "`http://h:80/` and `http://h/` are the same resource, as are `https` with 443. Remove the port when it is the scheme's default, and keep it otherwise."
+lowercase-scheme-and-host:
+  title: "The scheme and host are case-insensitive"
+  text: "`HTTP://Example.COM/` and `http://example.com/` are equal, so normalize those two to lower case. The path and the query are case-sensitive and must not change."
+plus-is-a-space-only-in-queries:
+  title: "A plus is a space only in the query"
+  text: "In a form-encoded query `a+b` means \"a b\", but in a path `+` is a plain plus sign. Decode `+` as a space only in the query component."

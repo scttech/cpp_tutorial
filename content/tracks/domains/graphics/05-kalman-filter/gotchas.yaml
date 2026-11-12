@@ -1,0 +1,24 @@
+predict-then-update:
+  title: "Predict, then update"
+  text: "Each step first predicts the state and covariance forward in time (`x = F x`, `P = F P F^T + Q`), and then corrects them with the measurement. Doing the update on a stale prediction gives a wrong gain."
+joseph-form:
+  title: "Use the Joseph form for the covariance update"
+  text: "`P = (I - K H) P (I - K H)^T + K R K^T` keeps `P` symmetric and positive semi-definite despite rounding. The short form `(I - K H) P` can lose both, and then the filter diverges."
+keep-p-symmetric:
+  title: "Keep the covariance symmetric"
+  text: "Rounding makes `P` slightly asymmetric after many steps, and the error grows. Average it with its transpose after each update, or use a form that preserves the symmetry."
+innovation-and-gate:
+  title: "Gate outliers with the innovation"
+  text: "The innovation is `z - H x`, with covariance `S = H P H^T + R`. A measurement whose normalized squared innovation `y^T S^-1 y` is above a chi-square threshold is an outlier; skip its update."
+process-noise-model:
+  title: "Q must match the motion model"
+  text: "A constant-velocity model has process noise that couples position and velocity (`dt^4/4`, `dt^3/2`, `dt^2`). A diagonal Q that ignores the coupling makes the filter over- or under-confident."
+bad-measurements-change-nothing:
+  title: "A rejected measurement changes nothing"
+  text: "If a measurement is invalid (NaN, or gated out), the update must be skipped completely: state and covariance stay exactly as the prediction left them."
+covariance-collapse:
+  title: "The covariance must not collapse to zero"
+  text: "With no process noise and many updates, `P` shrinks until the filter ignores all measurements. A small `Q` keeps it responsive; test a long run with a changing signal."
+scalar-measurement-needs-no-inverse:
+  title: "A scalar measurement needs no matrix inverse"
+  text: "When the measurement is one number, `S` is a 1x1 matrix and its inverse is just `1 / S`. Do not call a general matrix inverse for it."

@@ -1,0 +1,129 @@
+views-into-the-input:
+  title: "Fields are views into the message"
+  text: "A parsed field is a `string_view` pointing into the input buffer, so parsing allocates nothing. The views are only valid while that buffer is alive and unchanged."
+dangling-string-view:
+  title: "A `string_view` of a temporary dangles"
+  text: "A view of a temporary `std::string` dangles as soon as that temporary dies, at the end of the statement, and reading it is undefined behavior. Keep the message in a named variable."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string_view view = make();   // the temporary string dies at the semicolon
+            std::cout << view << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string text = make();         // something that owns the characters
+            std::string_view view = text;
+            std::cout << view << "\n";
+        }
+      out: "a string that is long enough to live on the heap\n"
+soh-delimiter:
+  title: "Fields end with SOH (0x01), not a space or a pipe"
+  text: "FIX separates fields with the byte 0x01. Test messages often show it as `|`, but the parser must split on `\\x01`, and must not accept `|` unless asked to."
+tag-must-be-digits:
+  title: "A tag is a positive integer"
+  text: "In `abc=5` the tag is not a number, and `0=5` or `=5` have no valid tag either. Check that the tag is one or more digits, and report the position of the offence."
+empty-value:
+  title: "An empty value is legal syntax, but suspicious"
+  text: "`58=` has a tag and an empty value. Decide whether it is an error for this field, and make sure the parser does not read past the delimiter looking for a value."
+value-may-contain-equals:
+  title: "The value may contain `=`"
+  text: "In `58=a=b` the tag ends at the first `=`; everything after it, including the second `=`, is the value. Split at the first equals sign only."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string field = "58=a=b";
+            std::cout << field.substr(0, field.rfind('=')) << "\n";   // splits at the last equals sign
+        }
+      out: "58=a\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string field = "58=a=b";
+            std::cout << field.substr(0, field.find('=')) << "\n";    // the tag ends at the first one
+        }
+      out: "58\n"
+checksum-is-sum-mod-256:
+  title: "The checksum is the byte sum modulo 256"
+  text: "Add up all the bytes of the message up to (and including) the delimiter before the checksum field, and take the sum modulo 256, not 255. Use `unsigned char` so bytes above 127 add up correctly."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string msg = "abc";
+            unsigned sum = 0;
+            for (unsigned char c : msg) sum += c;
+            std::cout << sum % 255 << "\n";   // 255 instead of 256
+        }
+      out: "39\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string msg = "abc";
+            unsigned sum = 0;
+            for (unsigned char c : msg) sum += c;
+            std::cout << sum % 256 << "\n";
+        }
+      out: "38\n"
+body-length-counts-bytes:
+  title: "BodyLength counts bytes, from a fixed point"
+  text: "Tag 9 gives the number of bytes after its own field up to the checksum field. Count raw bytes (not characters), starting right after the delimiter that ends tag 9."
+checksum-field-position:
+  title: "The checksum must be the last field"
+  text: "Tag 10 comes last, three digits, followed by the final delimiter. A message with data after it, or a checksum in the middle, is invalid."
+duplicate-tags:
+  title: "Decide what a duplicate tag means"
+  text: "Some tags may repeat (in groups) and most may not. Reject a repeated tag where it is not allowed, and report it with its position, rather than letting the later value win."
+error-positions:
+  title: "Errors carry byte positions"
+  text: "\"Invalid message\" tells nobody anything. Return the offset of the first bad byte, so a log can show exactly where the message went wrong."
+three-digit-checksum:
+  title: "The checksum has exactly three digits"
+  text: "A checksum of 38 is written `038`. Format it with leading zeros, and when parsing, require exactly three digits."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << 38 << "\n";   // the field must be 038
+        }
+      out: "38\n"
+    fix:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::setw(3) << std::setfill('0') << 38 << "\n";
+        }
+      out: "038\n"

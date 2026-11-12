@@ -1,0 +1,52 @@
+double-dash:
+  title: "`--` ends the options"
+  text: "After `--`, everything is a positional argument, even if it starts with a dash. Without that rule you cannot pass a file called `-x` to a program."
+clusters-and-attached-values:
+  title: "Short options can be clustered or carry a value"
+  text: "`-abc` means `-a -b -c`, and `-ofile` or `-o file` gives `-o` the value `file`. When a clustered option takes a value, it ends the cluster and takes the rest (or the next argument)."
+negative-numbers-are-positionals:
+  title: "A negative number is a positional argument"
+  text: "`-5` looks like an option but is a number. If the parser has no option that looks like a number, treat `-5` and `-.5` as positionals instead of reporting \"unknown option\"."
+unique-prefix-abbreviations:
+  title: "A long option can be abbreviated to a unique prefix"
+  text: "`--verb` selects `--verbose` when nothing else starts with `verb`. If two options share the prefix, report the ambiguity and list both, instead of picking one."
+values-may-start-with-a-dash:
+  title: "A value may start with a dash"
+  text: "For `--offset -3` or `-o -`, the next argument is the value of the option, even though it starts with `-`. Take it as a value when the option requires one."
+errors-name-the-culprit:
+  title: "An error names the argument"
+  text: "\"Invalid argument\" is not enough. Say which one (`--count`), what was wrong (`expected a number, got \"abc\"`), and where it was in the command line."
+validate-the-definition:
+  title: "Validate the option definitions too"
+  text: "Two options with the same name, an option without a name, or a short option that is a dash or a digit is a mistake in the program, not in the user's command line. Check the definitions when the parser is built."
+strict-number-parsing:
+  title: "Parse numbers strictly"
+  text: "\"12abc\", an empty string and an overflowing value are not numbers. Use `from_chars` and check that the whole text was consumed, instead of `atoi` or `stoi`, which accept trailing junk."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"

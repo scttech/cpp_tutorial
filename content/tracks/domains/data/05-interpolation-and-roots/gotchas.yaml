@@ -1,0 +1,46 @@
+search-the-segment:
+  title: "Find the segment with a binary search"
+  text: "The knots are sorted, so `std::upper_bound` finds the segment for `x` in O(log n). Scanning from the start for every evaluation makes a table lookup linear."
+interpolate-without-overflow:
+  title: "Interpolate without overflowing"
+  text: "`y0 + (y1 - y0) * t` overflows when `y1 - y0` is out of range, and `(y0 * (x1 - x) + y1 * (x - x0)) / (x1 - x0)` overflows in the products. Use `y0 * (1 - t) + y1 * t` with `t` in [0, 1]."
+natural-spline-boundary:
+  title: "A natural spline has zero curvature at the ends"
+  text: "The natural boundary condition sets the second derivative to 0 at both ends. That gives a tridiagonal system with the first and last rows trivial; check the result against a known cubic."
+sign-change-is-not-a-root:
+  title: "A sign change is not always a root"
+  text: "A function can change sign across a pole (`1/x` around 0) without crossing zero. Bisection returns the pole; check that `f` at the result is actually small."
+midpoint-without-overflow:
+  title: "Compute the midpoint without overflow"
+  text: "`(lo + hi) / 2` overflows when both are large. Use `lo + (hi - lo) / 2`, which stays in range for integers and is also kinder to floating point near the limits."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int lo = INT_MAX - 3 + argc, hi = INT_MAX - 1;   // both near the top of the range
+            std::cout << (lo + hi) / 2 << "\n";              // lo + hi overflows
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int lo = INT_MAX - 3 + argc, hi = INT_MAX - 1;
+            std::cout << lo + (hi - lo) / 2 << "\n";         // the difference cannot overflow
+        }
+      out: "2147483645\n"
+newton-can-diverge:
+  title: "Newton's method can diverge"
+  text: "From a bad starting point the iteration can jump away, cycle, or land on a flat part. Limit the number of iterations, and fall back to bisection (a safeguarded Newton) when a step leaves the bracket."
+zero-derivative:
+  title: "A zero derivative stops Newton"
+  text: "The Newton step divides by `f'(x)`; at a flat point that is a division by zero, or a huge step. Test the derivative and take a bisection step instead."
+tolerance-zero-must-terminate:
+  title: "A tolerance of zero must still terminate"
+  text: "A root-finder that stops when `|f| <= tol` never stops for `tol = 0` if the function never hits exactly zero. Stop also when the bracket stops shrinking, or after a maximum number of iterations."

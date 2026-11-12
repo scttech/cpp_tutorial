@@ -1,0 +1,85 @@
+one-read-one-write:
+  title: "Modify a register with one read and one write"
+  text: "A read-modify-write that reads the register twice, or writes it twice, can see or produce intermediate values, and some registers have side effects on every access. Read once, compute, write once."
+mask-the-value-before-inserting:
+  title: "Mask the value before inserting it into a field"
+  text: "A value wider than the field spills into its neighbors when shifted into place. Mask it with the field width first: `(value & mask) << shift`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned reg = 0, value = 0x1F;                    // five bits into a four-bit field at bit 4
+            reg = (reg & ~(0xFu << 4)) | (value << 4);         // bit 8 gets set too
+            std::cout << std::hex << reg << "\n";
+        }
+      out: "1f0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned reg = 0, value = 0x1F;
+            reg = (reg & ~(0xFu << 4)) | ((value & 0xFu) << 4);   // mask the value first
+            std::cout << std::hex << reg << "\n";
+        }
+      out: "f0\n"
+clear-the-old-bits:
+  title: "Clear the field before setting it"
+  text: "OR-ing the new value over the old one leaves the old bits set, so the field keeps whichever bits were already 1. Clear it with `reg & ~(mask << shift)` first, then OR in the new value."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned reg = 0xF0, value = 1;
+            reg = reg | (value << 4);   // the old bits are still there
+            std::cout << std::hex << reg << "\n";
+        }
+      out: "f0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned reg = 0xF0, value = 1;
+            reg = (reg & ~(0xFu << 4)) | (value << 4);   // clear the field, then set it
+            std::cout << std::hex << reg << "\n";
+        }
+      out: "10\n"
+write-one-to-clear-needs-no-read:
+  title: "Write-one-to-clear registers need no read-modify-write"
+  text: "In a W1C register, writing 1 clears that bit and writing 0 leaves it alone. Write only the bits you want to clear: reading the register and writing it back would clear every pending flag."
+width-32-shift:
+  title: "Shifting by the full width is undefined"
+  text: "`1u << 32` on a 32-bit unsigned is undefined behavior, so a mask for a 32-bit field cannot be built as `(1u << width) - 1`. Treat the full width as a special case."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            unsigned width = 31 + argc;            // 32
+            unsigned mask = (1u << width) - 1;     // shifting by the full width is undefined
+            std::cout << mask << "\n";
+        }
+      reports: "shift exponent"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            unsigned width = 31 + argc;
+            unsigned mask = width >= 32 ? 0xFFFFFFFFu : (1u << width) - 1;   // the full width is a special case
+            std::cout << mask << "\n";
+        }
+      out: "4294967295\n"
+poll-at-most-n-times:
+  title: "Poll a status bit at most N times"
+  text: "Waiting for a status bit with no limit hangs forever if the hardware never sets it. Poll in a bounded loop and return a timeout, so the caller can react."
+fields-must-fit-the-register:
+  title: "A field must fit inside its register"
+  text: "A field at offset 28 with width 8 does not fit in 32 bits. Check offset plus width against the register size, ideally with `static_assert`, so a wrong definition cannot compile."

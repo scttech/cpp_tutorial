@@ -1,0 +1,27 @@
+no-false-negatives:
+  title: "A Bloom filter never gives a false negative"
+  text: "If `contains` says \"no\", the item was definitely never added. A filter that can forget an item (a bug in the hash, or in clearing bits) breaks the one promise it makes."
+size-from-capacity-and-rate:
+  title: "Compute the size from the capacity and the error rate"
+  text: "For n items and false-positive rate p, the number of bits is `m = -n * ln(p) / (ln 2)^2` and the number of hashes `k = (m / n) * ln 2`. Compute them from those, rather than guessing."
+ceil-and-round:
+  title: "Round the size up, and the hash count to nearest"
+  text: "Truncating `m` gives fewer bits than the formula asks for, so the error rate is higher than promised. Use `ceil` for the bit count, and round the hash count to at least 1."
+count-bits-incrementally:
+  title: "Keep a count of the set bits"
+  text: "Estimating the number of items needs the number of 1 bits. Update a counter when a bit goes from 0 to 1, instead of scanning the whole array every time."
+only-same-shape-merges:
+  title: "Only filters of the same shape can be merged"
+  text: "Merging two filters is a bitwise OR, which is only meaningful when both have the same number of bits and the same hash functions. Check that, and return an error otherwise."
+validate-before-allocating:
+  title: "Validate the parameters before allocating"
+  text: "A capacity of 0, a rate of 0 or 1, or an absurdly large size must be rejected before you allocate the bit array. Otherwise a bad argument becomes a huge allocation or a division by zero."
+padding-bits-must-be-zero:
+  title: "The padding bits of the last byte must stay zero"
+  text: "If the number of bits is not a multiple of 8, the last byte has unused bits. Keep them 0, so two equal filters compare equal and a serialized filter is reproducible."
+bit-order-in-bytes:
+  title: "Define the bit order inside a byte"
+  text: "Bit `i` lives in byte `i / 8` at position `i % 8` (counting from the least significant bit). Write the convention down and use the same one for setting, testing and serializing."
+estimate-the-count-from-the-bits:
+  title: "Estimate the item count from the set bits"
+  text: "The number of items is about `-(m / k) * ln(1 - X / m)`, where X is the number of set bits. It breaks down when X equals m (all bits set), so handle that case."

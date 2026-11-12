@@ -7,7 +7,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./library.hpp:32:23: error: cannot use 'throw' with exceptions disabled |    32 |         if (id_ <= 0) throw std::invalid_argument(\"Book: the id must be positive\"); |       |                       ^"
       ],
-      "hash": "16e5a054ffcdc269"
+      "hash": "d43cb949545364ca"
     },
     "core.classes.const-correctness": {
       "wasm": false,
@@ -15,7 +15,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./grid.hpp:14:37: error: cannot use 'throw' with exceptions disabled |    14 |         if (rows == 0 || cols == 0) throw std::invalid_argument(\"Grid: rows and cols must each be at least 1\"); |       |                                     ^"
       ],
-      "hash": "3df23542a9407495"
+      "hash": "cce81811da24beb0"
     },
     "core.classes.constructors": {
       "wasm": false,
@@ -23,7 +23,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./money.hpp:39:13: error: cannot use 'throw' with exceptions disabled |    39 |             throw std::overflow_error(\"Money: the sum does not fit\"); |       |             ^"
       ],
-      "hash": "26fce70d115fb629"
+      "hash": "6cdb04a50bf22a47"
     },
     "core.classes.encapsulation": {
       "wasm": false,
@@ -31,7 +31,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./account.hpp:18:29: error: cannot use 'throw' with exceptions disabled |    18 |         if (owner_.empty()) throw std::invalid_argument(\"BankAccount: the owner's name is empty\"); |       |                             ^"
       ],
-      "hash": "708c2728d1b81fa6"
+      "hash": "b21709a88be80ad9"
     },
     "core.classes.namespaces": {
       "wasm": false,
@@ -39,7 +39,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./geometry.hpp:58:25: error: cannot use 'throw' with exceptions disabled |    58 |     if (points.empty()) throw std::invalid_argument(\"bounding_box: no points\"); |       |                         ^"
       ],
-      "hash": "77c193101eb9d150"
+      "hash": "44bd20062c403294"
     },
     "core.classes.operators": {
       "wasm": false,
@@ -47,12 +47,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./vec2.hpp:39:20: error: cannot use 'throw' with exceptions disabled |    39 |         if (i > 1) throw std::out_of_range(\"Vec2: index must be 0 or 1\"); |       |                    ^"
       ],
-      "hash": "4a9696a043b21787"
+      "hash": "e1beb5541aeaa40d"
     },
     "core.classes.static-and-enums": {
       "wasm": true,
       "mutants": 28,
-      "hash": "b5e0b23c84be69ae"
+      "hash": "d902574e786473b2"
     },
     "core.classes.test-out": {
       "wasm": false,
@@ -60,65 +60,65 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./fraction.hpp:14:24: error: cannot use 'throw' with exceptions disabled |    14 |         if (den_ == 0) throw std::invalid_argument(\"Fraction: the denominator is zero\"); |       |                        ^"
       ],
-      "hash": "64166b33d540571f"
+      "hash": "f1df21dd9e9a2d8d"
     },
     "core.concurrency.atomics": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "fec2aba8fbc75dfd"
+      "hash": "55be2b41904205c6"
     },
     "core.concurrency.capstone-job-scheduler": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "19e517dba1ba1907"
+      "hash": "11bfc87ea7b60e75"
     },
     "core.concurrency.condition-variables": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "da7a078afa946b97"
+      "hash": "bdc10f265abd1109"
     },
     "core.concurrency.coroutines": {
       "wasm": true,
       "mutants": 14,
-      "hash": "5863ee28b63fd692"
+      "hash": "2cdd79a7625b82fe"
     },
     "core.concurrency.data-races": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "863293e595e78b9a"
+      "hash": "ddb6ff20eb72a25c"
     },
     "core.concurrency.futures": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "f9d50f3f9cd526a6"
+      "hash": "4fd7530125e331a4"
     },
     "core.concurrency.reading-bugs": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "4e481f73de4e51c1"
+      "hash": "e045b99daf06cb98"
     },
     "core.concurrency.test-out": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "c13012879f94790c"
+      "hash": "cc2e9271e2b7a329"
     },
     "core.concurrency.threads": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "f72be215d70b6dbf"
+      "hash": "797e05f829250528"
     },
     "core.data-and-memory.arrays": {
       "wasm": true,
       "mutants": 10,
-      "hash": "70fb569e5cbe93d2"
+      "hash": "96723d09778c10db"
     },
     "core.data-and-memory.capstone-inventory": {
       "wasm": false,
@@ -126,42 +126,42 @@
       "details": [
         "solution does not build: main.cpp:37:28: error: call to deleted function 'from_chars' |    37 |     const auto [ptr, ec] = std::from_chars(s.data(), end, out); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
       ],
-      "hash": "e4a5f4ed5827a107"
+      "hash": "085d3d4c181bc257"
     },
     "core.data-and-memory.find-the-bug": {
       "wasm": true,
       "mutants": 14,
-      "hash": "d0aef0326f59eeee"
+      "hash": "d133e2c35beb6c26"
     },
     "core.data-and-memory.pointers": {
       "wasm": true,
       "mutants": 17,
-      "hash": "c26a5c5feabb587f"
+      "hash": "d6dae49109494451"
     },
     "core.data-and-memory.references": {
       "wasm": true,
       "mutants": 13,
-      "hash": "f588d56b8e9dc26f"
+      "hash": "b1f85c7bff5dc77d"
     },
     "core.data-and-memory.strings": {
       "wasm": true,
       "mutants": 13,
-      "hash": "dff3eec72d6b2dec"
+      "hash": "aff51871318cfcd3"
     },
     "core.data-and-memory.structs": {
       "wasm": true,
       "mutants": 19,
-      "hash": "f5bd0c2eed50f062"
+      "hash": "e76ffc8db29f0424"
     },
     "core.data-and-memory.test-out": {
       "wasm": true,
       "mutants": 8,
-      "hash": "e183caba855b663a"
+      "hash": "a7be44e34fcfe1d0"
     },
     "core.data-and-memory.vector": {
       "wasm": true,
       "mutants": 12,
-      "hash": "bb6e68e275b5a239"
+      "hash": "14659cd6b168fa94"
     },
     "core.foundations.capstone-unit-converter": {
       "wasm": false,
@@ -169,7 +169,7 @@
       "details": [
         "solution does not build: main.cpp:71:28: error: call to deleted function 'from_chars' |    71 |     const auto [ptr, ec] = std::from_chars(first, last, value); |       |                            ^~~~~~~~~~~~~~~ | /include/c++/v1/__charconv/from_chars_integral.h:38:19: note: candidate function has been "
       ],
-      "hash": "563af37e8811a8ef"
+      "hash": "64483396bd674952"
     },
     "core.foundations.control-flow": {
       "wasm": false,
@@ -177,92 +177,92 @@
       "details": [
         "solution fails \"primes_up_to(5,000,000) finishes in time and finds 348513 primes\" [fail]: expected 348513, got 348425"
       ],
-      "hash": "ac1578072c19d8b6"
+      "hash": "b8778cf495ab0404"
     },
     "core.foundations.functions": {
       "wasm": true,
       "mutants": 5,
-      "hash": "465bb7c79ad82721"
+      "hash": "4275b7ecc575ce0a"
     },
     "core.foundations.headers-and-build-model": {
       "wasm": true,
       "mutants": 4,
-      "hash": "0553e4408a96a254"
+      "hash": "f03afecb98f28f0b"
     },
     "core.foundations.hello-world": {
       "wasm": true,
       "mutants": 0,
-      "hash": "da48b583c19eddf9"
+      "hash": "497b37da49b41f10"
     },
     "core.foundations.io-basics": {
       "wasm": true,
       "mutants": 5,
-      "hash": "adfe96b0741e74e7"
+      "hash": "0250cd7e57b74825"
     },
     "core.foundations.operators-and-integers": {
       "wasm": true,
       "mutants": 4,
-      "hash": "0cbccae0608666a9"
+      "hash": "68955ad101f62214"
     },
     "core.foundations.test-out": {
       "wasm": true,
       "mutants": 4,
-      "hash": "a62f5926945c7cce"
+      "hash": "ca6de37caf00637b"
     },
     "core.foundations.variables-and-types": {
       "wasm": true,
       "mutants": 2,
-      "hash": "590bacbb98c8873a"
+      "hash": "5db59c828a4cb174"
     },
     "core.generics.capstone-ring-buffer": {
       "wasm": true,
       "mutants": 30,
-      "hash": "96a4e5057904463e"
+      "hash": "99683bc6c1b4f829"
     },
     "core.generics.capstone-static-vector": {
       "wasm": true,
       "mutants": 26,
-      "hash": "e3855d6dd4f5e4fa"
+      "hash": "b4b51c2eb58eeef2"
     },
     "core.generics.class-templates": {
       "wasm": true,
       "mutants": 22,
-      "hash": "f4a65fb5ef7a5b78"
+      "hash": "ebfc9c98cdee88b1"
     },
     "core.generics.concepts": {
       "wasm": true,
       "mutants": 17,
-      "hash": "1e23908855b5591c"
+      "hash": "da7c0f0589f18fb1"
     },
     "core.generics.function-templates": {
       "wasm": true,
       "mutants": 14,
-      "hash": "2ac3151271839b77"
+      "hash": "0de5f993ba1e5138"
     },
     "core.generics.reading-errors": {
       "wasm": true,
       "mutants": 16,
-      "hash": "2172f40a98458495"
+      "hash": "e18de2b25e4fea6a"
     },
     "core.generics.specialization": {
       "wasm": true,
       "mutants": 19,
-      "hash": "1a7153ddb8f7b41b"
+      "hash": "3d7b9a68004e4b89"
     },
     "core.generics.test-out": {
       "wasm": true,
       "mutants": 9,
-      "hash": "dfb119a9b2f42322"
+      "hash": "0e8b61e4e6d44dd6"
     },
     "core.generics.type-traits": {
       "wasm": true,
       "mutants": 27,
-      "hash": "b2ee1fba4a27a655"
+      "hash": "d2cb88aaf3355eae"
     },
     "core.generics.variadic": {
       "wasm": true,
       "mutants": 27,
-      "hash": "bbe1320579738bc0"
+      "hash": "2e009ec02c2d22b8"
     },
     "core.heroes.allocator": {
       "wasm": false,
@@ -274,7 +274,7 @@
         "solution fails \"deallocate returns the memory: the same request can be made again\" [fail]: expected 0, got 1",
         "solution fails \"allocate(0) gives a valid, distinct, freeable block\" [fail]: blocks are still in use: 2"
       ],
-      "hash": "8c5bf8dc8fdabd1a"
+      "hash": "faba0212bf9c36b8"
     },
     "core.heroes.expression-compiler": {
       "wasm": false,
@@ -286,32 +286,32 @@
         "solution fails \"optimize: a tree with nothing to simplify is rewritten in place (at most 50 allocations for 50000 nodes)\" [error]: crashed: stack overflow (recursion too deep?)",
         "solution fails \"optimize: identities do not copy the Env, names or subtrees (stats and allocations stay flat)\" [error]: crashed: stack overflow (recursion too deep?)"
       ],
-      "hash": "0aeedc2f30f3da9f"
+      "hash": "8c887ec9ea32c41d"
     },
     "core.heroes.json": {
       "wasm": true,
       "mutants": 51,
-      "hash": "1ff3794c36a3d6b5"
+      "hash": "f2dd2beca7b8167e"
     },
     "core.heroes.mini-database": {
       "wasm": true,
       "mutants": 59,
-      "hash": "af0670652864de79"
+      "hash": "42b4b9dc646073a6"
     },
     "core.heroes.regex": {
       "wasm": true,
       "mutants": 68,
-      "hash": "209dda5e95aa18fc"
+      "hash": "5128ec3d91107546"
     },
     "core.heroes.text-adventure": {
       "wasm": true,
       "mutants": 104,
-      "hash": "4aebcd84c9158145"
+      "hash": "caf228d0d178ecce"
     },
     "core.inherit.alternatives": {
       "wasm": true,
       "mutants": 41,
-      "hash": "28c554096d91a7c7"
+      "hash": "fb850291c49ed8f0"
     },
     "core.inherit.basics": {
       "wasm": false,
@@ -319,7 +319,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:6: | ./animals.hpp:95:28: error: cannot use 'throw' with exceptions disabled |    95 |         if (Base::empty()) throw std::out_of_range(\"top of an empty IntStack\"); |       |                            ^"
       ],
-      "hash": "bcf238144fefb0ba"
+      "hash": "5af563709e0fdabe"
     },
     "core.inherit.capstone-plugin-pipeline": {
       "wasm": false,
@@ -327,7 +327,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./pipeline.hpp:117:28: error: cannot use 'throw' with exceptions disabled |   117 |         if (from_.empty()) throw std::invalid_argument(\"replace: the text to find must not be empty\"); |       |                            ^"
       ],
-      "hash": "3f19716e3ae5906c"
+      "hash": "50fea20cb07a1e18"
     },
     "core.inherit.composition": {
       "wasm": false,
@@ -335,7 +335,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:6: | ./composition.hpp:98:22: error: cannot use 'throw' with exceptions disabled |    98 |         if (hp <= 0) throw std::invalid_argument(\"hp must be positive\"); |       |                      ^"
       ],
-      "hash": "26bd3de7973c0cc5"
+      "hash": "0cbaed48785676fb"
     },
     "core.inherit.interfaces": {
       "wasm": false,
@@ -343,12 +343,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./logging.hpp:118:20: error: cannot use 'throw' with exceptions disabled |   118 |         if (!sink) throw std::invalid_argument(\"a null sink\"); |       |                    ^"
       ],
-      "hash": "765e8e4effabb594"
+      "hash": "3b170c603b51ad8c"
     },
     "core.inherit.reading-bugs": {
       "wasm": true,
       "mutants": 30,
-      "hash": "e7cee13d0a2db023"
+      "hash": "4c3740ea0d168a9d"
     },
     "core.inherit.test-out": {
       "wasm": false,
@@ -356,7 +356,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:7: | ./shapes.hpp:27:29: error: cannot use 'throw' with exceptions disabled |    27 |         if (!(radius >= 0)) throw std::invalid_argument(\"a radius must not be negative\"); |       |                             ^"
       ],
-      "hash": "1f49dc81753905db"
+      "hash": "a0be74f9e9ea6657"
     },
     "core.inherit.virtual": {
       "wasm": false,
@@ -364,80 +364,80 @@
       "details": [
         "solution does not build: In file included from main.cpp:7: | ./payroll.hpp:34:29: error: cannot use 'throw' with exceptions disabled |    34 |         if (!(annual >= 0)) throw std::invalid_argument(\"a salary must not be negative\"); |       |                             ^"
       ],
-      "hash": "dd7d073996b15748"
+      "hash": "91c518dd36d1e18e"
     },
     "core.ownership.capstone-vector": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "97cf47e4947f7640"
+      "hash": "0445eebe75d0b84e"
     },
     "core.ownership.find-the-bug": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "e5c50dce63f69304"
+      "hash": "954766187eab73cf"
     },
     "core.ownership.raii": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "c57a30834b6b3a81"
+      "hash": "dfd2e772fdf28b8a"
     },
     "core.ownership.rule-of-five": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "c3745db4cf595fcd"
+      "hash": "fc83795f3a14471d"
     },
     "core.ownership.rule-of-three": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "b275d952cd22f777"
+      "hash": "70c14d9c87762f75"
     },
     "core.ownership.shared-ptr": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "32ea2846b7b716c0"
+      "hash": "7599f25b9929d02b"
     },
     "core.ownership.test-out": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "efe1ccd51f561b08"
+      "hash": "da1f32a9a9673d51"
     },
     "core.ownership.unique-ptr": {
       "wasm": false,
       "reason": "needs sanitizers",
       "declared": true,
-      "hash": "0b11f12a6e97826d"
+      "hash": "107a251165c23052"
     },
     "core.performance.allocators": {
       "wasm": true,
       "mutants": 19,
-      "hash": "c5ce1f4c29d3b7e8"
+      "hash": "70bede90990aa038"
     },
     "core.performance.capstone-optimize-the-pipeline": {
       "wasm": true,
       "mutants": 20,
-      "hash": "8e805009f2ffcf5b"
+      "hash": "1989d91b464570c4"
     },
     "core.performance.constexpr": {
       "wasm": true,
       "mutants": 22,
-      "hash": "2fb61f230309585f"
+      "hash": "52fdd1385e9c74d3"
     },
     "core.performance.layout": {
       "wasm": true,
       "mutants": 14,
-      "hash": "0e36b2fa42e214ec"
+      "hash": "21a3d21fddc150e3"
     },
     "core.performance.measuring": {
       "wasm": true,
       "mutants": 11,
-      "hash": "10c3eedfcef8866a"
+      "hash": "4c57ccfeee9a670e"
     },
     "core.performance.reading-slowness": {
       "wasm": false,
@@ -445,22 +445,22 @@
       "details": [
         "mutant \"duplicates-sorts-twice\" passes every test (it is only caught on the server)"
       ],
-      "hash": "3323c2ee3a610af6"
+      "hash": "8a078f73694c7911"
     },
     "core.performance.test-out": {
       "wasm": true,
       "mutants": 10,
-      "hash": "af5bba26c67de8b3"
+      "hash": "4d00f0ac7583574c"
     },
     "core.performance.tools": {
       "wasm": true,
       "mutants": 12,
-      "hash": "0a89d552c5b8f728"
+      "hash": "4d0fa0acd5099143"
     },
     "core.stdlib.algorithms": {
       "wasm": true,
       "mutants": 33,
-      "hash": "fdfc1cf382d94648"
+      "hash": "3f82d260746a5a00"
     },
     "core.stdlib.capstone-log-analyzer": {
       "wasm": false,
@@ -468,7 +468,7 @@
       "details": [
         "solution fails \"analyze handles 200000 lines quickly\" [timeout]: test did not finish in 2s (infinite loop?)"
       ],
-      "hash": "058188119e1ca92b"
+      "hash": "e77a2964d76637e7"
     },
     "core.stdlib.containers": {
       "wasm": false,
@@ -476,22 +476,22 @@
       "details": [
         "mutant \"k-smallest-of-zero-reads-an-empty-heap\" passes every test (it is only caught on the server)"
       ],
-      "hash": "e37f5c7fed9298a1"
+      "hash": "a806d5b9fec8a687"
     },
     "core.stdlib.iterators": {
       "wasm": true,
       "mutants": 20,
-      "hash": "95c4ffc05a78c300"
+      "hash": "7350f2109a0d4ed7"
     },
     "core.stdlib.lambdas": {
       "wasm": true,
       "mutants": 25,
-      "hash": "b471568c806aa3bc"
+      "hash": "cc6476eecf4d39f0"
     },
     "core.stdlib.test-out": {
       "wasm": true,
       "mutants": 12,
-      "hash": "bd7d82d65d3ff35d"
+      "hash": "f0adb41732619a71"
     },
     "core.stdlib.text": {
       "wasm": false,
@@ -499,12 +499,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./text_tools.hpp:34:29: error: call to deleted function 'from_chars' |    34 |     const auto [stop, ec] = std::from_chars(text.data(), end, value); |       |                             ^~~~~~~~~~~~~~~"
       ],
-      "hash": "508199f026aedf2b"
+      "hash": "324b30adee1c1ae6"
     },
     "core.stdlib.time-random": {
       "wasm": true,
       "mutants": 37,
-      "hash": "5599e36fd5726c29"
+      "hash": "e67dc169060f13ea"
     },
     "core.stdlib.vocabulary": {
       "wasm": false,
@@ -514,86 +514,86 @@
         "solution fails \"node_count allocates nothing\" [error]: crashed: stack overflow (recursion too deep?)",
         "solution fails \"a tree of 2000 nodes is handled (cloned, simplified, evaluated) quickly\" [error]: crashed: stack overflow (recursion too deep?)"
       ],
-      "hash": "95789f1deb810301"
+      "hash": "c1295d57876a300d"
     },
     "core.testing.capstone-csv": {
       "wasm": false,
       "reason": "needs testing-tools, sanitizers",
       "declared": true,
-      "hash": "490a9b2906b5d54d"
+      "hash": "f65d4225797cccab"
     },
     "core.testing.catch2": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "02c1844aebf42909"
+      "hash": "b9fcc8ac0ce82bb0"
     },
     "core.testing.format-and-build": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "c5318858f5167c41"
+      "hash": "dc2e6703cbfa1359"
     },
     "core.testing.fuzzing": {
       "wasm": false,
       "reason": "needs testing-tools, sanitizers",
       "declared": true,
-      "hash": "8d452a3fa9a7ecde"
+      "hash": "1f0322ecc2000bc7"
     },
     "core.testing.googletest": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "6bb2a5fd2588c4fc"
+      "hash": "b234e77befd4f749"
     },
     "core.testing.mocks": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "930582a721832fe9"
+      "hash": "75e294af6ab0786b"
     },
     "core.testing.reading-output": {
       "wasm": false,
       "reason": "needs testing-tools, sanitizers",
       "declared": true,
-      "hash": "3aa6f727874d8bfd"
+      "hash": "dca59d4042b854ca"
     },
     "core.testing.static-analysis": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "4de6a393e800c90b"
+      "hash": "15b14d0aaae1ad45"
     },
     "core.testing.test-out": {
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "6e5478e36a64523b"
+      "hash": "290c137efddfda9f"
     },
     "core.testing.warnings": {
       "wasm": true,
       "mutants": 11,
-      "hash": "cf50dbb7ac250dab"
+      "hash": "24af83106045ad96"
     },
     "core.testing.why-test": {
       "wasm": true,
       "mutants": 16,
-      "hash": "08819acac5868bf4"
+      "hash": "5f8f0198b29d0963"
     },
     "domain.data.csv": {
       "wasm": true,
       "mutants": 32,
-      "hash": "bbc603193c5d6493"
+      "hash": "36ee1490b0ec208f"
     },
     "domain.data.interpolation-and-roots": {
       "wasm": true,
       "mutants": 40,
-      "hash": "359ce4fe05b84507"
+      "hash": "dc61292d559b0dd9"
     },
     "domain.data.matrix": {
       "wasm": true,
       "mutants": 24,
-      "hash": "732a94b8231cdf7c"
+      "hash": "8bdf8280d0aa83d4"
     },
     "domain.data.sparse-matrices": {
       "wasm": false,
@@ -602,7 +602,7 @@
         "solution builds with diagnostics: test.cpp:135:59: warning: shift count >= width of type [-Wshift-count-overflow] |   135 |     ZTH_EXPECT_FALSE(Csr::from_triplets(3, std::size_t{1} << 40, {}).has_value()); |       |                                                           ^  ~~ | /zth/zth_test.hpp:727:14: note:",
         "solution fails \"from_triplets refuses what does not fit, and huge dimensions without allocating them\" [fail]: expected Csr::from_triplets(3, std::size_t{1} << 40, {}).has_value() to be false"
       ],
-      "hash": "41c1914167fe2c53"
+      "hash": "d53b94618e55bb04"
     },
     "domain.data.stable-statistics": {
       "wasm": false,
@@ -610,7 +610,7 @@
       "details": [
         "mutant \"percentile-upper-neighbour-wrong\" passes every test (it is only caught on the server)"
       ],
-      "hash": "7de1d31a02f672b7"
+      "hash": "325bee1de761f64b"
     },
     "domain.data.time-series-resampling": {
       "wasm": false,
@@ -618,43 +618,43 @@
       "details": [
         "mutant \"aggregate-end-inclusive\" passes every test (it is only caught on the server)"
       ],
-      "hash": "6d84e6b4a26480c6"
+      "hash": "51af49b983f56d72"
     },
     "domain.embedded.crc": {
       "wasm": true,
       "mutants": 26,
-      "hash": "a2b111f172f208d1"
+      "hash": "94e307cdc964ef8b"
     },
     "domain.embedded.debouncer": {
       "wasm": true,
       "mutants": 23,
-      "hash": "77f4fe93ab5695d2"
+      "hash": "8c575e816407e485"
     },
     "domain.embedded.pid": {
       "wasm": true,
       "mutants": 36,
-      "hash": "c41c8a37d3f0e065"
+      "hash": "974e5132cfcce240"
     },
     "domain.embedded.registers": {
       "wasm": true,
       "mutants": 28,
-      "hash": "286965c2d79eeaaa"
+      "hash": "359c45c77618c3b4"
     },
     "domain.embedded.state-machine": {
       "wasm": true,
       "mutants": 24,
-      "hash": "a9ef985d57d045ef"
+      "hash": "e82e12a70079a9ac"
     },
     "domain.embedded.static-vector": {
       "wasm": true,
       "mutants": 26,
-      "hash": "93ae948027ed1626"
+      "hash": "e6d70bae89424f6b"
     },
     "domain.finance.event-queue": {
       "wasm": false,
       "reason": "needs threads, sanitizers",
       "declared": true,
-      "hash": "d777aafff02adb3e"
+      "hash": "d050878899b661a2"
     },
     "domain.finance.fix-parser": {
       "wasm": false,
@@ -667,12 +667,12 @@
         "mutant \"starts-vector-reserved-big\" passes every test (it is only caught on the server)",
         "mutant \"value-trimmed\" passes every test (it is only caught on the server)"
       ],
-      "hash": "c78ff333ef0cc498"
+      "hash": "e4beba53ebc12621"
     },
     "domain.finance.money": {
       "wasm": true,
       "mutants": 47,
-      "hash": "6e0ea8efded5ac8d"
+      "hash": "f4b670afe0ad5c7e"
     },
     "domain.finance.moving-averages": {
       "wasm": false,
@@ -680,7 +680,7 @@
       "details": [
         "solution builds with diagnostics: test.cpp:42:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |    42 |     ZTH_EXPECT_EQ(*sma.push(30), 20.0); |       |                    ^~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expanded from macro 'ZTH_EXPECT_E"
       ],
-      "hash": "5d22d51dbe02e303"
+      "hash": "ddba1348b3ef9e7c"
     },
     "domain.finance.order-book": {
       "wasm": false,
@@ -688,22 +688,22 @@
       "details": [
         "solution builds with diagnostics: test.cpp:107:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |   107 |     ZTH_EXPECT_EQ(*book.remaining(OrderId{1}), 10LL); |       |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expa"
       ],
-      "hash": "2364cf17e66b19a9"
+      "hash": "671e5ed8b954afb4"
     },
     "domain.finance.risk-metrics": {
       "wasm": true,
       "mutants": 42,
-      "hash": "b88db7a78d5e1094"
+      "hash": "34e4536496e74a7e"
     },
     "domain.games.astar": {
       "wasm": true,
       "mutants": 25,
-      "hash": "136c78bd5bbd86c5"
+      "hash": "5c91836786246135"
     },
     "domain.games.collision": {
       "wasm": true,
       "mutants": 30,
-      "hash": "c6b852fbdbe33817"
+      "hash": "66f51c0bd5ac78a0"
     },
     "domain.games.ecs": {
       "wasm": false,
@@ -711,12 +711,12 @@
       "details": [
         "mutant \"each-returns-on-missing-store-wrongly\" passes every test (it is only caught on the server)"
       ],
-      "hash": "b46ad6995e9d3469"
+      "hash": "16712647d8bdb025"
     },
     "domain.games.game-loop": {
       "wasm": true,
       "mutants": 27,
-      "hash": "064a2d8e14a6dc84"
+      "hash": "3aa41141a85f84b9"
     },
     "domain.games.inventory": {
       "wasm": false,
@@ -725,7 +725,7 @@
         "solution builds with diagnostics: test.cpp:155:20: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl] |   155 |     ZTH_EXPECT_EQ(*bag.find(\"Sword\"), std::size_t{0}); |       |                    ^~~~~~~~~~~~~~~~~ | /zth/zth_test.hpp:735:30: note: expanded fro",
         "solution fails \"the total value and find are single passes: 200000 calls on 256 slots in time\" [timeout]: test did not finish in 10s (infinite loop?)"
       ],
-      "hash": "784dad406f1d543b"
+      "hash": "7b65c78bdb84b9ef"
     },
     "domain.games.object-pool": {
       "wasm": false,
@@ -734,42 +734,42 @@
         "mutant \"bookkeeping-before-construct\" passes every test (it is only caught on the server)",
         "mutant \"index-range-not-checked\" passes every test (it is only caught on the server)"
       ],
-      "hash": "5980c33143629dc5"
+      "hash": "98d04ba908a31f9a"
     },
     "domain.graphics.kalman-filter": {
       "wasm": true,
       "mutants": 32,
-      "hash": "231f4284114c7a6c"
+      "hash": "2ae0c2eff3496c20"
     },
     "domain.graphics.pure-pursuit": {
       "wasm": true,
       "mutants": 53,
-      "hash": "bf1f7795776932b9"
+      "hash": "03b1d1d94c59f525"
     },
     "domain.graphics.quaternions": {
       "wasm": true,
       "mutants": 32,
-      "hash": "5f0a4c59b719ca71"
+      "hash": "d8624f3586e408e1"
     },
     "domain.graphics.rasterization": {
       "wasm": true,
       "mutants": 32,
-      "hash": "9a3354e50236cebe"
+      "hash": "317a16b8efde4615"
     },
     "domain.graphics.ray-intersection": {
       "wasm": true,
       "mutants": 38,
-      "hash": "98dc1cb2ddb41610"
+      "hash": "02baa17b56070bfb"
     },
     "domain.graphics.vectors-and-matrices": {
       "wasm": true,
       "mutants": 42,
-      "hash": "a5d02273c72ac8a4"
+      "hash": "1a98bea5bed0159c"
     },
     "domain.networking.base64": {
       "wasm": true,
       "mutants": 31,
-      "hash": "f0f2c7830ec1f4e1"
+      "hash": "dac40d2d4a7e23c2"
     },
     "domain.networking.binary-codec": {
       "wasm": false,
@@ -777,7 +777,7 @@
       "details": [
         "mutant \"string-copy\" does not build: main.cpp:(.text+0x0): undefined reference to `__cxa_thread_atexit' | clang++: error: linker command failed with exit code 1 (use -v to see invocation)"
       ],
-      "hash": "a4da0298e913cd28"
+      "hash": "cf3b5c23d80d5430"
     },
     "domain.networking.dns": {
       "wasm": false,
@@ -785,17 +785,17 @@
       "details": [
         "mutant \"parse-short-header-ok\" passes every test (it is only caught on the server)"
       ],
-      "hash": "7d871a2f20d8097b"
+      "hash": "9b0e0c9cde0390bc"
     },
     "domain.networking.http-parser": {
       "wasm": true,
       "mutants": 44,
-      "hash": "716dadd1e4633207"
+      "hash": "c33274f6a98cd82c"
     },
     "domain.networking.rate-limiter": {
       "wasm": true,
       "mutants": 28,
-      "hash": "eb42192515397f55"
+      "hash": "9a1e58209b0cf5d4"
     },
     "domain.networking.urls": {
       "wasm": false,
@@ -803,37 +803,37 @@
       "details": [
         "mutant \"dots-quadratic-copy\" passes every test (it is only caught on the server)"
       ],
-      "hash": "4de29c4664c62454"
+      "hash": "36c1f5d792324bd1"
     },
     "domain.systems.bloom-filter": {
       "wasm": true,
       "mutants": 31,
-      "hash": "c6ea1b51d5550347"
+      "hash": "e1dd3507d8156f44"
     },
     "domain.systems.consistent-hashing": {
       "wasm": true,
       "mutants": 21,
-      "hash": "6e8b3af2494f1813"
+      "hash": "8af83a78941d913e"
     },
     "domain.systems.lru-cache": {
       "wasm": true,
       "mutants": 25,
-      "hash": "0597202af9c5430f"
+      "hash": "411c5f4b8e9a308c"
     },
     "domain.systems.ring-logger": {
       "wasm": true,
       "mutants": 30,
-      "hash": "12eebd26d330cbc9"
+      "hash": "2cdea37aa53b5e00"
     },
     "domain.systems.shell-tokenizer": {
       "wasm": true,
       "mutants": 33,
-      "hash": "ac4cbe5561210c67"
+      "hash": "b22f4200c4f46f65"
     },
     "domain.systems.timer-wheel": {
       "wasm": true,
       "mutants": 26,
-      "hash": "9043f2fbc50fae8a"
+      "hash": "306aa9179b037a95"
     },
     "domain.systems.tracking-resource": {
       "wasm": false,
@@ -841,7 +841,7 @@
       "details": [
         "mutant \"record-before-upstream\" passes every test (it is only caught on the server)"
       ],
-      "hash": "e378b0feaa3f98a5"
+      "hash": "e4815bf4f61edbb5"
     },
     "domain.tooling.argument-parser": {
       "wasm": false,
@@ -849,12 +849,12 @@
       "details": [
         "solution does not build: In file included from main.cpp:9: | ./cli.hpp:352:20: error: call to deleted function 'from_chars' |   352 |     const auto r = std::from_chars(text.data(), text.data() + text.size(), v); |       |                    ^~~~~~~~~~~~~~~"
       ],
-      "hash": "a09823f561ee68b6"
+      "hash": "68521ae42a02b2d2"
     },
     "domain.tooling.build-graph": {
       "wasm": true,
       "mutants": 39,
-      "hash": "22ea7e7b2cc189ed"
+      "hash": "edd5d9c9c18ab69d"
     },
     "domain.tooling.config-parser": {
       "wasm": false,
@@ -862,22 +862,22 @@
       "details": [
         "solution does not build: In file included from main.cpp:5: | ./config.hpp:445:28: error: call to deleted function 'from_chars' |   445 |             const auto r = std::from_chars(text.data(), text.data() + text.size(), v); |       |                            ^~~~~~~~~~~~~~~"
       ],
-      "hash": "bd908d347af04472"
+      "hash": "4db9d2bb3461e432"
     },
     "domain.tooling.glob-matcher": {
       "wasm": true,
       "mutants": 47,
-      "hash": "6709e12dcc63eb27"
+      "hash": "74d3c4b9fce21ad8"
     },
     "domain.tooling.myers-diff": {
       "wasm": true,
       "mutants": 49,
-      "hash": "1f9902c3b44cf5f8"
+      "hash": "d5479204ba958873"
     },
     "domain.tooling.structured-logger": {
       "wasm": true,
       "mutants": 74,
-      "hash": "c762bb5b454428b3"
+      "hash": "129cd2e7c7ec46ea"
     }
   }
 }

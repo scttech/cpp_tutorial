@@ -1,0 +1,96 @@
+touching-counts-as-overlap:
+  title: "Do touching boxes overlap?"
+  text: "Decide it once: here boxes that share only an edge count as overlapping, so the test is `a.max >= b.min` on both axes, with `<=` and `>=`. Test boxes that touch at an edge and at a corner."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Box { double min, max; };   // one axis is enough to show it
+
+        bool overlaps(Box a, Box b) { return a.max > b.min && b.max > a.min; }   // strict: touching does not count
+
+        int main() {
+            std::cout << overlaps({0, 1}, {1, 2}) << "\n";   // they share the point 1
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Box { double min, max; };
+
+        bool overlaps(Box a, Box b) { return a.max >= b.min && b.max >= a.min; }   // touching counts
+
+        int main() {
+            std::cout << overlaps({0, 1}, {1, 2}) << "\n";
+        }
+      out: "1\n"
+squared-distances:
+  title: "Compare squared distances, not distances"
+  text: "Two circles overlap when the centre distance is at most the sum of the radii. Compare `dx*dx + dy*dy` with `(r1 + r2) * (r1 + r2)` and skip the square root, but do remember to square the radius sum too."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double dx = 3, dy = 0, r1 = 2, r2 = 2;                // centres 3 apart, radii add up to 4
+            bool hit = dx * dx + dy * dy <= r1 + r2;              // squared distance against an unsquared sum
+            std::cout << (hit ? "overlap" : "apart") << "\n";
+        }
+      out: "apart\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double dx = 3, dy = 0, r1 = 2, r2 = 2;
+            bool hit = dx * dx + dy * dy <= (r1 + r2) * (r1 + r2);   // both sides squared
+            std::cout << (hit ? "overlap" : "apart") << "\n";
+        }
+      out: "overlap\n"
+circle-vs-box-closest-point:
+  title: "Clamp to find the closest point of a box"
+  text: "For a circle against a box, clamp the circle's centre to the box to get the closest point, then compare the squared distance to it with the squared radius. A centre inside the box has distance 0."
+negative-coordinates-floor:
+  title: "Grid cells need floor, not truncation"
+  text: "Converting a coordinate to a cell with a plain cast truncates toward zero, so -0.5 lands in cell 0 together with 0.5. Use `std::floor`, so negative coordinates get negative cells."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x = -0.5, cell = 10;
+            std::cout << static_cast<int>(x / cell) << "\n";   // truncates toward zero: cell 0
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double x = -0.5, cell = 10;
+            std::cout << static_cast<int>(std::floor(x / cell)) << "\n";   // cell -1
+        }
+      out: "-1\n"
+objects-spanning-cells:
+  title: "A big object covers several cells"
+  text: "An object whose box crosses a cell border must be inserted into every cell it touches. Inserting only the cell of its corner misses collisions with neighbors in the other cells."
+duplicate-pairs:
+  title: "Report each colliding pair once"
+  text: "Two objects that share several cells are found together in each of them. Deduplicate the pairs, with a set or a rule such as \"only report in the cell holding the lower-left corner of the overlap\"."
+pairs-are-ordered:
+  title: "Report pairs in a stable order"
+  text: "Return each pair as (smaller id, larger id) and sort the result, so the output does not depend on hash order or insertion order. Tests can then compare it directly."
+objects-on-cell-borders:
+  title: "An object exactly on a cell border"
+  text: "A box whose max edge equals a cell border may or may not belong to the next cell. When touching counts as overlap, put it in both, and test boxes that end exactly on a border."
+empty-and-point-boxes:
+  title: "Empty and zero-size boxes"
+  text: "A box with min equal to max is a point, and one with min greater than max is empty. Decide what each overlaps (a point inside another box does, an empty box overlaps nothing) and test them."
+brute-force-fallback:
+  title: "Keep a brute-force version to check against"
+  text: "The grid must find exactly the same pairs as the quadratic all-pairs test. Keep the simple version and compare the two on random input: it is the best test of the clever one."

@@ -1,0 +1,149 @@
+full-versus-empty:
+  title: "Full and empty look the same with only head and tail"
+  text: "When `head == tail`, the queue could be empty or full. Keep one slot free (so full means `tail + 1 == head`), or keep a separate count, to tell the two states apart."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        struct Ring {
+            int data[2];
+            std::size_t head = 0, tail = 0;
+            void push(int v) { data[tail] = v; tail = (tail + 1) % 2; }
+            bool empty() const { return head == tail; }   // also true when full
+        };
+
+        int main() {
+            Ring r;
+            r.push(1);
+            r.push(2);   // now full
+            std::cout << "empty: " << r.empty() << "\n";
+        }
+      out: "empty: 1\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        struct Ring {
+            int data[2];
+            std::size_t head = 0, tail = 0, size = 0;   // the count tells them apart
+            void push(int v) { data[tail] = v; tail = (tail + 1) % 2; ++size; }
+            bool empty() const { return size == 0; }
+        };
+
+        int main() {
+            Ring r;
+            r.push(1);
+            r.push(2);
+            std::cout << "empty: " << r.empty() << "\n";
+        }
+      out: "empty: 0\n"
+one-slot-kept-free:
+  title: "Keep one slot free in a lock-free queue"
+  text: "With only a head and a tail index, a queue of capacity N can hold N - 1 items, because the N-th would make the queue look empty. Allocate one more slot than the usable capacity."
+release-after-writing-the-slot:
+  title: "Publish the tail with release, after writing the slot"
+  text: "The producer writes the item into its slot and only then stores the new tail with `memory_order_release`. Without release, the consumer can see the new tail before it can see the data."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int slot = 0;
+        std::atomic<bool> published{false};
+
+        int main() {
+            std::thread producer([] {
+                slot = 42;
+                published.store(true, std::memory_order_relaxed);   // no release: the data is not ordered
+            });
+            while (!published.load(std::memory_order_relaxed)) {}   // no acquire either
+            std::cout << slot << "\n";
+            producer.join();
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int slot = 0;
+        std::atomic<bool> published{false};
+
+        int main() {
+            std::thread producer([] {
+                slot = 42;
+                published.store(true, std::memory_order_release);   // publish after writing
+            });
+            while (!published.load(std::memory_order_acquire)) {}   // read after seeing it
+            std::cout << slot << "\n";
+            producer.join();
+        }
+      out: "42\n"
+acquire-before-reading-the-slot:
+  title: "Read the tail with acquire, before reading the slot"
+  text: "The consumer loads the producer's tail with `memory_order_acquire` and only then reads the slot. The acquire pairs with the release, and makes the data written before it visible."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int slot = 0;
+        std::atomic<bool> published{false};
+
+        int main() {
+            std::thread producer([] {
+                slot = 42;
+                published.store(true, std::memory_order_relaxed);   // no release: the data is not ordered
+            });
+            while (!published.load(std::memory_order_relaxed)) {}   // no acquire either
+            std::cout << slot << "\n";
+            producer.join();
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int slot = 0;
+        std::atomic<bool> published{false};
+
+        int main() {
+            std::thread producer([] {
+                slot = 42;
+                published.store(true, std::memory_order_release);   // publish after writing
+            });
+            while (!published.load(std::memory_order_acquire)) {}   // read after seeing it
+            std::cout << slot << "\n";
+            producer.join();
+        }
+      out: "42\n"
+relaxed-is-enough-for-your-own-index:
+  title: "Your own index can be read relaxed"
+  text: "The producer is the only writer of the tail, so it can read its own tail with `relaxed`; only the other side's index needs `acquire`. Each side stores its index with `release`."
+false-sharing:
+  title: "Keep the head and tail on separate cache lines"
+  text: "If both indices live in one cache line, the producer and the consumer keep invalidating each other's copy. Align each to 64 bytes with `alignas`, and the queue runs several times faster."
+wraparound:
+  title: "Indices wrap around"
+  text: "The positions come back to 0 after the last slot. Use `(index + 1) % capacity` (or a mask for a power of two), and test pushing and popping through more than one full lap."
+move-only-items:
+  title: "The queue must accept move-only items"
+  text: "Items such as `unique_ptr` cannot be copied. Take `T&&` in `push`, move into the slot, and move out in `pop`, so move-only types work."
+no-mutex-allowed:
+  title: "No mutex in a lock-free queue"
+  text: "A queue that takes a lock is not lock-free, however short the lock is. For one producer and one consumer, two atomic indices are all that is needed."
+index-modulo:
+  title: "Modulo is the cost; a power of two avoids it"
+  text: "A `%` by a runtime capacity is a division. With a power-of-two capacity, `index & (capacity - 1)` does the same in a single instruction."

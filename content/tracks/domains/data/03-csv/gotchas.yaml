@@ -1,0 +1,135 @@
+quotes-inside-quotes:
+  title: "A quote inside a quoted field is doubled"
+  text: "In RFC 4180, a field with a quote in it is written inside quotes with each inner quote doubled: `say \"hi\"` becomes `\"say \"\"hi\"\"\"`. The reader must undo it, and the writer must do it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        std::string quote(const std::string& f) { return "\"" + f + "\""; }   // inner quotes not doubled
+
+        int main() {
+            std::cout << quote("say \"hi\"") << "\n";
+        }
+      out: "\"say \"hi\"\"\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        std::string quote(const std::string& f) {
+            std::string out = "\"";
+            for (char c : f) {
+                if (c == '"') out += '"';   // double every quote
+                out += c;
+            }
+            return out + "\"";
+        }
+
+        int main() {
+            std::cout << quote("say \"hi\"") << "\n";
+        }
+      out: "\"say \"\"hi\"\"\"\n"
+newlines-inside-fields:
+  title: "A newline inside quotes belongs to the field"
+  text: "A quoted field may contain line breaks. Splitting the text into lines first cuts such a record in two; parse character by character and track whether you are inside quotes."
+the-empty-line-problem:
+  title: "An empty line: a record with one empty field, or nothing?"
+  text: "A blank line in a CSV can mean a record with a single empty field, or just a separator. Follow the specification, say what a trailing blank line means, and test the end of the file."
+trailing-delimiter:
+  title: "A trailing comma means an empty last field"
+  text: "\"a,b,\" has three fields, the last one empty. A split that stops when the text runs out drops it. Remember that a separator at the end of a record creates a field."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,b,");
+            std::string field;
+            int n = 0;
+            while (std::getline(in, field, ',')) ++n;   // the empty last field is lost
+            std::cout << n << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::string text = "a,b,";
+            std::istringstream in(text);
+            std::string field;
+            int n = 0;
+            while (std::getline(in, field, ',')) ++n;
+            if (!text.empty() && text.back() == ',') ++n;   // a trailing comma starts one more field
+            std::cout << n << "\n";
+        }
+      out: "3\n"
+bom-at-start:
+  title: "A byte order mark may precede the data"
+  text: "Files saved by some programs start with the UTF-8 BOM (0xEF 0xBB 0xBF). Skip it before parsing, or the first field name has three invisible bytes in front and compares unequal."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string header = "\xEF\xBB\xBF" "name";   // a file that starts with a BOM
+            std::cout << (header == "name") << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string header = "\xEF\xBB\xBF" "name";
+            if (header.rfind("\xEF\xBB\xBF", 0) == 0) header.erase(0, 3);   // skip the BOM
+            std::cout << (header == "name") << "\n";
+        }
+      out: "1\n"
+lone-carriage-return:
+  title: "A lone `\\r` is not a line ending here"
+  text: "Records end with `\\r\\n` (or `\\n`). A `\\r` that is not followed by `\\n` is data (or an error, by your rules): decide, and test it, instead of treating every `\\r` as a line break."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            std::cout << (line == "ERROR") << "\n";   // the \r is still there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // strip it
+            std::cout << (line == "ERROR") << "\n";
+        }
+      out: "1\n"
+writer-must-round-trip:
+  title: "The writer must round-trip"
+  text: "Whatever the writer produces, the reader must read back to the same fields: write then read, for fields with quotes, commas, newlines and empty values. A round-trip test finds most CSV bugs."
+errors-carry-line-numbers:
+  title: "Errors carry the line number"
+  text: "A malformed record must be reported with its line (and column), counted in the physical lines of the input. Remember that a quoted field can span several lines."

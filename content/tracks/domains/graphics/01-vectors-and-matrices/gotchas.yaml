@@ -1,0 +1,152 @@
+column-major-layout:
+  title: "Column-major: the index is `col * 4 + row`"
+  text: "In a column-major 4x4 matrix stored in a flat array, element (row, col) is at `m[col * 4 + row]`, so the translation lives in `m[12..14]`. Indexing it as `row * 4 + col` silently transposes the matrix."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double m[16] = {1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   5, 6, 7, 1};   // column-major: x translation is 5
+            int row = 0, col = 3;
+            std::cout << m[row * 4 + col] << "\n";   // indexed as if it were row-major
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double m[16] = {1, 0, 0, 0,   0, 1, 0, 0,   0, 0, 1, 0,   5, 6, 7, 1};
+            int row = 0, col = 3;
+            std::cout << m[col * 4 + row] << "\n";   // column-major
+        }
+      out: "5\n"
+multiplication-order:
+  title: "Matrix multiplication is not commutative"
+  text: "`T * R` and `R * T` are different transforms. With column vectors the rightmost matrix is applied first, so `T * R * p` rotates `p` and then translates it. Test with a non-symmetric example."
+points-vs-directions:
+  title: "Points have w = 1, directions have w = 0"
+  text: "A translation moves a point but must not change a direction (a normal, a velocity). With homogeneous coordinates the difference is the `w` component: `w = 1` picks up the translation, `w = 0` ignores it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double tx = 5;                       // translate by 5 along x
+            double x = 1, w = 1;                 // a direction, wrongly given w = 1
+            std::cout << x + tx * w << "\n";
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double tx = 5;
+            double x = 1, w = 0;                 // a direction: w = 0, translation ignored
+            std::cout << x + tx * w << "\n";
+        }
+      out: "1\n"
+divide-by-w:
+  title: "Divide by w after a projection"
+  text: "A projection matrix leaves `w` different from 1. The Cartesian point is `(x/w, y/w, z/w)`, and forgetting the division gives positions that are scaled by w. Check `w` is not 0 first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x = 4, w = 2;
+            std::cout << x << "\n";        // the projected x, not divided by w
+        }
+      out: "4\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x = 4, w = 2;
+            std::cout << x / w << "\n";    // the perspective divide
+        }
+      out: "2\n"
+inverse-can-fail:
+  title: "A matrix may have no inverse"
+  text: "A matrix with a zero determinant (a flattening scale, two equal rows) is singular. Return an error or `std::optional`, instead of dividing by the zero determinant and returning infinities."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double a = 1, b = 2, c = 2, d = 4;           // the rows are proportional
+            double det = a * d - b * c;                  // 0
+            std::cout << 1.0 / det << "\n";              // "inverse" of a singular matrix
+        }
+      out: "inf\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 1, b = 2, c = 2, d = 4;
+            double det = a * d - b * c;
+            if (std::fabs(det) < 1e-12) std::cout << "singular\n";   // report it
+            else std::cout << 1.0 / det << "\n";
+        }
+      out: "singular\n"
+length-overflows:
+  title: "The squared length can overflow"
+  text: "`sqrt(x*x + y*y)` overflows to infinity for components around 1e200, although the length itself is representable. `std::hypot` scales internally, and stays finite."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double x = 1e200, y = 1e200;
+            std::cout << std::sqrt(x * x + y * y) << "\n";   // x * x overflows
+        }
+      out: "inf\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double x = 1e200, y = 1e200;
+            std::cout << std::hypot(x, y) << "\n";           // scales internally
+        }
+      out: "1.41421e+200\n"
+acos-is-inaccurate:
+  title: "`acos` of a dot product loses precision near 1"
+  text: "For nearly parallel unit vectors the dot product rounds to exactly 1.0, and `acos` returns 0 even though the angle is tiny. Use `atan2(|cross|, dot)`, which is accurate at every angle."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double e = 1e-9;                                // two unit vectors, 1e-9 radians apart
+            double ax = 1, ay = 0, bx = std::cos(e), by = std::sin(e);
+            std::cout << std::acos(ax * bx + ay * by) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double e = 1e-9;
+            double ax = 1, ay = 0, bx = std::cos(e), by = std::sin(e);
+            std::cout << std::atan2(std::fabs(ax * by - ay * bx), ax * bx + ay * by) << "\n";   // |cross|, dot
+        }
+      out: "1e-09\n"
+right-handed-conventions:
+  title: "State your handedness"
+  text: "In a right-handed system `x cross y = z`, and a positive rotation is counter-clockwise looking down the axis toward the origin. Write the convention down, and test the cross product of the basis vectors."

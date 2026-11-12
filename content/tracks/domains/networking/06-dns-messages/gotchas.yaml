@@ -1,0 +1,30 @@
+pointers-point-backwards:
+  title: "A compression pointer must point backwards"
+  text: "A name pointer that points forward, or at itself, can create a loop or read data that is not decoded yet. Accept only an offset earlier than the current position."
+pointer-chains-must-shrink:
+  title: "Chains of pointers must strictly shrink"
+  text: "A pointer can lead to a name that again ends in a pointer. Require each pointer to go to a lower offset than the previous one, so the chain must end, and cap the number of jumps."
+position-after-the-first-pointer:
+  title: "After a pointer, the position is right after the first one"
+  text: "When a name uses a pointer, the message continues after the two bytes of the first pointer, not after the name that the pointer led to. Remember the position at the first jump."
+label-limits:
+  title: "A label is at most 63 bytes"
+  text: "The length byte of a label has its top two bits for pointers, so a label is 0 to 63 bytes. A byte with the top bits `01` or `10` is invalid; only `11` marks a pointer."
+name-length-limit:
+  title: "A name is at most 255 bytes in wire form"
+  text: "The sum of all label bytes, length bytes and the terminating zero must not exceed 255. Count while decoding (also across pointers), and stop with an error as soon as it is exceeded."
+counts-are-claims:
+  title: "The counts in the header are only claims"
+  text: "A header that says 60,000 answers in a 40-byte message is lying. Check each record against the bytes that remain, and never size an allocation from a count without checking it."
+rdlength-must-match:
+  title: "RDLENGTH must match the data"
+  text: "The length field of a record says how many bytes of data follow. The record's contents must use exactly that many, and must not run beyond the end of the message."
+compression-is-case-insensitive:
+  title: "Name compression compares case-insensitively"
+  text: "When encoding, `WWW.Example.COM` and `www.example.com` can share a suffix, because DNS names are case-insensitive. Compare lower-cased, and keep the case of the first occurrence."
+offsets-above-16383:
+  title: "Pointers cannot refer beyond offset 16383"
+  text: "A pointer has 14 bits for the offset, so it cannot refer to a name that starts later in the message. Do not compress against such a name; write it out in full."
+no-trailing-garbage:
+  title: "Trailing bytes are an error"
+  text: "After the last record, nothing else may follow in a message that has been decoded completely. Extra bytes usually mean a wrong count or a corrupt message; report them."

@@ -1,0 +1,90 @@
+saturate-do-not-wrap:
+  title: "Saturate, do not wrap"
+  text: "An output that exceeds the range of its type must clamp to the maximum (or minimum), not wrap around: a controller that jumps from full power to negative full power on overflow is dangerous."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::int16_t a = 30000, b = 10000;
+            std::int16_t sum = static_cast<std::int16_t>(a + b);   // wraps around
+            std::cout << sum << "\n";
+        }
+      out: "-25536\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::int16_t a = 30000, b = 10000;
+            int wide = a + b;                                       // computed in int
+            std::int16_t sum = static_cast<std::int16_t>(std::min(wide, 32767));   // clamped
+            std::cout << sum << "\n";
+        }
+      out: "32767\n"
+widen-before-multiplying:
+  title: "Widen before multiplying"
+  text: "The product of two 32-bit fixed-point values does not fit in 32 bits. Convert one operand to 64 bits first, multiply, and shift back, or the overflow happens before you can scale."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;   // 46341
+            int sq = x * x;         // more than INT_MAX
+            std::cout << sq << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;
+            long long sq = static_cast<long long>(x) * x;   // widen before multiplying
+            std::cout << sq << "\n";
+        }
+      out: "2147488281\n"
+round-to-nearest:
+  title: "Round to nearest when you shift down"
+  text: "A right shift truncates toward minus infinity, so the result is biased low. Add half of the divisor before shifting, `(x + (1 << (n - 1))) >> n`, to round to nearest."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = 3;
+            std::cout << (x >> 1) << "\n";   // 1.5 truncated
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = 3;
+            std::cout << ((x + 1) >> 1) << "\n";   // add half before shifting: rounds to nearest
+        }
+      out: "2\n"
+division-by-zero:
+  title: "Guard the divisions"
+  text: "Dividing by a gain, a time step or a sample count of zero is undefined behavior. Reject zero parameters when the controller is configured, instead of on the first update."
+clamp-the-integral:
+  title: "Clamp the integral term (anti-windup)"
+  text: "While the output is saturated, an unchecked integral keeps growing, and the controller overshoots badly when the error finally changes sign. Limit the integral to the range the output can use."
+derivative-on-measurement:
+  title: "Take the derivative of the measurement"
+  text: "Differentiating the error makes the output jump (a \"derivative kick\") whenever the setpoint changes. Differentiate the measurement instead, with a minus sign, and the kick disappears."
+first-sample-has-no-derivative:
+  title: "The first sample has no derivative"
+  text: "There is no previous measurement on the first update, so the derivative term must be 0, not the measurement divided by dt. Remember whether a previous sample exists."
+non-positive-dt:
+  title: "A zero or negative time step is rejected"
+  text: "A `dt` of 0 divides by zero in the derivative, and a negative one makes the integral run backwards. Report an error (or skip the update) for `dt <= 0`."

@@ -1,0 +1,66 @@
+escape-everything-json-requires:
+  title: "Escape everything JSON requires"
+  text: "In a JSON string, `\"` and `\\` must be escaped, and so must every control character below U+0020 (as `\\n`, `\\t` or `\\u00XX`). One raw newline in a message breaks a line-oriented log."
+invalid-utf-8-never-reaches-the-output:
+  title: "Invalid UTF-8 never reaches the output"
+  text: "A message with bad bytes must not be written as it is: JSON must be valid UTF-8. Replace each invalid sequence with U+FFFD (as the WHATWG decoder does) before escaping."
+floor-division-for-negative-times:
+  title: "Floor division for negative timestamps"
+  text: "A time before 1970 is negative, and `-7 / 2` truncates to -3, not -4. Convert to days and seconds of the day with floor division, or the date before the epoch is wrong."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            std::cout << seconds / bucket << "\n";   // truncates toward zero
+        }
+      out: "-3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            int q = seconds / bucket;
+            if (seconds % bucket != 0 && (seconds < 0) != (bucket < 0)) --q;   // round down, not toward zero
+            std::cout << q << "\n";
+        }
+      out: "-4\n"
+shortest-round-trip-doubles:
+  title: "Print doubles in their shortest round-trip form"
+  text: "`std::to_chars` gives the shortest text that parses back to exactly the same double, such as 0.1 or 1e-7. `printf(\"%f\")` or the default stream output either loses digits or adds many."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << 0.1 + 0.2 << "\n";   // six significant digits: information is lost
+        }
+      out: "0.3\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+
+        int main() {
+            char buf[32];
+            auto r = std::to_chars(buf, buf + sizeof buf, 0.1 + 0.2);   // the shortest text that reads back exactly
+            std::cout << std::string(buf, r.ptr) << "\n";
+        }
+      out: "0.30000000000000004\n"
+last-duplicate-wins:
+  title: "For duplicate fields, the last one wins"
+  text: "If the same key is given twice, only the last value is written, in the position of the first occurrence (as the specification says). Keep the order stable and test a key repeated three times."
+suppress-repeats-and-say-so:
+  title: "Suppress repeats, and say so"
+  text: "When the same message repeats, write it once and then \"repeated N times\" when it changes, instead of silently dropping the repeats. The reader must be able to tell that lines were suppressed."
+cut-at-a-code-point:
+  title: "Cut a long line at a code point"
+  text: "When a line is truncated to a byte limit, back up to the start of a UTF-8 sequence before cutting, so the output never ends in half a character. Continuation bytes start with the bits 10."
+children-share-state:
+  title: "Child loggers share the parent's sink and counters"
+  text: "A child logger with extra fields writes to the same sink and uses the same sequence number and repeat filter as its parent. Copying them gives two independent streams that interleave wrongly."

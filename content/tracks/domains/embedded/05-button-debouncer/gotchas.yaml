@@ -1,0 +1,44 @@
+count-consecutive-samples:
+  title: "Count consecutive samples, not total samples"
+  text: "A button is \"pressed\" after N samples in a row that differ from the current state. One sample that disagrees must reset the count, or a noisy contact would eventually add up to a press."
+timers-before-transitions:
+  title: "Update the timers before the transitions"
+  text: "Within one `tick`, advance the time counters first, and then decide on the transition. Doing it the other way round makes every duration one tick off."
+long-press-cancels-click:
+  title: "A long press is not a click"
+  text: "Once the button has been held past the long-press time, releasing it must not also produce a click. Remember that a long press fired, and suppress the click on release."
+double-click-replaces-click:
+  title: "A double click replaces the single click"
+  text: "A click is only reported after the double-click window has passed without a second press. If a second press comes, report one double click instead of two clicks."
+saturate-counters:
+  title: "Counters saturate, they do not wrap"
+  text: "An 8-bit counter that is incremented while the button stays held wraps from 255 to 0, and looks like a new press. Stop at the maximum."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t held = 255;
+            ++held;                                    // wraps around to 0
+            std::cout << static_cast<int>(held) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint8_t held = 255;
+            if (held < 255) ++held;                    // stops at the maximum
+            std::cout << static_cast<int>(held) << "\n";
+        }
+      out: "255\n"
+one-call-one-tick:
+  title: "One call is one tick"
+  text: "Each call to `tick(sample)` represents one sampling period, no matter what time has actually passed. The time constants are counted in ticks, which makes the machine deterministic and testable."
+zero-debounce-means-one:
+  title: "A debounce time of zero still takes one sample"
+  text: "With a debounce count of 0, the state must still change on the first differing sample, not before any sample is seen. Treat 0 as 1."

@@ -1,0 +1,134 @@
+sum-of-squares-formula-cancels:
+  title: "The sum-of-squares formula cancels catastrophically"
+  text: "`E[x^2] - E[x]^2` subtracts two huge, nearly equal numbers when the mean is large compared with the spread, and loses all its digits. Subtract the mean first, or use Welford's update."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x[] = {1e9, 1e9 + 1};
+            double mean = (x[0] + x[1]) / 2;
+            double mean_sq = (x[0] * x[0] + x[1] * x[1]) / 2;
+            std::cout << mean_sq - mean * mean << "\n";   // the true variance is 0.25
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x[] = {1e9, 1e9 + 1};
+            double mean = (x[0] + x[1]) / 2;
+            double ss = 0;
+            for (double v : x) ss += (v - mean) * (v - mean);   // subtract the mean first
+            std::cout << ss / 2 << "\n";
+        }
+      out: "0.25\n"
+welford-update:
+  title: "Welford's update is stable and one-pass"
+  text: "For each value, `delta = x - mean; mean += delta / n; m2 += delta * (x - mean)`. It never subtracts large nearly equal numbers, and needs no stored data."
+merge-needs-the-mean-difference:
+  title: "Merging two summaries needs the difference of the means"
+  text: "To combine two (n, mean, m2) summaries, `m2 = m2a + m2b + delta^2 * na * nb / (na + nb)`, where `delta` is the difference of the means. Adding the two `m2` values alone ignores the spread between the groups."
+neumaier-vs-kahan:
+  title: "Neumaier handles what Kahan cannot"
+  text: "Kahan summation loses the correction when the next value is larger in magnitude than the running sum. Neumaier's variant compares the two magnitudes and keeps the right low-order bits in both cases."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double values[] = {1.0, 1e100, 1.0, -1e100};   // the exact sum is 2
+            double sum = 0, c = 0;
+            for (double x : values) {                      // Kahan
+                double y = x - c;
+                double t = sum + y;
+                c = (t - sum) - y;
+                sum = t;
+            }
+            std::cout << sum << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double values[] = {1.0, 1e100, 1.0, -1e100};
+            double sum = 0, c = 0;
+            for (double x : values) {                      // Neumaier
+                double t = sum + x;
+                if (std::fabs(sum) >= std::fabs(x)) c += (sum - t) + x;
+                else c += (x - t) + sum;
+                sum = t;
+            }
+            std::cout << sum + c << "\n";
+        }
+      out: "2\n"
+reject-non-finite-input:
+  title: "Reject NaN and infinity"
+  text: "One NaN or infinite value makes every later sum, mean and variance NaN or infinite. Check `std::isfinite` on input, and report which element is bad."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double values[] = {1.0, std::nan(""), 3.0};
+            double sum = 0;
+            for (double v : values) sum += v;   // one NaN ruins the sum
+            std::cout << sum << "\n";
+        }
+      out: "nan\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double values[] = {1.0, std::nan(""), 3.0};
+            double sum = 0;
+            for (double v : values) {
+                if (!std::isfinite(v)) { std::cout << "rejected\n"; return 0; }
+                sum += v;
+            }
+            std::cout << sum << "\n";
+        }
+      out: "rejected\n"
+sqrt-before-multiplying:
+  title: "Take the square roots before multiplying"
+  text: "In a correlation, `sqrt(a * b)` overflows to infinity when `a * b` is too large, while `sqrt(a) * sqrt(b)` stays finite. The same trick avoids underflow for tiny values."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 1e200, b = 1e200;
+            std::cout << std::sqrt(a * b) << "\n";   // a * b overflows to infinity
+        }
+      out: "inf\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 1e200, b = 1e200;
+            std::cout << std::sqrt(a) * std::sqrt(b) << "\n";
+        }
+      out: "1e+200\n"
+correlation-clamp:
+  title: "Clamp a correlation to [-1, 1]"
+  text: "Rounding can make a perfectly correlated pair come out as 1.0000000000000002, which breaks anything that takes `acos` or assumes the bound. Clamp the result."
+interpolate-without-overflow:
+  title: "Interpolate without overflowing"
+  text: "A percentile between two values written as `a + (b - a) * t` can overflow when `b - a` does, for values at opposite ends of the range. Use `a * (1 - t) + b * t`, or widen first."
+select-dont-sort:
+  title: "Select, do not sort"
+  text: "A median or a percentile needs only the k-th element. `std::nth_element` finds it in O(n), instead of the O(n log n) of a full sort, and you must not sort the caller's data."

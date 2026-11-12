@@ -1,0 +1,36 @@
+heuristic-must-not-overestimate:
+  title: "The heuristic must never overestimate"
+  text: "A* returns a shortest path only if the heuristic is never larger than the true remaining cost. Manhattan distance is fine on a 4-neighbor grid with minimum step cost 1; doubling it breaks the guarantee."
+costs-are-paid-when-entering-a-cell:
+  title: "The cost is paid for the cell you enter"
+  text: "Moving onto a cell costs that cell's value, not the cost of the cell you leave. The start cell itself costs nothing: begin at 0 and add the cost of each cell entered."
+zero-cost-is-a-wall:
+  title: "A cost of zero means blocked"
+  text: "In this grid a cell with cost 0 cannot be entered. Treat it as a wall rather than as a free cell, and check it before computing the neighbor's cost."
+start-equals-goal:
+  title: "Start equal to goal is a path of one cell"
+  text: "The answer is the single cell with cost 0: not an error, and not an empty path. Handle it before the search starts."
+start-or-goal-blocked:
+  title: "A blocked start or goal has no path"
+  text: "If the start or the goal is a wall, return \"no path\" at once. Searching anyway wastes time and may return a path that passes through a wall."
+stop-when-the-goal-is-taken-from-the-queue-not-when-it-is-pushed:
+  title: "Stop when the goal is popped, not when it is pushed"
+  text: "The first time the goal is pushed, its cost may not be the best one yet. It is optimal only when it comes off the priority queue, so stop there."
+closed-set:
+  title: "Skip cells that are already closed"
+  text: "A cell popped with a worse cost than its recorded best, or one already expanded, must be skipped. Without a closed set (or the equivalent check) the search re-expands cells and slows down badly."
+stale-queue-entries:
+  title: "The priority queue keeps stale entries"
+  text: "`std::priority_queue` has no decrease-key, so a cell improved later is pushed again and its old entry stays inside. When popping, ignore an entry whose cost is worse than the best known for that cell."
+tie-breaking:
+  title: "Break ties deterministically"
+  text: "Many paths cost the same. If equal-priority nodes come off the queue in an arbitrary order, the returned path changes between runs or libraries. Add a deterministic tie-break, such as the cell index."
+path-reconstruction-order:
+  title: "Reconstruct the path backwards, then reverse it"
+  text: "Following the parent links from the goal gives the path from goal to start. Reverse it before returning, and check that it begins at the start cell."
+out-of-bounds:
+  title: "Check the bounds of every neighbor"
+  text: "A cell on the border has fewer than four neighbors. Test the row and column against the size before indexing, using signed arithmetic so that -1 is caught."
+recursion-depth-on-long-paths:
+  title: "Rebuild the path with a loop, not recursion"
+  text: "A path of a million cells would be a million nested calls if rebuilt recursively, and the stack overflows. Follow the parent links in a loop."

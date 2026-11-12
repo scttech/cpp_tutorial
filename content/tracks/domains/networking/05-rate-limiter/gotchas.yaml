@@ -1,0 +1,92 @@
+keep-the-fraction:
+  title: "Keep the fractional tokens"
+  text: "At 100 tokens per second, 1 ms earns 0.1 token. Truncating that to 0 on every call means a client that calls each millisecond never gets a token. Carry the remainder to the next call."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int rate = 100, tokens = 0;                // tokens per second
+            for (int ms = 0; ms < 10; ++ms) tokens += 1 * rate / 1000;   // 0.1 token each millisecond: truncated to 0
+            std::cout << tokens << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int rate = 100, tokens = 0, carry = 0;
+            for (int ms = 0; ms < 10; ++ms) {
+                carry += 1 * rate;                     // keep the fraction (in thousandths)
+                tokens += carry / 1000;
+                carry %= 1000;
+            }
+            std::cout << tokens << "\n";
+        }
+      out: "1\n"
+update-the-clock-on-every-call:
+  title: "Update the last-seen time on every call"
+  text: "Record the time on each call, allowed or denied, so the next refill covers only the time since then. Updating only when a request passes refills the same interval twice."
+saturate-do-not-wrap:
+  title: "Saturate time arithmetic, do not wrap"
+  text: "Adding a long wait to the current time can overflow the counter and wrap to a small value, so the limiter lets everything through. Clamp the result."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t now = 4294967295u, delay = 10;
+            std::uint32_t deadline = now + delay;   // wraps around to 9
+            std::cout << deadline << "\n";
+        }
+      out: "9\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t now = 4294967295u, delay = 10;
+            std::uint32_t max = 4294967295u;
+            std::uint32_t deadline = delay > max - now ? max : now + delay;   // saturate
+            std::cout << deadline << "\n";
+        }
+      out: "4294967295\n"
+time-can-go-backwards:
+  title: "A clock can go backwards"
+  text: "If `now` is earlier than the last recorded time, the elapsed time is negative. Treat it as zero, so the bucket does not lose tokens or refill by a huge unsigned number."
+wait-time-rounds-up:
+  title: "The wait time rounds up"
+  text: "If a request needs 3 tokens at 2 per second, the wait is 1.5 seconds, so report 2 (rounded up). Rounding down tells the client to retry too early, and it is denied again."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int needed = 3, per_second = 2;
+            std::cout << needed / per_second << "\n";   // 1.5 truncated: retrying after 1 s is too early
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int needed = 3, per_second = 2;
+            std::cout << (needed + per_second - 1) / per_second << "\n";   // rounded up
+        }
+      out: "2\n"
+denied-requests-are-not-recorded:
+  title: "A denied request does not consume tokens"
+  text: "Only a request that is allowed takes tokens from the bucket. If denied requests also drained it, a client that keeps retrying would never be allowed."
+window-boundary:
+  title: "Decide the boundary of the window"
+  text: "Is a request at exactly `window_start + window` in the old window or the new one? Choose half-open intervals, `[start, start + window)`, and test the exact boundary."
+evict-idle-keys:
+  title: "Evict keys that have been idle"
+  text: "A limiter with one bucket per client grows forever with new client addresses. Remove buckets that are full again (or idle for a while), or memory use is unbounded."

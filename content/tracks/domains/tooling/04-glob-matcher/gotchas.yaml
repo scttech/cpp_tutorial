@@ -1,0 +1,24 @@
+star-does-not-cross-slash:
+  title: "`*` does not match a slash"
+  text: "`*.cpp` matches `main.cpp` but not `src/main.cpp`. A star matches any run of characters within one path segment; to cross directories you need `**`."
+double-star-is-a-whole-segment:
+  title: "`**` is a whole path segment"
+  text: "`a/**/b` matches `a/b`, `a/x/b` and `a/x/y/b`, but `a**b` is just two stars. Recognize `**` only when it is a complete segment between slashes (or at the ends)."
+leading-dot-must-be-explicit:
+  title: "A leading dot must be matched explicitly"
+  text: "`*` does not match a file name that starts with a dot, so `*` does not list `.git`. Only a pattern with a literal leading dot, such as `.*` or `.git`, matches hidden files."
+no-exponential-backtracking:
+  title: "Avoid exponential backtracking"
+  text: "A recursive matcher on `*a*a*a*b` against a long string of a's tries exponentially many splits. Match with a linear-time algorithm (remember the last star position, or simulate an NFA)."
+iterative-closure-no-recursion-on-input:
+  title: "Do not recurse on the input"
+  text: "A matcher that recurses once per character overflows the stack on a long path. Use a loop, with explicit state for the backtracking point, so the depth does not depend on the input."
+sets-and-ranges:
+  title: "Character sets and ranges"
+  text: "`[abc]` and `[a-z]` match one character; `[!a-z]` (or `[^a-z]`) negates; a `]` first in the set is a literal. Handle the dash at the start or the end as a literal, and a reversed range as an error."
+brace-alternatives:
+  title: "Braces expand to alternatives"
+  text: "`*.{h,cpp}` means `*.h` or `*.cpp`, and braces may nest. Expand them, or match them directly, and report an unclosed brace as an invalid pattern."
+invalid-patterns-are-reported:
+  title: "Invalid patterns are reported, not guessed"
+  text: "An unterminated `[`, an unmatched `{` or a trailing backslash is an error with a position. Do not quietly treat it as a literal."

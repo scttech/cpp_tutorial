@@ -1,0 +1,61 @@
+stack-limit:
+  title: "A stack has a maximum size"
+  text: "Adding to a stack of 99 potions must stop at the limit, and the rest goes to another slot. Check the limit on every add, and test exactly at the limit and one past it."
+all-or-nothing-add:
+  title: "An add must be all or nothing"
+  text: "If there is room for 5 of 8 potions, either put in all 8 or none and report failure; do not leave 5 in and lose 3. Check the capacity first, then change the inventory."
+overflow-into-new-slots:
+  title: "Overflow goes into new slots"
+  text: "When a stack is full, the remainder fills the next free slots, each up to the limit. Count the slots needed first, so that the add can fail without changing anything."
+stack-only-the-same-kind:
+  title: "Only equal items stack"
+  text: "A health potion and a mana potion are different items, even if both are \"potions\". Compare the item kind (and any properties that matter) before adding to an existing stack."
+potion-at-full-health:
+  title: "A potion at full health is not used up"
+  text: "Using a healing potion on a player who is already at full health should do nothing and keep the potion, as the rules state. Check the effect applies before consuming the item."
+heal-clamps-to-max:
+  title: "Healing clamps to the maximum"
+  text: "Health plus a heal can exceed the maximum, so clamp with `std::min(health + amount, max)`. Do the addition in a type that cannot overflow first."
+equip-swaps-the-old-one-back:
+  title: "Equipping swaps the old item back"
+  text: "Equipping a sword while another is equipped must put the old one back in the inventory. If there is no room, the equip must fail and change nothing."
+empty-slot-after-last-use:
+  title: "A slot is empty after the last item is used"
+  text: "When the count reaches zero the slot must become empty (no kind, no count), not \"0 potions\". Otherwise `lowest_free_slot` skips it and the inventory looks full."
+lowest-free-slot:
+  title: "New items go into the lowest free slot"
+  text: "When an item does not stack, it takes the lowest-numbered empty slot. Scan from index 0, so the result is predictable and tests can rely on it."
+out-of-range-slot:
+  title: "A slot index may be out of range"
+  text: "Using slot 42 in an inventory of 20 must return an error, not read beyond the array. Check the index (with unsigned or signed care) before using it."
+invalid-counts:
+  title: "Zero and negative counts are errors"
+  text: "Adding 0 items or -3 items makes no sense. Reject them explicitly, so a negative count cannot silently remove items or wrap around to a huge number."
+copying-items:
+  title: "Do not copy items to inspect them"
+  text: "A loop with `for (auto item : slots)` copies each item, and changes to the copy are lost. Use `const auto&` to read and `auto&` to change."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"

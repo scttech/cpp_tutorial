@@ -1,0 +1,67 @@
+one-formula-per-pixel:
+  title: "Use one formula for every pixel"
+  text: "A line drawn with Bresenham's algorithm and a triangle edge tested with another formula can disagree on which pixels are covered, leaving gaps or overlaps. Use one exact integer rule for everything."
+sort-the-endpoints:
+  title: "Draw a line the same way in both directions"
+  text: "The line from A to B and the line from B to A must light the same pixels. Sort the endpoints first (or define the tie-breaking symmetrically), so the result does not depend on the order."
+clip-without-changing-pixels:
+  title: "Clipping must not change which pixels are drawn"
+  text: "A line that is clipped to the screen must produce exactly the pixels the unclipped line would have inside the screen. Clip with the same exact arithmetic, instead of re-rasterizing the shortened line."
+pixel-centres:
+  title: "Sample at the pixel centre"
+  text: "A pixel (x, y) covers the square from x to x+1, and its centre is at (x + 0.5, y + 0.5). Test coverage at the centre, which is what the fixed-point version of the edge test does."
+top-left-rule:
+  title: "The top-left rule decides shared edges"
+  text: "A pixel centre exactly on an edge shared by two triangles must be drawn by one of them only. The top-left rule gives it to the triangle for which the edge is a top or a left edge."
+floor-division-of-negatives:
+  title: "Floor division for negative coordinates"
+  text: "A coordinate to the left of the screen is negative, and `-7 / 2` truncates to -3, not -4. Use floor division when you convert to pixel or tile indices, or the left edge is off by one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            std::cout << seconds / bucket << "\n";   // truncates toward zero
+        }
+      out: "-3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            int q = seconds / bucket;
+            if (seconds % bucket != 0 && (seconds < 0) != (bucket < 0)) --q;   // round down, not toward zero
+            std::cout << q << "\n";
+        }
+      out: "-4\n"
+orientation:
+  title: "Check the triangle's orientation"
+  text: "The sign of the cross product tells whether the vertices are clockwise or counter-clockwise. Normalize the winding (swap two vertices) before the edge tests, or half the triangles are skipped."
+no-overflow-in-edge-functions:
+  title: "Edge functions can overflow"
+  text: "The edge function multiplies two coordinate differences. With 28.4 fixed point and a big screen, the products overflow 32 bits; compute them in 64-bit integers."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;   // 46341
+            int sq = x * x;         // more than INT_MAX
+            std::cout << sq << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;
+            long long sq = static_cast<long long>(x) * x;   // widen before multiplying
+            std::cout << sq << "\n";
+        }
+      out: "2147488281\n"

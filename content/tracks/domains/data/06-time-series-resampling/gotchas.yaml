@@ -1,0 +1,67 @@
+sort-and-deduplicate-first:
+  title: "Sort and deduplicate the samples first"
+  text: "Resampling assumes strictly increasing timestamps. Sort the input (stably) and decide what a duplicate timestamp means (keep the last, or the average) before you build the grid."
+floor-not-truncate-for-negative-times:
+  title: "Use floor division for negative times"
+  text: "A timestamp before the epoch is negative, and `-7 / 2` truncates to -3, putting it in the wrong bucket. Floor the division, so -7 falls into the bucket of -4."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            std::cout << seconds / bucket << "\n";   // truncates toward zero
+        }
+      out: "-3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            int q = seconds / bucket;
+            if (seconds % bucket != 0 && (seconds < 0) != (bucket < 0)) --q;   // round down, not toward zero
+            std::cout << q << "\n";
+        }
+      out: "-4\n"
+subtract-as-unsigned:
+  title: "Subtract timestamps as unsigned"
+  text: "The difference of two `int64` timestamps can overflow when they are far apart, which is undefined behavior. Compute the difference as `uint64_t`; it is always correct for `b >= a`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            std::int64_t a = INT64_MIN + argc - 1, b = INT64_MAX;   // timestamps at the two ends
+            std::cout << b - a << "\n";                              // the difference does not fit
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            std::int64_t a = INT64_MIN + argc - 1, b = INT64_MAX;
+            std::cout << static_cast<std::uint64_t>(b) - static_cast<std::uint64_t>(a) << "\n";   // unsigned: exact
+        }
+      out: "18446744073709551615\n"
+half-open-buckets:
+  title: "Buckets are half-open: [start, end)"
+  text: "A sample exactly on the boundary belongs to the later bucket. Use `start <= t < start + width` consistently, so no sample is counted twice or dropped."
+gaps-are-missing-not-zero:
+  title: "A gap is missing data, not zero"
+  text: "A bucket with no samples has no value; reporting 0 would be a lie (and bias any average). Represent it explicitly (`std::optional` or NaN), as the specification says."
+no-extrapolation:
+  title: "Do not extrapolate beyond the data"
+  text: "Grid points before the first sample or after the last have no neighbors to interpolate between. Report them as missing instead of extending the first or last value."
+grid-must-not-overflow:
+  title: "The grid size must not overflow"
+  text: "`(end - start) / step + 1` can overflow, or be enormous, for a bad request. Check that the number of points fits (and is reasonable) before allocating the output."
+one-pass-merge:
+  title: "Walk the samples and the grid in one pass"
+  text: "Both are sorted, so one pass with two indices resamples in O(n + m). Searching the samples again for every grid point is O(n * m)."

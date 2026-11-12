@@ -1,0 +1,178 @@
+stale-handles:
+  title: "A handle must notice that its entity is gone"
+  text: "An entity handle is an index plus a generation. After the entity is destroyed and its slot reused, an old handle still carries the old generation, so `alive(handle)` must compare generations and report it stale."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index]; }   // ignores the generation
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();                                   // the slot is reused by a new entity
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "alive\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index] && generation[h.index] == h.generation; }   // compares it
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "stale\n"
+generation-bump-on-destroy:
+  title: "Bump the generation when you destroy"
+  text: "Increment the slot's generation at destroy time, so every handle created earlier stops matching. Bumping it at create time, or never, leaves stale handles looking valid."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index]; }   // ignores the generation
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();                                   // the slot is reused by a new entity
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "alive\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index] && generation[h.index] == h.generation; }   // compares it
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "stale\n"
+index-reuse:
+  title: "Reuse freed indices, or the arrays grow forever"
+  text: "A free list of destroyed slots lets `create` reuse them, so the entity arrays stay as large as the number of live entities. The generation counter is what makes that reuse safe."
+swap-remove-updates-the-moved-sparse-entry:
+  title: "Swap-remove must fix the moved entity's sparse entry"
+  text: "Removing from the dense array by moving the last element into the hole gives that element a new dense index. Update its sparse entry in the same step, or its lookups return the wrong component."
+contains-with-stale-sparse-entries:
+  title: "A sparse entry alone does not prove membership"
+  text: "A stale sparse slot can hold a dense index that is in range but now belongs to another entity. `contains` must check that the index is in range and that the dense array holds this very entity there."
+replace-vs-duplicate:
+  title: "Adding a component twice replaces it"
+  text: "`add<T>(e, value)` on an entity that already has a `T` must overwrite the old value instead of appending a second one. Otherwise iteration visits the entity twice."
+destroy-removes-every-component:
+  title: "Destroying an entity removes all its components"
+  text: "If destroy leaves components in the stores, a later entity that reuses the index inherits them. Remove the entity from every store when it dies."
+iterate-the-smallest-store:
+  title: "Join over the smallest store"
+  text: "A system over `Position` and `Velocity` should loop over the smaller of the two stores and look each entity up in the other. Looping over the bigger one does more work for nothing."
+copying-components-in-each:
+  title: "`each` must pass components by reference"
+  text: "A callback that receives components by value copies every one and throws away the changes the system makes. Pass references, so systems update components in place."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"
+modifying-while-iterating:
+  title: "Do not add or remove components while iterating"
+  text: "Adding to or removing from the store you are looping over can move elements and invalidate the loop. Queue the changes and apply them after the loop."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 2, 3};
+            for (auto it = v.begin(); it != v.end(); ++it)
+                if (*it == 2) v.erase(it);   // `it` is invalid afterwards, and the next 2 is skipped
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 2, 3};
+            v.erase(std::remove(v.begin(), v.end(), 2), v.end());   // the erase-remove idiom
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 3 \n"
+one-store-per-type:
+  title: "One store per component type"
+  text: "A per-type index (a `type_index` map or a static counter) finds the store for a type in constant time. Searching a list of stores on every access makes each lookup linear."
+empty-components:
+  title: "Empty components (tags) still need a slot"
+  text: "A tag such as `struct Player {}` has no data but must be stored, so that `has<Player>(e)` works. Do not skip empty types, and remember that `sizeof` of an empty struct is 1."

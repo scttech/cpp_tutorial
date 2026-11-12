@@ -1,0 +1,46 @@
+hamilton-product-order:
+  title: "The Hamilton product is not commutative"
+  text: "`q1 * q2` and `q2 * q1` are different rotations. For a rotation `p' = q p q*`, composing \"first q2, then q1\" is `q1 * q2`. Test with two rotations about different axes."
+q-and-minus-q-are-the-same-rotation:
+  title: "`q` and `-q` are the same rotation"
+  text: "A quaternion and its negative describe the same orientation, so comparing quaternions component by component can say \"different\" for equal rotations. Compare the absolute value of the dot product with 1."
+shortest-arc:
+  title: "Take the shortest arc"
+  text: "If the dot product of two quaternions is negative, they are on opposite sides of the sphere, and interpolating between them goes the long way round. Negate one of them first."
+slerp-near-parallel:
+  title: "Slerp near parallel quaternions needs a fallback"
+  text: "When the angle between two quaternions is tiny, `sin(theta)` is nearly 0 and the slerp formula divides by it. Fall back to normalized linear interpolation when the dot product is close to 1."
+acos-clamp:
+  title: "Clamp before `acos`"
+  text: "Rounding can make a dot product of two unit quaternions slightly greater than 1, and `acos` of it is NaN. Clamp the value to [-1, 1] before taking the arc cosine."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double dot = 1.0000000000000002;           // rounding put it just above 1
+            std::cout << std::isnan(std::acos(dot)) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double dot = 1.0000000000000002;
+            std::cout << std::isnan(std::acos(std::clamp(dot, -1.0, 1.0))) << "\n";   // clamp first
+        }
+      out: "0\n"
+matrix-to-quaternion-branches:
+  title: "Matrix to quaternion needs four branches"
+  text: "The straightforward formula divides by a quantity that can be near zero. Choose the branch with the largest of `trace`, `m00`, `m11`, `m22` (Shepperd's method), so the division is always by a large number."
+half-angle:
+  title: "A quaternion stores half the angle"
+  text: "A rotation by angle `a` about a unit axis is `(cos(a/2), axis * sin(a/2))`. Using `a` instead of `a/2` rotates by twice the angle, which is a common slip and easy to test with 90 degrees."
+normalize-drift:
+  title: "Normalize after many multiplications"
+  text: "Each multiplication adds a little rounding error, so the length drifts away from 1 and the \"rotation\" starts to scale. Renormalize after a series of products."

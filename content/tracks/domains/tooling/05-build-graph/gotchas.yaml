@@ -1,0 +1,43 @@
+declaration-order-tie-break:
+  title: "Ties go by declaration order"
+  text: "When several targets are ready at once, build them in the order they were declared. The topological order is then the same on every run and on every platform, and the tests can compare it exactly."
+report-the-actual-cycle:
+  title: "Report the actual cycle"
+  text: "A cycle error must list the targets that form the cycle (`a -> b -> c -> a`), not just say \"cycle detected\". Walk the DFS stack from the repeated node to find it."
+no-recursion-on-deep-graphs:
+  title: "Do not recurse on a deep dependency chain"
+  text: "A chain of 100,000 targets overflows the call stack in a recursive DFS. Use an explicit stack, so the depth of the graph does not depend on the call stack."
+rebuilt-dependencies-force-rebuilds:
+  title: "A rebuilt dependency forces a rebuild"
+  text: "If a dependency has to be rebuilt, its dependents are out of date even if the old timestamps looked fine. Propagate \"needs rebuild\" along the edges, in topological order."
+equal-timestamps-are-up-to-date:
+  title: "Equal timestamps are up to date"
+  text: "A target is out of date only when a dependency is strictly newer. With equal times, `make` does not rebuild; compare with `>`, not `>=`, and test equal timestamps."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long target_time = 100, dependency_time = 100;
+            std::cout << (dependency_time >= target_time ? "rebuild" : "up to date") << "\n";   // equal counts as newer
+        }
+      out: "rebuild\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long target_time = 100, dependency_time = 100;
+            std::cout << (dependency_time > target_time ? "rebuild" : "up to date") << "\n";    // strictly newer
+        }
+      out: "up to date\n"
+missing-outputs:
+  title: "A missing output always needs a rebuild"
+  text: "A target whose file does not exist has no timestamp. It is out of date regardless of its dependencies, and so are all the targets that depend on it."
+unknown-dependencies:
+  title: "An unknown dependency is an error"
+  text: "A dependency that is neither a declared target nor an existing file cannot be built. Report it with the target that named it, instead of ignoring it."
+linear-time:
+  title: "Build the plan in linear time"
+  text: "Kahn's algorithm with a queue (or a DFS) takes O(targets + edges). Re-scanning every target to find a ready one at each step makes the plan quadratic."

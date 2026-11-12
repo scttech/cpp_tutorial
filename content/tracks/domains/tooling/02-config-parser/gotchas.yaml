@@ -1,0 +1,24 @@
+report-the-right-column:
+  title: "Report the column of the error, not of the line"
+  text: "An error in a value is reported at the first character of that value (1-based), not at the start of the line or the end of the token. Track line and column while scanning."
+no-exceptions-in-the-tokenizer:
+  title: "Return errors, do not throw"
+  text: "Malformed input is normal for a parser, not exceptional. Return a result with an error that carries the position, so the caller decides what to do, and the parser works without exceptions."
+strict-number-grammar:
+  title: "Numbers follow a strict grammar"
+  text: "TOML-like numbers allow `1_000` and a leading `+` but not `01`, `1.` or `.5`. Write the grammar down and implement exactly that, rather than whatever `from_chars` accepts."
+escapes-and-control-characters:
+  title: "Handle escapes and reject raw control characters"
+  text: "In a quoted string, `\\n`, `\\t`, `\\\"` and `\\\\` are escapes, an unknown escape is an error, and a raw newline or control character is not allowed. Report them at the offending column."
+duplicate-keys:
+  title: "A duplicate key is an error"
+  text: "`name = \"a\"` followed by `name = \"b\"` in the same table is almost always a mistake. Report it with the position of the second one, instead of letting the later value win silently."
+arrays-of-one-type:
+  title: "Arrays hold one type"
+  text: "`[1, \"two\"]` mixes an integer and a string. If the format requires a single element type, report the first element of a different type, with its position."
+comments-and-newlines:
+  title: "A comment runs to the end of the line"
+  text: "A `#` outside a string starts a comment up to the newline. A `#` inside a string is just a character, and the newline after a comment still ends the statement."
+render-with-a-caret:
+  title: "Show the line with a caret under the column"
+  text: "An error such as `config.toml:3:9: expected a value` is easier to act on when the line is printed with a `^` under column 9. Handle a tab in the line, and a column beyond the end."

@@ -1,0 +1,55 @@
+forward-exactly-what-was-asked:
+  title: "Forward the request exactly as it came"
+  text: "A tracking resource wraps another one. `do_allocate(bytes, alignment)` must pass both arguments unchanged to the upstream resource, or the caller gets memory of the wrong size or alignment."
+record-after-upstream-succeeds:
+  title: "Record the allocation after the upstream one succeeds"
+  text: "If the upstream `allocate` throws, nothing was allocated, so nothing must be recorded. Allocate first, then add the entry, so a failure leaves the statistics unchanged."
+never-forward-a-bad-free:
+  title: "Never forward a free you do not recognize"
+  text: "A pointer that was not allocated through this resource (or was already freed) must not be passed to the upstream `deallocate`: that would be undefined behavior. Detect it, record it as an error, and do nothing else."
+ids-are-never-reused:
+  title: "Allocation ids are never reused"
+  text: "Give each allocation a new, increasing id, even after earlier ones are freed. A leak report that names ids stays unambiguous, and a reused id would hide a double free."
+sort-the-leaks:
+  title: "Report leaks in a stable order"
+  text: "Return the live allocations sorted by id, not in hash-table order, so the report is the same on every run and tests can compare it."
+peak-is-a-maximum:
+  title: "The peak is the maximum of the live bytes"
+  text: "Peak usage is the largest number of bytes that were live at one time, not the sum of everything allocated. Update it after each allocation as `max(peak, live)`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int sizes[] = {100, -100, 50};   // allocate 100, free 100, allocate 50
+            int live = 0, peak = 0, total = 0;
+            for (int s : sizes) {
+                live += s;
+                if (s > 0) total += s;
+                peak = total;                // the sum of everything allocated
+            }
+            std::cout << peak << "\n";
+        }
+      out: "150\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+
+        int main() {
+            int sizes[] = {100, -100, 50};
+            int live = 0, peak = 0;
+            for (int s : sizes) {
+                live += s;
+                peak = std::max(peak, live);   // the most that was live at once
+            }
+            std::cout << peak << "\n";
+        }
+      out: "100\n"
+is-equal-is-identity:
+  title: "`is_equal` means the same resource"
+  text: "Two `memory_resource`s are equal if memory from one can be freed through the other. For a tracking resource that is only true for the very same object, so compare addresses."
+bookkeeping-is-not-the-upstream:
+  title: "Keep your own bookkeeping off the tracked heap"
+  text: "If the table of live allocations is a `std::map` using the default allocator, recording an allocation allocates again and may recurse. Use a separate resource for the records, or reserve them up front."

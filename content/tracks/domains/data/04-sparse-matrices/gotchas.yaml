@@ -1,0 +1,24 @@
+canonical-form:
+  title: "Keep the matrix in canonical form"
+  text: "CSR with sorted column indices in each row, no duplicates, and no stored zeros has exactly one representation of a matrix. Equality, transposition and multiplication all become simpler and faster."
+duplicates-are-summed-in-order:
+  title: "Duplicate entries are summed, in input order"
+  text: "Building from triplets, two entries for the same (row, column) are added. Sum them in the order they were given, so the floating-point result is the same every time."
+cancellation-removes-the-entry:
+  title: "An entry that cancels to zero is removed"
+  text: "If `+1.0` and `-1.0` at the same position add up to 0, canonical form has no entry there. Drop exact zeros after summing, so `nnz` is correct."
+empty-rows:
+  title: "Empty rows are valid"
+  text: "A row with no entries has the same `row_ptr` value at its start and end. Loops over a row must handle an empty range, and the last row's end is `row_ptr[rows]`."
+transpose-without-sorting:
+  title: "Transpose by counting, not by sorting"
+  text: "Count the entries per column, take the prefix sums as the new `row_ptr`, and scatter each entry into place. That is O(nnz + n) and leaves the indices sorted automatically."
+binary-search-per-row:
+  title: "Look up an element with a binary search in its row"
+  text: "The column indices of a row are sorted, so `std::lower_bound` finds `(r, c)` in O(log nnz_in_row). A linear scan of the row makes random access slow."
+dimension-limits:
+  title: "Check the dimensions against the index type"
+  text: "Rows times columns can exceed what the index type can hold, and `nnz` must fit it too. Validate the dimensions when building, and report an error instead of overflowing."
+no-allocation-in-the-kernel:
+  title: "No allocation inside the multiply kernel"
+  text: "A matrix-vector product writes into a caller-provided result and allocates nothing. Allocating a temporary per row or per call makes the kernel several times slower."

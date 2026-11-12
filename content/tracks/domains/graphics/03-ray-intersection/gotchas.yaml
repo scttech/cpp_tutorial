@@ -1,0 +1,48 @@
+stable-discriminant:
+  title: "Use the numerically stable quadratic formula"
+  text: "When `b*b` is much bigger than `4*a*c`, one root of `(-b + sqrt(d)) / 2a` subtracts two nearly equal numbers and loses its digits. Compute `q = -(b + sign(b) * sqrt(d)) / 2` and the roots `q / a` and `c / q`."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 1, b = -1e8, c = 1;                   // roots near 1e8 and 1e-8
+            double d = std::sqrt(b * b - 4 * a * c);
+            std::cout << (-b - d) / (2 * a) << "\n";         // the small root, by cancellation
+        }
+      out: "7.45058e-09\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 1, b = -1e8, c = 1;
+            double d = std::sqrt(b * b - 4 * a * c);
+            double q = -(b + std::copysign(d, b)) / 2;       // no cancellation
+            std::cout << c / q << "\n";                      // the small root
+        }
+      out: "1e-08\n"
+origin-inside-the-shape:
+  title: "A ray starting inside a shape hits on the way out"
+  text: "For a ray whose origin is inside a sphere or box, the nearer root is negative (behind the origin), and the hit is the far one. Pick the smallest `t` that is at least the minimum distance, not the smaller root."
+parallel-rays:
+  title: "A ray parallel to a plane or slab never hits it"
+  text: "If the direction component is 0 on an axis, the ray stays at a constant coordinate. It hits the slab for all `t` when it starts inside, and never when it starts outside; do not divide by zero."
+zero-direction-component:
+  title: "A zero direction component gives infinities"
+  text: "Dividing by 0 gives plus or minus infinity in IEEE arithmetic, which works for the slab test, but 0/0 gives NaN when the origin is exactly on the slab's boundary. Handle that case explicitly."
+nearest-hit-in-the-window:
+  title: "Return the nearest hit inside the window"
+  text: "The caller gives `t_min` and `t_max`. Of all intersections, report the smallest `t` with `t_min <= t <= t_max`, and nothing when there is none; a nearer hit outside the window must not hide a farther one inside it."
+closed-edges:
+  title: "A hit on the edge of a triangle counts"
+  text: "With barycentric coordinates, `u >= 0`, `v >= 0` and `u + v <= 1` include the edges and vertices. Use `>=` and `<=` consistently, and test rays that pass exactly through an edge."
+degenerate-shapes:
+  title: "Degenerate shapes do not intersect"
+  text: "A triangle with zero area (collinear vertices) or a sphere with radius 0 or less has nothing to hit. Test for it, and return \"no hit\" rather than NaN."
+normals-face-the-ray:
+  title: "The reported normal faces the ray"
+  text: "For shading, the normal should point against the ray direction. If the dot product with the direction is positive (a hit from inside), flip the normal and remember that the hit was from the back."

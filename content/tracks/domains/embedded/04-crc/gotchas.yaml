@@ -1,0 +1,87 @@
+reflected-algorithms-use-a-reflected-register:
+  title: "A reflected CRC shifts right and uses the reflected polynomial"
+  text: "The common CRC-32 processes the least significant bit first: it shifts right and uses 0xEDB88320, the bit-reversed form of 0x04C11DB7. Mixing the two directions gives a different, wrong checksum."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iomanip>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::uint32_t crc = 0xFFFFFFFF;
+            for (unsigned char b : std::string("123456789")) {
+                crc ^= static_cast<std::uint32_t>(b) << 24;
+                for (int i = 0; i < 8; ++i) crc = (crc & 0x80000000) ? (crc << 1) ^ 0x04C11DB7 : crc << 1;   // MSB first
+            }
+            std::cout << std::hex << std::setw(8) << std::setfill('0') << (crc ^ 0xFFFFFFFF) << "\n";
+        }
+      out: "fc891918\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iomanip>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::uint32_t crc = 0xFFFFFFFF;
+            for (unsigned char b : std::string("123456789")) {
+                crc ^= b;
+                for (int i = 0; i < 8; ++i) crc = (crc & 1) ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;   // LSB first, reflected
+            }
+            std::cout << std::hex << std::setw(8) << std::setfill('0') << (crc ^ 0xFFFFFFFF) << "\n";
+        }
+      out: "cbf43926\n"
+init-is-reflected-too:
+  title: "The initial value is reflected too"
+  text: "For a reflected algorithm the register is also kept reflected, so the init and the final XOR are applied to the register as it is. An init that is correct for the unreflected form is not necessarily right here."
+mixed-reflection-flags:
+  title: "Input and output reflection are two separate flags"
+  text: "Some CRCs reflect the input bytes but not the output, or the other way round. Take two flags, not one, and test each combination against a known check value."
+table-built-at-compile-time:
+  title: "Build the lookup table at compile time"
+  text: "A 256-entry table built by a `constexpr` function is computed by the compiler and stored in read-only memory: no start-up cost, no RAM. Check it with `static_assert`."
+check-value-of-123456789:
+  title: "Test against the check value of \"123456789\""
+  text: "Every CRC catalog entry lists the CRC of the nine ASCII characters `123456789`. For CRC-32 it is 0xCBF43926. If yours gives another value, the parameters or the algorithm are wrong."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iomanip>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::uint32_t crc = 0xFFFFFFFF;
+            for (unsigned char b : std::string("123456789")) {
+                crc ^= static_cast<std::uint32_t>(b) << 24;
+                for (int i = 0; i < 8; ++i) crc = (crc & 0x80000000) ? (crc << 1) ^ 0x04C11DB7 : crc << 1;   // MSB first
+            }
+            std::cout << std::hex << std::setw(8) << std::setfill('0') << (crc ^ 0xFFFFFFFF) << "\n";
+        }
+      out: "fc891918\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iomanip>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::uint32_t crc = 0xFFFFFFFF;
+            for (unsigned char b : std::string("123456789")) {
+                crc ^= b;
+                for (int i = 0; i < 8; ++i) crc = (crc & 1) ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;   // LSB first, reflected
+            }
+            std::cout << std::hex << std::setw(8) << std::setfill('0') << (crc ^ 0xFFFFFFFF) << "\n";
+        }
+      out: "cbf43926\n"
+value-must-not-change-the-state:
+  title: "Reading the CRC must not change the running state"
+  text: "`value()` applies the final XOR to a copy. If it changed the internal register, a second call, or a further `update`, would give a wrong result."
+chunked-update-equals-one-shot:
+  title: "Chunked updates must equal one big update"
+  text: "Feeding \"1234\" then \"56789\" must give the same CRC as \"123456789\" in one call. The register carries over between calls; do not reset it, and do not apply the final XOR in `update`."

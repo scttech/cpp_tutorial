@@ -1,0 +1,30 @@
+empty-quotes-are-words:
+  title: "Empty quotes are still an argument"
+  text: "`echo \"\" x` has two arguments: an empty string and `x`. Mark a word as started when you see the opening quote, so a word with no characters is still produced."
+quotes-join-neighbours:
+  title: "Quotes join with the text next to them"
+  text: "`ab\"cd ef\"gh` is one word, `abcd efgh`. Quotes do not separate words: keep collecting characters into the same word until an unquoted space ends it."
+single-quotes-are-literal:
+  title: "Inside single quotes everything is literal"
+  text: "A backslash, a dollar sign and a double quote mean nothing inside `'...'`. The only character that ends the quote is the next single quote."
+backslash-in-double-quotes:
+  title: "Inside double quotes a backslash escapes only a few characters"
+  text: "In `\"...\"` a backslash escapes `\"`, `\\`, `$` and a newline; before any other character it stays as a literal backslash. Do not drop it unconditionally."
+operators-need-no-spaces:
+  title: "Operators do not need spaces around them"
+  text: "`a|b&&c` has three words and two operators. Split at an operator character even when it touches a word, but not when it is inside quotes."
+longest-operator-wins:
+  title: "The longest operator wins"
+  text: "`&&` is one operator, not two `&`; `>>` is not two `>`. At an operator character, try the longest operator first, then shorter ones."
+comment-only-at-word-start:
+  title: "`#` starts a comment only at the start of a word"
+  text: "In `echo a#b` the hash is part of the word; in `echo a #b` it starts a comment that runs to the end of the line. Check the position and the quoting."
+empty-expansion-vanishes:
+  title: "An unquoted empty expansion disappears"
+  text: "In a shell, an unquoted variable that expands to nothing produces no word, but a quoted one produces an empty string. If your tokenizer models expansion, keep the two cases apart."
+report-where-it-went-wrong:
+  title: "Report where the error is"
+  text: "An unterminated quote or a trailing backslash is an error with a position: the offset where the quote opened. A message without it is hard to act on."
+one-pass-no-copies:
+  title: "One pass, no repeated copying"
+  text: "A single left-to-right scan with a state (normal, single quote, double quote, escape) is enough. Do not rescan or copy the rest of the line at every character."

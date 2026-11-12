@@ -1,0 +1,187 @@
+floating-point-money:
+  title: "Never use floating point for money"
+  text: "Binary floating point cannot represent 0.10 exactly, so sums and comparisons of amounts go wrong in the last digits. Store whole cents (or another minor unit) in an integer."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double price = 0.10;
+            std::cout << (price * 3 == 0.30) << "\n";   // three dimes
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long long price_cents = 10;
+            std::cout << (price_cents * 3 == 30) << "\n";   // whole cents
+        }
+      out: "1\n"
+negative-numbers-and-truncating-division:
+  title: "Division truncates toward zero, also for negative amounts"
+  text: "`-7 / 2` is -3 in C++, but a refund of -7 cents split in two may need -4 and -3. Decide the rounding rule, write it down, and test negative amounts."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            std::cout << seconds / bucket << "\n";   // truncates toward zero
+        }
+      out: "-3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int seconds = -7, bucket = 2;
+            int q = seconds / bucket;
+            if (seconds % bucket != 0 && (seconds < 0) != (bucket < 0)) --q;   // round down, not toward zero
+            std::cout << q << "\n";
+        }
+      out: "-4\n"
+half-even-ties:
+  title: "Banker's rounding sends ties to the even digit"
+  text: "With round-half-even, 2.5 becomes 2 and 3.5 becomes 4, which avoids a bias in large sums. Round-half-up would give 3 and 4. State which rule the money type uses, and test ties on both sides."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::round(2.5) << "\n";   // ties away from zero
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::nearbyint(2.5) << "\n";   // ties to even (the default rounding mode)
+        }
+      out: "2\n"
+overflow-in-add-and-multiply:
+  title: "Adding or multiplying cents can overflow"
+  text: "Signed overflow is undefined behavior, even for `int64`. Use `__builtin_add_overflow` and `__builtin_mul_overflow` (or manual checks) and report an error, rather than wrapping silently."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            long long cents = 5000000000LL + argc - 1;
+            long long total = cents * 4000000000LL;   // 2 * 10^19 does not fit in 64 bits
+            std::cout << total << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            long long cents = 5000000000LL + argc - 1;
+            long long total;
+            if (__builtin_mul_overflow(cents, 4000000000LL, &total)) std::cout << "overflow\n";   // checked
+            else std::cout << total << "\n";
+        }
+      out: "overflow\n"
+int64-min:
+  title: "The smallest `int64` has no positive counterpart"
+  text: "`-INT64_MIN` and `abs(INT64_MIN)` overflow, because 9223372036854775808 does not fit. Handle the minimum value in negation, absolute value and printing."
+divide-by-zero:
+  title: "Dividing by zero is an error, not a crash"
+  text: "Dividing money by an integer zero is undefined behavior (usually a crash). Check the divisor first and report an error the caller can handle."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;   // empty
+            int k = 2;
+            std::cout << k % static_cast<int>(v.size()) << "\n";   // division by zero
+        }
+      reports: "division by zero"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            int k = 2;
+            if (v.empty()) {
+                std::cout << "nothing to rotate\n";
+                return 0;
+            }
+            std::cout << k % static_cast<int>(v.size()) << "\n";
+        }
+      out: "nothing to rotate\n"
+percent-needs-a-wider-intermediate:
+  title: "A percentage needs a wider intermediate"
+  text: "Computing `amount * rate / 100` overflows when `amount * rate` is too big for the type, even if the final result is small. Widen first (`__int128`, or reduce the fraction), then divide."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int cents = 99999999 + argc;   // 100000000
+            int percent = 50;
+            std::cout << cents * percent / 100 << "\n";   // cents * percent overflows an int
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int cents = 99999999 + argc;
+            int percent = 50;
+            std::cout << static_cast<long long>(cents) * percent / 100 << "\n";   // widen first
+        }
+      out: "50000000\n"
+remainder-cents-in-allocate:
+  title: "Splitting money must not lose cents"
+  text: "Dividing 100 cents among 3 gives 33 each and 1 left over. Give the remainder out one cent at a time (largest remainder), so the parts add up to exactly the total."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int total = 100, parts = 3;
+            int share = total / parts;
+            std::cout << share * parts << "\n";   // one cent went missing
+        }
+      out: "99\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int total = 100, parts = 3;
+            int base = total / parts, extra = total % parts, given = 0;
+            for (int i = 0; i < parts; ++i) given += base + (i < extra ? 1 : 0);   // the first parts get a cent more
+            std::cout << given << "\n";
+        }
+      out: "100\n"
+strict-parse:
+  title: "Parse money strictly"
+  text: "\"12.5\", \"12.\", \".5\", \"+12\" and \"12.345\" each need a rule. Accept exactly the format you document, and reject everything else with an error that names the problem."
+two-decimal-places:
+  title: "Exactly two decimal places on output"
+  text: "Print cents as `12.05`, not `12.5`, and negative amounts as `-0.05`, not `0.-5`. Format from the integer (whole part, then two padded digits), never through a `double`."
+to-string-of-int64-min:
+  title: "Printing the smallest `int64` overflows"
+  text: "A `to_string` that negates a negative number before printing its digits overflows on `INT64_MIN`. Work with the magnitude as an unsigned value, or print one digit at a time from the remainder."

@@ -1,0 +1,168 @@
+construct-only-what-you-store:
+  title: "Construct only the elements you store"
+  text: "A `T data[N]` member constructs N objects up front, even though none is stored yet. Use aligned raw storage and construct an element only when it is pushed."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct T {
+            static inline int built = 0;
+            T() { ++built; }
+        };
+
+        int main() {
+            T data[8];   // eight objects, before anything was pushed
+            std::cout << T::built << "\n";
+            (void)data;
+        }
+      out: "8\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct T {
+            static inline int built = 0;
+            T() { ++built; }
+        };
+
+        int main() {
+            alignas(T) unsigned char data[8 * sizeof(T)];   // storage only: no T exists yet
+            std::cout << T::built << "\n";
+            (void)data;
+        }
+      out: "0\n"
+destroy-what-you-remove:
+  title: "Destroy what you remove"
+  text: "With raw storage the compiler no longer runs destructors for you. `pop_back`, `clear` and the destructor must call `std::destroy_at` on each element that is removed."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            (void)a; (void)b;
+            std::cout << "destroyed: " << T::destroyed << "\n";   // nobody called the destructors
+        }
+      out: "destroyed: 0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            std::destroy_at(a);   // by hand, for every live element
+            std::destroy_at(b);
+            std::cout << "destroyed: " << T::destroyed << "\n";
+        }
+      out: "destroyed: 2\n"
+alignment-of-raw-storage:
+  title: "Raw storage must be aligned for the element type"
+  text: "A plain `char buffer[N * sizeof(T)]` need not be aligned for `T`. Declare it `alignas(T)`, so the objects constructed in it are properly aligned."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            char buf[16];
+            double* d = new (buf + 1) double(1.5);   // 1 byte off an 8-byte boundary
+            std::cout << *d << "\n";
+        }
+      reports: "misaligned"
+    fix:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            alignas(double) char buf[16];
+            double* d = new (buf) double(1.5);   // aligned for double
+            std::cout << *d << "\n";
+        }
+      out: "1.5\n"
+self-assignment:
+  title: "`a = a` must be safe"
+  text: "An assignment that destroys the old elements before copying from the source destroys the data when source and target are the same object. Check `this != &other`, or copy first and then swap."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                delete p;                // frees the source as well when o is *this
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}
+            Buffer& operator=(const Buffer& o) {
+                if (this == &o) return *this;   // nothing to do, and nothing to destroy
+                delete p;
+                p = new int{*o.p};
+                return *this;
+            }
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(5);
+            Buffer& same = a;
+            a = same;
+            std::cout << *a.p << "\n";
+        }
+      out: "5\n"
+shift-with-moves-not-copies:
+  title: "Shift elements with moves, not copies"
+  text: "Inserting or erasing in the middle moves the tail of the vector. Move-construct and move-assign the elements, so types such as `unique_ptr` work and strings are not copied."
+moved-from-source-is-empty:
+  title: "A moved-from container is empty"
+  text: "After `StaticVector b = std::move(a);` the source should hold no live elements (size 0), and must still be safe to destroy and assign to. Update the size of the source as well."
+full-means-false-not-overflow:
+  title: "A full vector returns false, it does not overflow"
+  text: "With no heap and a fixed capacity, `push_back` on a full vector cannot grow. Return `false` (or an error) and leave the contents alone, never write past the end."
+swap-remove-is-o1:
+  title: "Swap-remove is O(1)"
+  text: "When the order does not matter, erase element i by moving the last element into its place and shrinking by one. That avoids shifting the whole tail."

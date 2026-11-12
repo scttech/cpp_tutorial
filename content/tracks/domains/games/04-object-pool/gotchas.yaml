@@ -1,0 +1,276 @@
+stale-handles:
+  title: "A handle must notice that its object is gone"
+  text: "A pool handle is an index plus a generation. After the object is destroyed and its slot reused, an old handle still carries the old generation, so `get(handle)` must compare generations and return nothing."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index]; }   // ignores the generation
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();                                   // the slot is reused by a new entity
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "alive\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index] && generation[h.index] == h.generation; }   // compares it
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "stale\n"
+generation-bump:
+  title: "Bump the generation when an object is destroyed"
+  text: "Increment the slot's generation at destroy time, so every handle created earlier stops matching. Bumping it at create time, or never, leaves stale handles valid."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index]; }   // ignores the generation
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();                                   // the slot is reused by a new entity
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "alive\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Handle { unsigned index; unsigned generation; };
+
+        struct Slots {
+            bool used[1] = {false};
+            unsigned generation[1] = {0};
+            Handle create() { used[0] = true; return {0, generation[0]}; }
+            void destroy(Handle h) { used[h.index] = false; ++generation[h.index]; }
+            bool alive(Handle h) const { return used[h.index] && generation[h.index] == h.generation; }   // compares it
+        };
+
+        int main() {
+            Slots s;
+            Handle old = s.create();
+            s.destroy(old);
+            s.create();
+            std::cout << (s.alive(old) ? "alive" : "stale") << "\n";
+        }
+      out: "stale\n"
+lifo-reuse:
+  title: "Reuse the most recently freed slot first"
+  text: "A free list used as a stack hands out the last freed slot first: O(1), and the memory is still warm in the cache. Do not choose the lowest index, or the tests that rely on this order fail."
+construct-before-bookkeeping:
+  title: "Construct the object before you mark the slot used"
+  text: "If the constructor throws, the slot must still be free. Construct first, and only then update the free list and the generation, so a failed `create` changes nothing."
+destructors-run-once:
+  title: "Each object is destroyed exactly once"
+  text: "`destroy` runs the destructor and frees the slot; the pool's own destructor must destroy only the objects that are still alive. A second destroy of the same handle must do nothing."
+destroy-remaining-in-pool-destructor:
+  title: "The pool's destructor destroys the live objects"
+  text: "Raw storage does not run destructors by itself. When the pool is destroyed, walk the slots and destroy every object that is still alive, or what they own leaks."
+alignment-of-storage:
+  title: "Storage must be aligned for the object type"
+  text: "A `char buffer[N * sizeof(T)]` need not be aligned for `T`. Declare it `alignas(T)`, so the objects constructed in it are properly aligned."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            char buf[16];
+            double* d = new (buf + 1) double(1.5);   // 1 byte off an 8-byte boundary
+            std::cout << *d << "\n";
+        }
+      reports: "misaligned"
+    fix:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            alignas(double) char buf[16];
+            double* d = new (buf) double(1.5);   // aligned for double
+            std::cout << *d << "\n";
+        }
+      out: "1.5\n"
+perfect-forwarding:
+  title: "`create(args...)` forwards its arguments"
+  text: "Take `Args&&...` and construct with `std::forward<Args>(args)...`, so rvalues are moved into the object, not copied. Without the forward, every argument is copied."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        struct Holder { explicit Holder(Noisy) {} };
+
+        template <class... A>
+        Holder make(A&&... a) { return Holder(a...); }   // a is an lvalue here
+
+        int main() {
+            make(Noisy{});
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+            Noisy(Noisy&&) noexcept { std::cout << "move\n"; }
+                };
+
+        struct Holder { explicit Holder(Noisy) {} };
+
+        template <class... A>
+        Holder make(A&&... a) { return Holder(std::forward<A>(a)...); }   // keeps "rvalue"
+
+        int main() {
+            make(Noisy{});
+        }
+      out: "move\n"
+full-pool:
+  title: "A full pool says so"
+  text: "When no slot is free, `create` returns an empty handle (or `nullptr`) instead of overwriting a live object or growing the pool. Callers must check the result."
+constant-time-create:
+  title: "`create` and `destroy` are O(1)"
+  text: "With a free list, taking and returning a slot is a couple of pointer changes. Scanning the slots for a free one makes `create` linear, which is the opposite of the point of a pool."
+no-heap-allocation:
+  title: "A pool must not allocate after construction"
+  text: "The whole point is that `create` and `destroy` never touch the heap. Keep the storage inside the pool object (or allocate it once up front) and test with an allocation counter."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+        #include <vector>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::vector<int> data = std::vector<int>(R * C);   // a heap block, although R * C is known
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 1\n"
+    fix:
+      code: |
+        #include <array>
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::array<int, R * C> data{};   // inside the object: no allocation
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 0\n"
+pool-must-not-be-copied:
+  title: "A pool must not be copyable"
+  text: "Copying a pool would copy its storage byte by byte and duplicate the live objects without running their constructors. Delete the copy operations."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;   // copies the pointer, not the int it points to
+            std::cout << *b.p << "\n";
+        }                   // both destructors delete the same int
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Buffer {
+            int* p;
+            explicit Buffer(int v) : p(new int{v}) {}
+            Buffer(const Buffer& o) : p(new int{*o.p}) {}   // a deep copy: its own int
+            Buffer& operator=(const Buffer&) = delete;
+            ~Buffer() { delete p; }
+        };
+
+        int main() {
+            Buffer a(1);
+            Buffer b = a;
+            std::cout << *b.p << "\n";
+        }
+      out: "1\n"

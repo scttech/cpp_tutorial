@@ -1,0 +1,125 @@
+splice-not-erase-and-insert:
+  title: "Move to the front with `splice`"
+  text: "`list.splice(list.begin(), list, it)` relinks the node in O(1), keeps every iterator valid and copies nothing. Erasing and re-inserting copies the element and invalidates the iterator stored in the map."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        int main() {
+            std::list<Noisy> a, b;
+            a.emplace_back();
+            for (const Noisy& n : a) b.push_back(n);   // a copy per element
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <list>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        int main() {
+            std::list<Noisy> a, b;
+            a.emplace_back();
+            b.splice(b.end(), a);   // relinks the node: no copy
+        }
+      out: ""
+update-is-not-eviction:
+  title: "Updating a key must not evict"
+  text: "`put` on a key that already exists replaces the value and marks it most recently used, but the size does not change, so nothing is evicted. Evict only when a new key would exceed the capacity."
+peek-must-not-promote:
+  title: "`peek` must not change the order"
+  text: "A read-only lookup (`peek`, `contains`) must leave the recency order alone, or looking at an entry would keep it alive. Only `get` and `put` move an entry to the front."
+capacity-zero:
+  title: "A capacity of zero stores nothing"
+  text: "With capacity 0, `put` must not insert (and must not evict from an empty list). Check it explicitly, and test `put` and `get` on such a cache."
+pointer-stability:
+  title: "List nodes keep their address"
+  text: "A `std::list` node does not move when other nodes are inserted or removed, so the map can store iterators into it. A `vector` would invalidate them on every insertion."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+one-lookup-per-operation:
+  title: "One hash lookup per operation"
+  text: "`if (map.count(k)) use(map.at(k))` searches twice. Call `find` once and use the iterator, or `try_emplace` when inserting, so each operation does a single lookup."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct CountingMap {
+            std::map<std::string, int> m{{"a", 1}};
+            int lookups = 0;
+            bool contains(const std::string& k) { ++lookups; return m.count(k) > 0; }
+            int at(const std::string& k) { ++lookups; return m.at(k); }
+        };
+
+        int main() {
+            CountingMap c;
+            if (c.contains("a")) (void)c.at("a");   // two searches
+            std::cout << c.lookups << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct CountingMap {
+            std::map<std::string, int> m{{"a", 1}};
+            int lookups = 0;
+            const int* find(const std::string& k) {
+                ++lookups;
+                auto it = m.find(k);
+                return it == m.end() ? nullptr : &it->second;
+            }
+        };
+
+        int main() {
+            CountingMap c;
+            if (const int* v = c.find("a")) (void)v;   // one search
+            std::cout << c.lookups << "\n";
+        }
+      out: "1\n"
+erase-both-structures:
+  title: "Erase from both structures"
+  text: "When evicting, remove the entry from the list and its key from the map. Erasing from only one leaves a stale entry that later lookups can find, or that is evicted twice."
+evict-the-back:
+  title: "Evict the least recently used: the back"
+  text: "The most recently used entry is at the front, so the victim is the last element of the list. Take its key from the node before you erase it, to remove the map entry."

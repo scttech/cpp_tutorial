@@ -1,0 +1,75 @@
+crlf-only:
+  title: "HTTP lines end with CRLF"
+  text: "A line is terminated by `\\r\\n`. A parser that also accepts a bare `\\n` can be tricked by a proxy that reads the same bytes differently (request smuggling). Be strict."
+one-line-may-arrive-in-many-pieces:
+  title: "A request may arrive in many pieces"
+  text: "TCP delivers bytes, not messages, so a header can be split anywhere, even between `\\r` and `\\n`. The parser must keep its state between calls and say \"need more data\", never fail on an incomplete line."
+framing-conflicts-are-attacks:
+  title: "Conflicting framing headers are an attack"
+  text: "A request with both `Content-Length` and `Transfer-Encoding: chunked`, or two different `Content-Length` values, can be read two ways by two servers. Reject it as an error."
+validate-content-length-strictly:
+  title: "Parse Content-Length strictly"
+  text: "The value must be digits only: no sign, no spaces inside, no `0x`, no overflow. `from_chars` plus a check that the whole value was consumed does it."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+limits-before-buffering:
+  title: "Enforce limits before you buffer"
+  text: "A request line, a header, or the whole header section must have a maximum size, checked as the bytes arrive. Otherwise a client can make you buffer an unlimited amount before you ever reject it."
+chunk-sizes-are-hex:
+  title: "Chunk sizes are hexadecimal"
+  text: "In chunked encoding the size of each chunk is written in hex: `1a` is 26. Parse with base 16, and reject an empty size, a sign, or an overflow."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::cout << std::stoi("1a") << "\n";   // decimal: stops at the 'a'
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view size = "1a";
+            int value = 0;
+            std::from_chars(size.data(), size.data() + size.size(), value, 16);   // base 16
+            std::cout << value << "\n";
+        }
+      out: "26\n"
+never-rescan-the-buffer:
+  title: "Never rescan the buffer from the start"
+  text: "Searching for `\\r\\n\\r\\n` from the beginning of the buffer on every new packet makes a slow sender quadratic. Remember how far you have looked and continue from there."
+consumed-bytes-matter-for-pipelining:
+  title: "Report how many bytes were consumed"
+  text: "After a complete request there may be the start of the next one in the buffer (pipelining). Return the number of bytes the request used, so the caller can keep the rest."

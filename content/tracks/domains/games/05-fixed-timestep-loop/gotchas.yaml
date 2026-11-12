@@ -1,0 +1,54 @@
+first-frame-runs-no-update:
+  title: "The first frame may run no update"
+  text: "On the very first call there is no previous time, so the elapsed time is 0 and no fixed step is due. Do not run a step just because it is the first frame."
+integer-time-not-floating-point:
+  title: "Keep time in integers"
+  text: "Accumulating `dt` as a `double` drifts: ten steps of 0.1 do not add up to exactly 1.0, so step counts differ between runs. Count time in integer ticks (nanoseconds), and convert for display only."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double t = 0;
+            for (int i = 0; i < 10; ++i) t += 0.1;   // ten steps of 0.1 seconds
+            std::cout << (t == 1.0) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long long t = 0;                          // milliseconds, as an integer
+            for (int i = 0; i < 10; ++i) t += 100;
+            std::cout << (t == 1000) << "\n";
+        }
+      out: "1\n"
+spiral-of-death:
+  title: "A slow frame can make the loop spiral"
+  text: "If an update takes longer than the time it simulates, each frame owes more steps than the last and the game never catches up. Cap the number of steps per frame."
+dropping-the-excess:
+  title: "Drop the time you cannot catch up on"
+  text: "When the cap is hit, throw away the remaining accumulated time instead of keeping it. Keeping it makes the next frame try again, and the spiral continues."
+clock-going-backwards:
+  title: "Handle a clock that goes backwards"
+  text: "A clock may return a time earlier than the last one. Treat a negative elapsed time as zero, so the accumulator never decreases and no step runs \"in reverse\"."
+alpha-is-the-leftover-fraction:
+  title: "Alpha is the leftover fraction of a step"
+  text: "After running the whole steps, the accumulator holds a part of a step. Pass `alpha = remainder / step` (between 0 and 1) to rendering, so it can interpolate between the previous and current state."
+exact-multiples:
+  title: "Exact multiples of the step"
+  text: "An elapsed time of exactly two steps must run exactly two updates and leave an alpha of 0. Test the boundary with integer time, where there is no rounding to blur it."
+non-positive-step:
+  title: "A step of zero or less is an error"
+  text: "A fixed step of 0 would loop forever and a negative one makes no sense. Reject it when the loop is created, instead of hanging in the first frame."
+no-real-clock-in-the-loop:
+  title: "Inject the clock"
+  text: "A loop that reads `std::chrono::steady_clock` directly cannot be tested. Take the time as an argument (or a clock object), so a test can feed it exact values."
+template-callback-not-std-function:
+  title: "Take the callback as a template parameter"
+  text: "`std::function` adds an indirect call and may allocate. A template parameter lets the compiler inline the update, which matters in a loop that runs every frame."
+frame-independence:
+  title: "The simulation must not depend on the frame rate"
+  text: "The same input must give the same state whether the frames are 60 or 144 per second, and whether they are even or uneven. Run the update with a fixed step only, and test with different frame patterns."

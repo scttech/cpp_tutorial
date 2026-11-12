@@ -1,0 +1,43 @@
+padding-rules:
+  title: "Padding fills the last group to four characters"
+  text: "One leftover byte gives two characters and `==`, two bytes give three characters and `=`. A decoder must check that the padding matches the length, not only strip the `=` signs."
+trailing-bits-must-be-zero:
+  title: "The unused trailing bits must be zero"
+  text: "`YQ==` decodes to \"a\", but `YR==` has a different, non-zero leftover in the last character. A strict decoder rejects it, because it is not canonical and decodes to the same byte."
+data-after-padding:
+  title: "Nothing may follow the padding"
+  text: "`YQ==YQ==` is not one valid string: after the `=` the data must end. Report an error at the first character after the padding."
+url-safe-alphabet:
+  title: "The URL-safe alphabet uses `-` and `_`"
+  text: "In the URL-safe variant, `+` becomes `-` and `/` becomes `_`, and padding is often omitted. Use one table per alphabet, and reject characters of the other alphabet."
+decode-table:
+  title: "Use a 256-entry decode table"
+  text: "A table indexed by `unsigned char` returns the 6-bit value, or an \"invalid\" marker, in one load. Index it with an `unsigned char`: a negative `char` would index out of bounds."
+exact-output-size:
+  title: "Compute the output size exactly"
+  text: "Encoding n bytes gives `4 * ceil(n / 3)` characters. A truncated `n * 4 / 3` is too small, and a guess of \"n * 2\" wastes memory; write the formula, and test sizes around multiples of three."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n = 4;
+            std::cout << n * 4 / 3 << "\n";   // too small: 4 bytes need 8 characters
+        }
+      out: "5\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n = 4;
+            std::cout << (n + 2) / 3 * 4 << "\n";   // 4 characters per started group of 3 bytes
+        }
+      out: "8\n"
+never-write-past-the-buffer:
+  title: "Never write past the end of the output buffer"
+  text: "Check that the caller's buffer is big enough before writing, and return an error, instead of trusting the size. A codec that overflows its output is a security hole."
+whitespace-is-opt-in:
+  title: "Whitespace is accepted only on request"
+  text: "MIME allows line breaks inside Base64, strict decoders do not. Reject whitespace unless the caller asks to skip it, and say so in the API."

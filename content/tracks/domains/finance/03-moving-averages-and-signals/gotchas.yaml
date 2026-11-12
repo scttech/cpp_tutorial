@@ -1,0 +1,108 @@
+sum-drift-over-millions-of-updates:
+  title: "A running sum drifts over millions of updates"
+  text: "Adding the new value and subtracting the evicted one each time accumulates rounding error, so after millions of updates the average is off. Use compensated summation, or recompute the sum periodically."
+evict-before-or-after-add:
+  title: "Evict the old value before or after adding?"
+  text: "For a window of size n, the average after adding value n+1 covers values 2 to n+1. Subtract the oldest value exactly when the window is full, and be consistent about the order."
+window-not-yet-full:
+  title: "Before the window is full there is no average yet"
+  text: "With a window of 5, the first four updates have too little data. Decide what to return (nothing, or the average of what exists), document it, and test update 1, update n and update n+1."
+ema-seed-and-alpha:
+  title: "An EMA needs a seed and an alpha"
+  text: "The exponential average is `ema = alpha * x + (1 - alpha) * ema`, with `alpha = 2 / (n + 1)`. Its first value is usually the first sample; starting from 0 biases the early values low."
+window-zero:
+  title: "A window of zero is invalid"
+  text: "A window size of 0 divides by zero in the average and has no meaning. Reject it when the object is created, rather than failing on the first update."
+nan-and-infinity:
+  title: "NaN and infinity poison a running sum"
+  text: "One NaN or infinite price makes the running sum NaN or infinite forever, and the eviction cannot undo it. Reject non-finite input before it reaches the sum."
+crossover-on-equality:
+  title: "What does equal averages mean for a crossover?"
+  text: "A fast average that equals the slow one is neither above nor below. Define the signal for equality (usually \"no change\"), so touching without crossing does not trigger a signal."
+one-signal-per-cross:
+  title: "One signal per crossing"
+  text: "A crossover should produce a signal on the update where the fast average passes the slow one, not on every update while it is above. Compare with the previous state."
+fixed-storage-no-allocation:
+  title: "A fixed window needs no allocation"
+  text: "A ring buffer of capacity n in a `std::array` (or a pre-sized vector) holds the window. Pushing onto a growing `std::vector` allocates, and it keeps old values you no longer need."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+        #include <vector>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::vector<int> data = std::vector<int>(R * C);   // a heap block, although R * C is known
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 1\n"
+    fix:
+      code: |
+        #include <array>
+        #include <cstddef>
+        #include <cstdlib>
+        #include <iostream>
+        #include <new>
+
+        static int allocations = 0;
+        void* operator new(std::size_t n) { ++allocations; return std::malloc(n); }
+        void operator delete(void* p) noexcept { std::free(p); }
+        void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+
+        template <int R, int C>
+        struct Matrix {
+            std::array<int, R * C> data{};   // inside the object: no allocation
+        };
+
+        int main() {
+            Matrix<2, 3> m;
+            std::cout << "allocations: " << allocations << "\n";
+            (void)m;
+        }
+      out: "allocations: 0\n"
+neumaier-or-kahan:
+  title: "Use Neumaier (or Kahan) summation"
+  text: "Compensated summation keeps the low-order bits that plain addition drops. Neumaier's variant also handles the case where the next value is larger than the running sum, which Kahan's does not."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double values[] = {1e16, 1.0, -1e16};
+            double sum = 0;
+            for (double x : values) sum += x;   // the 1.0 is absorbed by the big number
+            std::cout << sum << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double values[] = {1e16, 1.0, -1e16};
+            double sum = 0, c = 0;                          // c collects what each addition loses
+            for (double x : values) {
+                double t = sum + x;
+                if (std::fabs(sum) >= std::fabs(x)) c += (sum - t) + x;
+                else c += (x - t) + sum;
+                sum = t;
+            }
+            std::cout << sum + c << "\n";
+        }
+      out: "1\n"

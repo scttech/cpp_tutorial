@@ -10,6 +10,8 @@
 // changed (its hash is stored in the report).
 //
 //   node compat-wasm.mjs [lesson-id-substring]   check (changed lessons only) and write the report
+//   --rehash     one-off migration: move the report to the current hash formula WITHOUT running anything, but only for
+//                lessons whose old-formula hash still matches (a lesson that really changed stays stale and is re-run)
 //   --force      re-run every lesson          --check   run nothing; exit 1 if the report is missing or stale
 //   --jobs N     parallel compilers (default: half the CPUs)      --verbose   print every problem found
 import { createHash } from "node:crypto";
@@ -28,7 +30,12 @@ const RUNNER_DIR = fileURLToPath(new URL("../../wasm-runner/", import.meta.url))
 const HEADER_DIR = fileURLToPath(new URL("../../runner-image/include/", import.meta.url));
 
 // ---- what a lesson's result depends on ----
-async function inputsHash(dir) {
+// Only the files that decide whether a lesson runs: lesson.yaml (flags, limits, requires), starter/, solution/, tests/ and
+// mutants/. Texts (lesson.md, fast.md, hints.yaml, gotchas.yaml) cannot change the result, so editing them must not force a re-run.
+const RESULT_FILES = /^\/(lesson\.yaml|(starter|solution|tests|mutants)\/)/;
+
+/** `legacy` is the formula before the narrowing: every file except gotchas.yaml. Only --rehash uses it. */
+async function inputsHash(dir, legacy = false) {
   const h = createHash("sha256");
   // Line endings are normalized: a Windows checkout (CRLF) and CI (LF) must agree on the hash.
   const add = async (p, label) => h.update(label + "\0").update((await readFile(p, "latin1")).replace(/\r\n/g, "\n"), "latin1").update("\0");
@@ -36,7 +43,10 @@ async function inputsHash(dir) {
   const files = [];
   for await (const p of walk(dir)) files.push([p.slice(dir.length).replace(/\\/g, "/"), p]);
   files.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  for (const [label, p] of files) await add(p, "lesson:" + label);
+  for (const [label, p] of files) {
+    if (legacy ? label === "/gotchas.yaml" : !RESULT_FILES.test(label)) continue;
+    await add(p, "lesson:" + label);
+  }
   for (const f of (await readdir(HEADER_DIR)).sort()) await add(join(HEADER_DIR, f), "header:" + f);
   for (const f of (await readdir(join(RUNNER_DIR, "src"))).sort()) await add(join(RUNNER_DIR, "src", f), "runner:" + f);
   h.update(JSON.parse(await readFile(join(RUNNER_DIR, "node_modules/browsercc/package.json"), "utf8")).version);
@@ -111,6 +121,19 @@ for (const dir of dirs) {
 
 let report = { toolchain: "browsercc", lessons: {} };
 try { report = JSON.parse(await readFile(REPORT, "utf8")); } catch { /* first run */ }
+if (flag("--rehash")) {
+  let moved = 0, kept = 0;
+  for (const l of lessons) {
+    const old = report.lessons[l.id];
+    if (!old) continue;
+    if (old.hash === l.hash) continue;                              // already current
+    if (old.hash === (await inputsHash(l.dir, true))) { old.hash = l.hash; moved++; }
+    else { console.log(`stale  ${l.id} (its inputs really changed: it needs a run)`); kept++; }
+  }
+  await writeFile(REPORT, JSON.stringify(report, null, 2) + String.fromCharCode(10));
+  console.log(`rehashed ${moved} lesson(s); ${kept} still need a real run`);
+  process.exit(0);
+}
 const stale = lessons.filter((l) => flag("--force") || report.lessons[l.id]?.hash !== l.hash);
 
 if (flag("--check")) {

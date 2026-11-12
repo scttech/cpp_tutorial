@@ -1,0 +1,105 @@
+sample-vs-population:
+  title: "Sample variance divides by n - 1"
+  text: "For a sample, divide the sum of squared deviations by n - 1 (Bessel's correction); for a whole population, by n. Pick the one the metric defines, and note that a single value has no sample variance."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x[] = {1, 2, 3};
+            double mean = 2, ss = 0;
+            for (double v : x) ss += (v - mean) * (v - mean);
+            std::cout << ss / 3 << "\n";   // divides by n: the population variance
+        }
+      out: "0.666667\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double x[] = {1, 2, 3};
+            double mean = 2, ss = 0;
+            for (double v : x) ss += (v - mean) * (v - mean);
+            std::cout << ss / (3 - 1) << "\n";   // divides by n - 1: the sample variance
+        }
+      out: "1\n"
+sum-of-squares-formula:
+  title: "The \"sum of squares\" formula cancels catastrophically"
+  text: "`E[x^2] - E[x]^2` subtracts two huge, nearly equal numbers when the mean is large compared with the spread, and loses almost all its digits. Use Welford's update, or subtract the mean first."
+welford:
+  title: "Welford updates the mean and variance in one pass"
+  text: "For each value, update `mean += (x - mean) / n` and `m2 += (x - old_mean) * (x - mean)`. It is numerically stable, needs one pass and no stored data, and can be merged across chunks."
+drawdown-from-the-peak:
+  title: "Drawdown is measured from the running peak"
+  text: "The drop at each point is `(peak - price) / peak`, where the peak is the highest price so far, and the maximum drawdown is the worst of them. Measuring from the first price understates it."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+
+        int main() {
+            double prices[] = {100, 120, 90, 110};
+            double worst = 0;
+            for (double p : prices) worst = std::max(worst, (prices[0] - p) / prices[0]);   // from the first price
+            std::cout << worst << "\n";
+        }
+      out: "0.1\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+
+        int main() {
+            double prices[] = {100, 120, 90, 110};
+            double peak = prices[0], worst = 0;
+            for (double p : prices) {
+                peak = std::max(peak, p);                        // the highest price so far
+                worst = std::max(worst, (peak - p) / peak);
+            }
+            std::cout << worst << "\n";
+        }
+      out: "0.25\n"
+peak-so-far:
+  title: "The peak only moves up"
+  text: "Update the peak as `max(peak, price)` at each step, and compute the drawdown from the peak that existed at that point. A peak that is found later in the series does not count for earlier days."
+quantile-index-with-floating-point:
+  title: "A quantile index must not use floating-point rounding"
+  text: "`p * n` can come out as 28.999999999999996 instead of 29, and `floor` then picks the wrong element. Compute with integers (`p_numerator * n / p_denominator`), or round with care."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double p = 0.29;
+            int n = 100;
+            std::cout << static_cast<int>(std::floor(p * n)) << "\n";   // 0.29 * 100 is 28.999999999999996
+        }
+      out: "28\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int p_num = 29, p_den = 100, n = 100;   // the quantile as a fraction of integers
+            std::cout << p_num * n / p_den << "\n";
+        }
+      out: "29\n"
+var-is-a-positive-loss:
+  title: "VaR is reported as a positive loss"
+  text: "Value at Risk answers \"how much can I lose\", so a 5% VaR of -2.3% return is reported as a loss of 2.3%. Check the sign convention of the specification, and test it with a known series."
+invalid-prices:
+  title: "Prices must be positive and finite"
+  text: "A zero price makes the next return infinite, and a negative or NaN price makes no sense. Validate the input first, and report which element is bad."
+constant-series-sharpe:
+  title: "A constant series has no Sharpe ratio"
+  text: "If every return is the same, the standard deviation is 0 and the ratio divides by zero. Return \"undefined\" (or the documented value) instead of infinity or NaN."
+one-pass-over-the-data:
+  title: "One pass is enough"
+  text: "Mean, variance, drawdown and the extremes can all be computed in a single pass. Quantiles need the sorted data (or `nth_element`), so do those separately, and do not sort the caller's vector."
+single-return:
+  title: "A single return has no spread"
+  text: "With one return the sample variance divides by n - 1 = 0. Decide what each metric means for 0 and 1 values, and test those inputs."

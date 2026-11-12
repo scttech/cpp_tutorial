@@ -1,0 +1,72 @@
+view-is-not-a-copy:
+  title: "A view shares the data; it is not a copy"
+  text: "A sub-matrix or a transposed view refers to the same elements as the original, so writing through the view changes the matrix. Copy only when you need independent data, and make the difference clear in the API."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> data{0, 0, 0};
+            auto view = data;   // a copy, not a view
+            view[0] = 5;
+            std::cout << data[0] << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <span>
+        #include <vector>
+
+        int main() {
+            std::vector<int> data{0, 0, 0};
+            std::span<int> view(data);   // refers to the same elements
+            view[0] = 5;
+            std::cout << data[0] << "\n";
+        }
+      out: "5\n"
+strides-not-shapes:
+  title: "Describe a view with strides, not just a shape"
+  text: "A view is a pointer, a row and column count, and the strides (the step between rows and between columns). With strides, transposes, slices and sub-matrices need no copying."
+transpose-is-free:
+  title: "A transposed view costs nothing"
+  text: "Swapping the two strides and the two sizes gives the transpose without touching the data. Do not copy the elements unless the caller asks for a contiguous result."
+bounds-check-without-overflow:
+  title: "Check bounds without overflowing the index"
+  text: "Computing `row * cols + col` before checking can overflow for large matrices, and then the check passes on a wrong index. Check `row < rows` and `col < cols` first, then compute the offset."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;   // 46341
+            int sq = x * x;         // more than INT_MAX
+            std::cout << sq << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int x = 46340 + argc;
+            long long sq = static_cast<long long>(x) * x;   // widen before multiplying
+            std::cout << sq << "\n";
+        }
+      out: "2147488281\n"
+blocking-needs-edge-tiles:
+  title: "Blocking needs partial tiles at the edges"
+  text: "When the size is not a multiple of the block size, the last tile is smaller. Use `std::min(i + block, n)` as the end of each tile, or the last rows and columns are skipped or read out of bounds."
+block-size-extremes:
+  title: "A block size of 1 or larger than the matrix must work"
+  text: "A block of 1 degenerates into the plain loops, and a block bigger than the matrix is a single tile. Test both extremes, and reject a block of 0."
+zero-sized-matrices:
+  title: "A matrix with zero rows or columns is valid"
+  text: "A 0 by 5 matrix has no elements but still has a shape, and multiplying it must produce a correctly shaped (possibly empty or zero) result. Do not index element 0 without checking."
+accumulate-in-order:
+  title: "Accumulate in a fixed order"
+  text: "Floating-point addition is not associative, so summing a dot product in a different order gives slightly different results. Fix the order (index 0 up), so blocked and plain multiplication agree."

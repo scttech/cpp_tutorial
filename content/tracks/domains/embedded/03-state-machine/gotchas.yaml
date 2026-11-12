@@ -1,0 +1,24 @@
+exit-action-entry:
+  title: "Run the exit action, then the transition action, then the entry"
+  text: "A transition from A to B runs A's exit hook first, then the action attached to the transition, then B's entry hook, and only then is B the current state. Getting the order wrong is easy to test and hard to notice."
+first-matching-row-wins:
+  title: "The first matching row wins"
+  text: "When several rows match the same state and event, the one that comes first in the table is taken. Make the order of the rows meaningful, and test two rows that both match."
+guard-fallthrough:
+  title: "A false guard falls through to the next row"
+  text: "A row whose guard returns false does not match, so the search continues with the following rows. It must not stop the search, and must not run the action."
+internal-transitions-skip-hooks:
+  title: "An internal transition runs no exit or entry"
+  text: "An internal transition runs only its action and stays in the state, without calling the exit or entry hooks. Do not confuse it with a self-transition."
+self-transition-is-external:
+  title: "A self-transition does run exit and entry"
+  text: "A transition from a state to itself is external: it leaves the state (exit), runs the action, and enters it again (entry). That is the difference from an internal transition."
+start-runs-entry-once:
+  title: "`start` runs the initial entry exactly once"
+  text: "The initial state's entry hook runs when the machine starts, not in the constructor and not on every `dispatch`. Calling `start` twice must not run it twice."
+ignored-is-not-an-error:
+  title: "An event with no matching row is ignored"
+  text: "In this machine an event that does not apply to the current state is not an error: nothing happens, and the dispatch reports that it was not handled. Test an event in the wrong state."
+rows-are-data:
+  title: "The table is data, not code"
+  text: "Keep the transitions as a table of rows (state, event, guard, action, target). Adding a transition is then one line, and a test can walk the table, instead of reading nested `switch` statements."

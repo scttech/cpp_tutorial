@@ -1,0 +1,51 @@
+callbacks-may-schedule-and-cancel:
+  title: "A callback may schedule and cancel timers"
+  text: "While timers are firing, a callback can add new timers or cancel others, including ones due in the same tick. The wheel must stay consistent while it is being walked."
+collect-then-fire:
+  title: "Collect the due timers, then fire them"
+  text: "Take the timers that are due out of the slot first, and call them afterwards. Calling a callback while iterating over the slot is undefined if the callback changes that slot."
+one-tick-at-a-time:
+  title: "Advance one tick at a time"
+  text: "`advance(100)` must process the ticks 1 to 100 in order, so timers fire in time order and the callbacks that schedule new timers see the right \"now\". Jumping straight to the end skips them."
+cancel-is-o1:
+  title: "Cancel is O(1)"
+  text: "Keep a handle (an iterator or index) for each timer so `cancel` can mark or unlink it directly. A cancel that scans the wheel is linear in the number of timers."
+release-the-callback-on-cancel:
+  title: "Release the callback when cancelling"
+  text: "A cancelled timer that keeps its `std::function` alive keeps everything the callback captured alive too. Destroy the callback at cancel time, not when the slot is next visited."
+sweep-dead-timers:
+  title: "Sweep cancelled timers out of the slots"
+  text: "If cancel only marks a timer dead, the dead entries stay in the slot until it comes round. Remove them when you pass over the slot, so memory does not grow with cancellations."
+delay-zero-is-one-tick:
+  title: "A delay of zero means the next tick"
+  text: "A timer scheduled with delay 0 cannot fire in the tick that is being processed. Treat it as delay 1: it fires on the next `advance` of one tick."
+saturate-do-not-wrap:
+  title: "Saturate the deadline, do not wrap"
+  text: "A deadline of `now + delay` can overflow a 32-bit tick counter and wrap to a small number, making the timer fire at once. Clamp to the maximum value instead."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t now = 4294967295u, delay = 10;
+            std::uint32_t deadline = now + delay;   // wraps around to 9
+            std::cout << deadline << "\n";
+        }
+      out: "9\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            std::uint32_t now = 4294967295u, delay = 10;
+            std::uint32_t max = 4294967295u;
+            std::uint32_t deadline = delay > max - now ? max : now + delay;   // saturate
+            std::cout << deadline << "\n";
+        }
+      out: "4294967295\n"
+advance-is-not-reentrant:
+  title: "`advance` is not re-entrant"
+  text: "A callback that calls `advance` on the same wheel would process ticks inside a tick. Detect it and refuse (or defer it), so the state is never changed from two places at once."

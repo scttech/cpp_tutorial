@@ -1,0 +1,51 @@
+wrap-around-to-the-first-point:
+  title: "A lookup wraps around to the first point"
+  text: "The ring is circular: a key whose hash is above the last point belongs to the first point. `lower_bound` returns `end()` there, so test for it and go back to `begin()`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> points{10, 20, 30};
+            auto it = std::lower_bound(points.begin(), points.end(), 99);   // past the last point
+            std::cout << *it << "\n";                                        // end(): not an element
+        }
+      reports: "heap-buffer-overflow"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> points{10, 20, 30};
+            auto it = std::lower_bound(points.begin(), points.end(), 99);
+            if (it == points.end()) it = points.begin();   // wrap around the ring
+            std::cout << *it << "\n";
+        }
+      out: "10\n"
+virtual-nodes-spread-the-load:
+  title: "Virtual nodes spread the load evenly"
+  text: "With one point per node, some nodes get a much bigger arc of the ring than others. Give each node many virtual points (100 or more), and the shares come out close to equal."
+weight-means-more-points:
+  title: "A weight means more points on the ring"
+  text: "A node with weight 2 gets twice as many virtual points as one with weight 1, and therefore twice the share of the keys. Scale the number of points, not the hash."
+merge-do-not-resort:
+  title: "Merge a new node, do not sort everything again"
+  text: "Adding a node adds its points to a sorted vector. Sort only the new points and `std::inplace_merge` them in, which is linear, instead of re-sorting the whole ring each time."
+remove-keeps-the-order:
+  title: "Removing a node keeps the ring sorted"
+  text: "Erasing a node's points with `remove_if` and `erase` keeps the remaining points in order, so no re-sort is needed. Check that the node was there, and report removal of an unknown node."
+replicas-are-distinct-nodes:
+  title: "Replicas must be distinct nodes"
+  text: "For `n` replicas, walk clockwise from the key and collect the next `n` points that belong to different nodes. Taking the next `n` points can return the same node more than once."
+insertion-order-must-not-matter:
+  title: "Insertion order must not matter"
+  text: "The same set of nodes must give the same ring, however they were added. Order points by (hash, node id), so even a hash collision is resolved the same way every time."
+lookup-is-a-binary-search:
+  title: "Lookup is a binary search"
+  text: "The points are sorted, so `std::lower_bound` finds the owner in O(log n). Scanning the ring is O(n) per lookup, which defeats a ring with many virtual nodes."
