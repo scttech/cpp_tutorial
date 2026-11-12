@@ -223,6 +223,19 @@ export function TutorPanel({ lesson, files, result, progress, request }: Props) 
               Cancel
             </button>
           )}
+          {complete && (
+            <button
+              className="btn"
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setMode("practice");
+                void send("practice", "");
+              }}
+            >
+              Another one like this
+            </button>
+          )}
           {turns.length > 0 && !busy && (
             <button className="btn" type="button" onClick={() => setTurns([])}>
               Clear chat

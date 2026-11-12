@@ -1,0 +1,104 @@
+- id: sys-stack-vs-heap
+  topic: "Systems basics"
+  question: "Where does a local variable of a function normally live, and where does `new` allocate?"
+  choices: ["Both on the stack", "Locals on the stack, `new` on the heap", "Locals on the heap, `new` on the stack", "Both in the CPU registers only"]
+  answer: 1
+  explain: "Locals are allocated by moving the stack pointer and vanish when the function returns. `new` asks the allocator for heap memory, which lives until you free it."
+
+- id: sys-process-vs-thread
+  topic: "Systems basics"
+  question: "What is the main difference between a process and a thread?"
+  choices: ["Threads of a process share its memory; processes have separate address spaces", "A thread is always faster than a process", "Processes share memory; threads do not", "There is no difference"]
+  answer: 0
+  explain: "Threads in one process share the same heap and globals (and so can race on them), each with its own stack. Processes are isolated by the operating system, and talk through explicit channels."
+
+- id: sys-cache-line
+  topic: "Systems basics"
+  question: "What is a CPU cache line?"
+  choices: ["A line of source code", "The unit (typically 64 bytes) in which memory is moved into the cache", "A pipe between two processes", "The CPU clock signal"]
+  answer: 1
+  explain: "Memory is cached in aligned blocks, usually 64 bytes. Touching one byte brings in its neighbors, which is why sequential access is fast, and why two threads writing neighboring variables can slow each other (false sharing)."
+
+- id: sys-tcp-udp
+  topic: "Systems basics"
+  question: "Which statement is true about TCP and UDP?"
+  choices: ["TCP is reliable and ordered; UDP is not", "UDP is reliable and ordered; TCP is not", "Both guarantee delivery", "Neither uses ports"]
+  answer: 0
+  explain: "TCP provides a reliable, ordered byte stream (with retransmission and flow control). UDP sends independent datagrams that can be lost, reordered or duplicated, but with less latency and overhead."
+
+- id: sys-virtual-memory
+  topic: "Systems basics"
+  question: "What does virtual memory give each process?"
+  choices: ["The illusion of its own private address space, mapped to physical memory by the OS", "Direct access to physical RAM", "Unlimited physical memory", "A copy of the kernel"]
+  answer: 0
+  explain: "Each process sees its own addresses, which the CPU and OS translate to physical pages (or to disk). That gives isolation, lazy allocation and memory-mapped files."
+
+- id: sys-syscall
+  topic: "Systems basics"
+  question: "What happens when a program calls `read()` on a file?"
+  choices: ["The program reads the disk hardware directly", "It makes a system call: control passes to the kernel, which does the I/O", "The compiler inlines the file contents", "Nothing: files are in the executable"]
+  answer: 1
+  explain: "User programs cannot touch hardware. A system call switches to kernel mode, the kernel does the work (often from its page cache), and returns to the program."
+
+- id: sys-mutex-semaphore
+  topic: "Systems basics"
+  question: "What is the main difference between a mutex and a counting semaphore?"
+  choices: ["A mutex provides mutual exclusion with an owner; a semaphore counts available permits and has no owner", "They are identical", "A semaphore only works between processes", "A mutex can be released by any thread"]
+  answer: 0
+  explain: "A mutex is locked and unlocked by the same thread to protect a critical section. A semaphore holds a count: `acquire` waits for a permit, `release` adds one, even from another thread."
+
+- id: sys-deadlock-conditions
+  topic: "Systems basics"
+  question: "Which is NOT one of the four conditions needed for a deadlock?"
+  choices: ["Mutual exclusion", "Hold and wait", "Circular wait", "Preemption of resources"]
+  answer: 3
+  explain: "The four conditions are mutual exclusion, hold and wait, no preemption, and circular wait. Breaking any one prevents deadlock, for example by always locking in the same order (no circular wait)."
+
+- id: sys-http-404
+  topic: "Systems basics"
+  question: "What does the HTTP status code 404 mean?"
+  choices: ["The server crashed", "The resource was not found", "The request was not authorized", "The request was redirected"]
+  answer: 1
+  explain: "4xx codes are client errors: 404 means not found, 401 unauthenticated, 403 forbidden. 5xx are server errors (500), 3xx redirects (301), and 2xx success (200)."
+
+- id: sys-dns
+  topic: "Systems basics"
+  question: "What does DNS do?"
+  choices: ["Encrypts web traffic", "Translates names such as example.com into IP addresses", "Assigns IP addresses to computers", "Routes packets between networks"]
+  answer: 1
+  explain: "The Domain Name System is a distributed database mapping names to records, most often addresses. DHCP assigns addresses, TLS encrypts, and routers forward packets."
+
+- id: sys-big-endian-network
+  topic: "Systems basics"
+  question: "In which byte order are multi-byte integers sent on the network by convention?"
+  choices: ["Little-endian", "Big-endian (network byte order)", "Whatever the sender uses", "Mixed-endian"]
+  answer: 1
+  explain: "Network protocols fix the order, most significant byte first, so that machines of different endianness agree. `htons` and `htonl` convert from host order."
+
+- id: sys-compile-link
+  topic: "Systems basics"
+  question: "In what order do the build steps of a C++ program happen?"
+  choices: ["Link, compile, preprocess", "Preprocess, compile, link", "Compile, preprocess, link", "Preprocess, link, compile"]
+  answer: 1
+  explain: "The preprocessor expands `#include` and macros, the compiler turns each translation unit into an object file, and the linker joins the object files and libraries into one executable."
+
+- id: sys-page-fault
+  topic: "Systems basics"
+  question: "What is a page fault?"
+  choices: ["A crash that always kills the program", "The CPU asking the OS to map a memory page that is not currently present", "A typo in a web page", "A full disk"]
+  answer: 1
+  explain: "A page fault is not necessarily an error: the first touch of lazily allocated memory, or of a swapped-out page, faults, and the OS fixes it. Only an access to an unmapped address ends in a segmentation fault."
+
+- id: sys-atomic-vs-mutex
+  topic: "Systems basics"
+  question: "When is `std::atomic<int>` usually preferable to a mutex around an `int`?"
+  choices: ["When you update a single variable and need no invariant across several", "When you protect several variables that must stay consistent", "Never: a mutex is always faster", "When the data is a large struct"]
+  answer: 0
+  explain: "An atomic makes one operation on one variable indivisible, usually without blocking. As soon as several variables must change together (an invariant), you need a mutex to protect them as a unit."
+
+- id: sys-garbage-vs-raii
+  topic: "Systems basics"
+  question: "How does C++ usually release resources compared with languages that have a garbage collector?"
+  choices: ["By running destructors deterministically when an object goes out of scope (RAII)", "By pausing the program periodically to collect garbage", "It never releases anything", "By asking the programmer to call `free` on everything"]
+  answer: 0
+  explain: "C++ ties resource release to object lifetime, so a file, lock or memory block is released at a known point. That determinism is also why it works for resources other than memory."

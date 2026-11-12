@@ -1,4 +1,6 @@
 import type { Tier } from "../runner/types";
+import { MAX_BOX } from "../warmup/schedule";
+import type { Review } from "../warmup/schedule";
 
 // The persisted progress model (spec section 2.4). Every field added after the first release has a
 // default in normalize(), so older saved data and imported files keep working.
@@ -42,6 +44,8 @@ export interface Progress {
   streak: Streak;
   badges: Record<string, EarnedBadge>;
   events: Record<string, { count: number; lastAt: string }>;
+  /** Warm-up cards: when each one that has been asked is due again (see warmup/schedule.ts). */
+  reviews: Record<string, Review>;
   settings: Settings;
 }
 
@@ -64,6 +68,7 @@ export const emptyProgress = (): Progress => ({
   streak: { current: 0, longest: 0, lastActiveDate: null, forgivenOn: null },
   badges: {},
   events: {},
+  reviews: {},
   settings: { pace: "full" },
 });
 
@@ -131,6 +136,12 @@ export function normalize(raw: unknown): Progress {
   if (isObj(raw.events)) {
     for (const [id, v] of Object.entries(raw.events)) {
       if (isObj(v)) out.events[id] = { count: num(v.count), lastAt: str(v.lastAt) ?? "" };
+    }
+  }
+  if (isObj(raw.reviews)) {
+    for (const [id, v] of Object.entries(raw.reviews)) {
+      if (!isObj(v) || typeof v.due !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v.due)) continue;
+      out.reviews[id] = { box: Math.min(MAX_BOX, Math.max(1, num(v.box, 1))), due: v.due, seen: num(v.seen), correct: num(v.correct) };
     }
   }
   if (isObj(raw.settings) && (raw.settings.pace === "fast" || raw.settings.pace === "full")) {

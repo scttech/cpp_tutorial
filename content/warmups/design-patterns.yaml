@@ -1,0 +1,237 @@
+- id: pattern-adapter
+  topic: "Design patterns"
+  question: "A class lets code that expects interface A use an existing class with an incompatible interface B, by wrapping B and translating the calls. Which pattern is this?"
+  choices: ["Adapter", "Decorator", "Facade", "Proxy"]
+  answer: 0
+  explain: "The Adapter wraps an existing class and converts its interface into the one the client expects. A Decorator keeps the same interface and adds behavior; a Facade simplifies a whole subsystem; a Proxy controls access."
+
+- id: pattern-builder
+  topic: "Design patterns"
+  question: "An object with many optional parts is assembled step by step: `Car::Builder().wheels(4).engine(\"V8\").color(\"red\").build()`. Which pattern is this?"
+  choices: ["Factory Method", "Builder", "Prototype", "Singleton"]
+  answer: 1
+  explain: "The Builder separates the construction of a complex object from its representation, so the same steps can build different results and long constructors with many parameters are avoided."
+
+- id: pattern-factory-method
+  topic: "Design patterns"
+  question: "A base class declares a virtual function `create()` that returns a product, and each subclass decides which concrete product to create. Which pattern is this?"
+  choices: ["Abstract Factory", "Factory Method", "Builder", "Strategy"]
+  answer: 1
+  explain: "Factory Method defers the choice of the concrete class to subclasses through a virtual creation function. An Abstract Factory creates whole families of related objects instead."
+
+- id: pattern-abstract-factory
+  topic: "Design patterns"
+  question: "A `WidgetFactory` interface has `createButton()` and `createCheckbox()`; a `DarkFactory` and a `LightFactory` each create a matching set. Which pattern is this?"
+  choices: ["Factory Method", "Builder", "Abstract Factory", "Flyweight"]
+  answer: 2
+  explain: "An Abstract Factory creates families of related objects without naming their concrete classes, so the products always match (all dark, or all light)."
+
+- id: pattern-singleton
+  topic: "Design patterns"
+  question: "A class guarantees that only one instance exists and provides a global access point to it. Which pattern is this?"
+  choices: ["Singleton", "Flyweight", "Prototype", "Monostate"]
+  answer: 0
+  explain: "That is the Singleton. It is the most overused pattern: it is a global in disguise, makes testing hard, and in C++ needs care with initialization order (a function-local static is thread-safe since C++11)."
+
+- id: pattern-prototype
+  topic: "Design patterns"
+  question: "New objects are made by copying a configured instance through a virtual `clone()`. Which pattern is this?"
+  choices: ["Prototype", "Builder", "Memento", "Flyweight"]
+  answer: 0
+  explain: "Prototype creates objects by cloning an existing one, which is useful when the exact class is only known at run time. In C++ `clone()` also solves the slicing problem when copying through a base pointer."
+
+- id: pattern-decorator
+  topic: "Design patterns"
+  question: "A `LoggingStream` wraps any `Stream`, implements the same interface, and adds logging before delegating each call. Which pattern is this?"
+  choices: ["Adapter", "Proxy", "Decorator", "Bridge"]
+  answer: 2
+  explain: "A Decorator wraps an object with the same interface to add behavior dynamically, and decorators can be stacked. A Proxy has the same interface too, but controls access (lazy loading, remote calls, permissions) instead of adding features."
+
+- id: pattern-composite
+  topic: "Design patterns"
+  question: "A `Folder` holds files and other folders, and `size()` works the same way on a single file or on a whole tree. Which pattern is this?"
+  choices: ["Composite", "Iterator", "Visitor", "Flyweight"]
+  answer: 0
+  explain: "Composite lets clients treat single objects and groups of objects uniformly through a common interface, which gives a tree structure with recursive operations."
+
+- id: pattern-facade
+  topic: "Design patterns"
+  question: "A `Compiler` class offers one `compile(file)` call and internally coordinates the lexer, parser, optimizer and code generator. Which pattern is this?"
+  choices: ["Mediator", "Facade", "Adapter", "Command"]
+  answer: 1
+  explain: "A Facade provides a simple interface to a complex subsystem. It does not hide the subsystem (advanced users can still use the parts directly) but makes the common case easy."
+
+- id: pattern-proxy
+  topic: "Design patterns"
+  question: "An `ImageProxy` has the same interface as `Image` but loads the real image from disk only when it is first drawn. Which pattern is this?"
+  choices: ["Decorator", "Proxy", "Adapter", "Singleton"]
+  answer: 1
+  explain: "This is a (virtual) Proxy: a stand-in for another object that controls access to it, here by delaying an expensive load. Other proxies add access control, caching or remote access."
+
+- id: pattern-flyweight
+  topic: "Design patterns"
+  question: "A text editor stores one shared object per distinct character glyph, and each position in the document keeps only a reference and its coordinates. Which pattern is this?"
+  choices: ["Flyweight", "Prototype", "Composite", "Memento"]
+  answer: 0
+  explain: "Flyweight saves memory by sharing the intrinsic (unchanging) state of many similar objects, keeping the extrinsic state (position, here) outside. Interned strings are a familiar example."
+
+- id: pattern-bridge
+  topic: "Design patterns"
+  question: "A `Shape` hierarchy (circle, square) and a `Renderer` hierarchy (OpenGL, SVG) vary independently, and a shape holds a pointer to a renderer. Which pattern is this?"
+  choices: ["Adapter", "Bridge", "Strategy", "Decorator"]
+  answer: 1
+  explain: "Bridge separates an abstraction from its implementation so that both can vary independently, avoiding a class explosion (circle-OpenGL, circle-SVG, square-OpenGL, ...). The pimpl idiom is a close relative."
+
+- id: pattern-observer
+  topic: "Design patterns"
+  question: "Several widgets register with a `Model`, and when its value changes the model calls `update()` on every registered widget. Which pattern is this?"
+  choices: ["Mediator", "Observer", "Command", "Chain of Responsibility"]
+  answer: 1
+  explain: "Observer defines a one-to-many dependency: when the subject changes, all its observers are notified. Signals and slots, event listeners and publish/subscribe are all forms of it. Beware of dangling observers: unregister them."
+
+- id: pattern-strategy
+  topic: "Design patterns"
+  question: "A `Sorter` takes a comparison object, and callers pass different ones (by name, by date) to change how it works without changing `Sorter`. Which pattern is this?"
+  choices: ["State", "Template Method", "Strategy", "Visitor"]
+  answer: 2
+  explain: "Strategy encapsulates interchangeable algorithms behind one interface and lets the client choose one. In C++ the strategy is often a template parameter (as in `std::sort`) or a `std::function`, not a class hierarchy."
+
+- id: pattern-command
+  topic: "Design patterns"
+  question: "Each user action is an object with `execute()` and `undo()`, kept in a history list. Which pattern is this?"
+  choices: ["Memento", "Command", "Observer", "Interpreter"]
+  answer: 1
+  explain: "Command turns a request into an object, which allows queuing, logging and undo. A Memento would store a snapshot of the state instead of describing the operation."
+
+- id: pattern-iterator
+  topic: "Design patterns"
+  question: "A container gives out objects with `begin()`, `end()`, `operator++` and `operator*`, so algorithms can walk any container the same way. Which pattern is this?"
+  choices: ["Visitor", "Composite", "Iterator", "Proxy"]
+  answer: 2
+  explain: "That is the Iterator pattern, the foundation of the C++ standard library: algorithms work on iterator pairs and know nothing about the container behind them."
+
+- id: pattern-visitor
+  topic: "Design patterns"
+  question: "An `Expr` tree has node types Number, Add and Mul; new operations (evaluate, print, simplify) are added as separate classes, each with a method per node type, without changing the nodes. Which pattern is this?"
+  choices: ["Visitor", "Interpreter", "Composite", "Command"]
+  answer: 0
+  explain: "Visitor lets you add operations to a class hierarchy without modifying it, using double dispatch. In modern C++ `std::variant` with `std::visit` is the lighter-weight version of the same idea."
+
+- id: pattern-state
+  topic: "Design patterns"
+  question: "A `Connection` object behaves differently when closed, listening or established, and switches between separate state objects that each implement the same interface. Which pattern is this?"
+  choices: ["Strategy", "State", "Observer", "Memento"]
+  answer: 1
+  explain: "State lets an object change its behavior when its internal state changes, by delegating to the current state object. It looks like Strategy, but the states replace themselves as the object runs."
+
+- id: pattern-template-method
+  topic: "Design patterns"
+  question: "A base class defines the skeleton of an algorithm in a non-virtual function and calls virtual steps that subclasses override. Which pattern is this?"
+  choices: ["Strategy", "Template Method", "Factory Method", "Bridge"]
+  answer: 1
+  explain: "Template Method fixes the order of the steps in the base class and lets subclasses fill them in (the Hollywood principle: don't call us, we'll call you). It uses inheritance where Strategy uses composition."
+
+- id: pattern-chain
+  topic: "Design patterns"
+  question: "A request is passed along a list of handlers (authentication, validation, logging), and each decides to handle it or pass it on. Which pattern is this?"
+  choices: ["Chain of Responsibility", "Decorator", "Mediator", "Observer"]
+  answer: 0
+  explain: "Chain of Responsibility avoids coupling the sender to a specific receiver: the request travels the chain until a handler takes it. Middleware stacks in web frameworks work this way."
+
+- id: pattern-mediator
+  topic: "Design patterns"
+  question: "Dialog widgets never talk to each other directly; they all send events to a `DialogController`, which updates the others. Which pattern is this?"
+  choices: ["Mediator", "Observer", "Facade", "Proxy"]
+  answer: 0
+  explain: "A Mediator centralizes the communication between objects, so they depend on the mediator instead of on each other. The price is that the mediator can become a large, complicated class."
+
+- id: pattern-memento
+  topic: "Design patterns"
+  question: "An editor saves a snapshot of its state before each change so it can restore it later, without exposing its internals to the history. Which pattern is this?"
+  choices: ["Command", "Memento", "Prototype", "State"]
+  answer: 1
+  explain: "A Memento captures an object's state so that it can be restored later, while keeping encapsulation. Command-based undo stores operations; Memento-based undo stores states."
+
+- id: pattern-interpreter
+  topic: "Design patterns"
+  question: "A class hierarchy represents the grammar of a small language (Literal, Add, Variable), and each node has an `evaluate(context)` method. Which pattern is this?"
+  choices: ["Interpreter", "Visitor", "Builder", "Strategy"]
+  answer: 0
+  explain: "Interpreter represents a grammar as a class hierarchy and evaluates sentences of the language by walking the tree. It suits small languages; for big ones a parser generator is a better fit."
+
+- id: idiom-raii
+  topic: "Design patterns"
+  question: "A `FileHandle` class opens the file in its constructor and closes it in its destructor, so it is closed on every path out of a scope. What is this C++ idiom called?"
+  choices: ["RAII", "PIMPL", "CRTP", "Type erasure"]
+  answer: 0
+  explain: "RAII (Resource Acquisition Is Initialization) ties a resource to an object's lifetime: constructor acquires, destructor releases. It makes code exception-safe, and is the basis of smart pointers and lock guards."
+
+- id: idiom-pimpl
+  topic: "Design patterns"
+  question: "A class declares only a pointer to a hidden `struct Impl` in its header and defines it in the .cpp file, so changing the private data does not recompile its users. What is this idiom called?"
+  choices: ["RAII", "PIMPL", "CRTP", "Rule of zero"]
+  answer: 1
+  explain: "PIMPL (pointer to implementation) hides the private members in the source file, which shortens compile times and keeps a stable ABI. The price is an extra allocation and an indirection."
+
+- id: idiom-crtp
+  topic: "Design patterns"
+  question: "A class is declared `struct Derived : Base<Derived>`, so the base can call the derived class's functions without virtual calls. What is this idiom called?"
+  choices: ["PIMPL", "CRTP", "SFINAE", "Type erasure"]
+  answer: 1
+  explain: "The Curiously Recurring Template Pattern gives static polymorphism: the base template knows its derived type at compile time, so calls are resolved and inlined without a vtable."
+
+- id: idiom-type-erasure
+  topic: "Design patterns"
+  question: "`std::function<void()>` can hold any callable with that signature (a lambda, a function pointer, a functor), with no common base class. What is this technique called?"
+  choices: ["Type erasure", "Slicing", "CRTP", "Tag dispatch"]
+  answer: 0
+  explain: "Type erasure wraps different concrete types behind a uniform interface using a hidden virtual interface (or function pointers) inside the wrapper. `std::function`, `std::any` and `std::shared_ptr`'s deleter work this way."
+
+- id: idiom-copy-and-swap
+  topic: "Design patterns"
+  question: "An assignment operator takes its parameter by value and swaps it with `*this`, which gives the strong exception guarantee and handles self-assignment. What is this idiom called?"
+  choices: ["Copy-and-swap", "Rule of five", "Double dispatch", "Move-and-delete"]
+  answer: 0
+  explain: "Copy-and-swap: the copy is made first (and may throw, leaving `*this` untouched), then a non-throwing swap commits it. The old state is destroyed with the temporary."
+
+- id: pattern-null-object
+  topic: "Design patterns"
+  question: "Instead of returning `nullptr` for \"no logger\", the code returns a `NullLogger` that implements the logger interface and does nothing, so callers need no checks. Which pattern is this?"
+  choices: ["Null Object", "Proxy", "Singleton", "State"]
+  answer: 0
+  explain: "A Null Object provides a do-nothing implementation of an interface, removing `if (ptr)` checks from every call site. Use it when \"nothing\" has a sensible default behavior."
+
+- id: pattern-policy-design
+  topic: "Design patterns"
+  question: "`template<class T, class Allocator>` lets a container take its allocation behavior as a template parameter, chosen at compile time. Which design technique is this?"
+  choices: ["Policy-based design", "Visitor", "Chain of Responsibility", "Memento"]
+  answer: 0
+  explain: "Policy-based design composes behavior from template parameters (policies): the strategy pattern at compile time, with no virtual calls. `std::vector`'s allocator and `std::unique_ptr`'s deleter are policies."
+
+- id: pattern-dependency-injection
+  topic: "Design patterns"
+  question: "A `Game` class receives its `Clock` and `Random` objects through its constructor instead of creating them itself, so tests can pass fakes. What is this called?"
+  choices: ["Dependency injection", "Singleton", "Prototype", "Facade"]
+  answer: 0
+  explain: "Dependency injection gives an object its collaborators from outside. It is how the fixed-timestep loop and the rate limiter in this course become testable with an injected clock."
+
+- id: pattern-observer-vs-mediator
+  topic: "Design patterns"
+  question: "Which statement best separates an Observer from a Mediator?"
+  choices: ["An observer relationship is one-to-many notification from a subject; a mediator coordinates two-way interactions among many peers", "They are the same pattern with two names", "A mediator is only for graphics code", "An observer needs inheritance, a mediator does not"]
+  answer: 0
+  explain: "In Observer, subjects broadcast changes and observers react. In Mediator, peers send their messages to one object that decides what happens and to whom."
+
+- id: pattern-decorator-vs-proxy
+  topic: "Design patterns"
+  question: "What is the key difference between a Decorator and a Proxy?"
+  choices: ["A decorator adds behavior; a proxy controls access to the real object", "A decorator uses inheritance; a proxy never does", "A proxy changes the interface; a decorator keeps it", "There is no difference"]
+  answer: 0
+  explain: "Both wrap an object behind the same interface. A Decorator's purpose is extending what it does (and decorators stack), a Proxy's purpose is controlling how and when the real object is reached."
+
+- id: pattern-factory-vs-builder
+  topic: "Design patterns"
+  question: "When is a Builder a better choice than a constructor with many parameters?"
+  choices: ["When there are many optional parameters or the object is assembled in steps", "When the class has exactly one member", "When the object must be a singleton", "When the class is abstract"]
+  answer: 0
+  explain: "A Builder gives parameters names, allows optional ones to be left out, and can validate the whole at `build()`. In C++ designated initializers and aggregate initialization cover simple cases."

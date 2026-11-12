@@ -1,6 +1,6 @@
 // The tutor's help modes (spec section 8.3, plus "discuss"). Each mode says how much help it may give.
 
-export type TutorMode = "nudge" | "concept" | "error" | "pinpoint" | "approach" | "discuss" | "review" | "quiz";
+export type TutorMode = "nudge" | "concept" | "error" | "pinpoint" | "approach" | "discuss" | "review" | "quiz" | "practice";
 
 export interface ModeInfo {
   id: TutorMode;
@@ -101,6 +101,19 @@ export const MODES: ModeInfo[] = [
     guarded: true,
     explains: false,
     defaultQuestion: "Quiz me on this lesson.",
+  },
+  {
+    id: "practice",
+    label: "Another one like this (after passing)",
+    blurb: "A fresh practice problem on the same ideas, in a different setting. Not graded: solve it in your own editor.",
+    rule:
+      "PRACTICE: write ONE new practice problem on the same concepts as this lesson, in a different setting (different names, data and story) and at about the same difficulty. " +
+      "Give the task, the function signatures or class names, the rules, and three to five small examples as input and expected output. " +
+      "Do NOT write a solution or the body of any function, and keep any code to signatures and tiny examples (under 10 lines). The learner solves it in their own editor; nothing grades it.",
+    needsComplete: true,
+    guarded: true,
+    explains: false,
+    defaultQuestion: "Give me another practice problem like this one.",
   },
 ];
 

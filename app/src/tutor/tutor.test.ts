@@ -37,11 +37,11 @@ const STARTER = { "main.cpp": "#include <string>\nint count(const std::string& s
 
 describe("modes", () => {
   it("has the six spec modes, plus discuss and quiz", () => {
-    expect(MODES.map((m) => m.id)).toEqual(["nudge", "concept", "error", "pinpoint", "approach", "discuss", "review", "quiz"]);
+    expect(MODES.map((m) => m.id)).toEqual(["nudge", "concept", "error", "pinpoint", "approach", "discuss", "review", "quiz", "practice"]);
   });
   it("only review may write solution code", () => {
     expect(MODES.filter((m) => !m.guarded).map((m) => m.id)).toEqual(["review"]);
-    expect(MODES.filter((m) => m.needsComplete).map((m) => m.id)).toEqual(["review", "quiz"]);
+    expect(MODES.filter((m) => m.needsComplete).map((m) => m.id)).toEqual(["review", "quiz", "practice"]);
   });
   it("discuss forbids stating the answer", () => {
     expect(modeInfo("discuss").rule).toMatch(/never state the answer/);
@@ -114,6 +114,7 @@ describe("checkReply", () => {
   it("guards discuss and quiz like the other hint modes", () => {
     expect(checkReply(fence(SOLUTION["main.cpp"]), "discuss", ref).ok).toBe(false);
     expect(checkReply(fence(SOLUTION["main.cpp"]), "quiz", ref).ok).toBe(false);
+    expect(checkReply(fence(SOLUTION["main.cpp"]), "practice", ref).ok).toBe(false); // a practice problem must not hand over the solution either
   });
 });
 

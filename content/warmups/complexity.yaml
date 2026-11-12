@@ -1,0 +1,150 @@
+- id: big-o-vector-push-back
+  topic: "Complexity"
+  question: "What is the amortized cost of `std::vector::push_back`?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n log n)"]
+  answer: 0
+  explain: "Most calls just write an element. The occasional reallocation copies everything, but since the capacity grows geometrically those costs average out to a constant per push (amortized O(1))."
+
+- id: big-o-vector-insert-front
+  topic: "Complexity"
+  question: "What is the cost of inserting an element at the front of a `std::vector` of n elements?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n^2)"]
+  answer: 2
+  explain: "Every existing element must shift up by one place, so the cost grows linearly with n. A `std::deque` inserts at the front in O(1)."
+
+- id: big-o-binary-search
+  topic: "Complexity"
+  question: "What is the running time of a binary search in a sorted array of n elements?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n log n)"]
+  answer: 1
+  explain: "Each step halves the remaining range, so about log2(n) steps are needed: a million elements take about 20 comparisons."
+
+- id: big-o-nested-loops
+  topic: "Complexity"
+  question: "What is the running time of this code?"
+  code: |
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < n; ++j)
+            work();
+  choices: ["O(n)", "O(n log n)", "O(n^2)", "O(2^n)"]
+  answer: 2
+  explain: "The inner loop runs n times for each of the n outer iterations, so work() is called n * n times."
+
+- id: big-o-triangular-loops
+  topic: "Complexity"
+  question: "What is the running time of this code?"
+  code: |
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < i; ++j)
+            work();
+  choices: ["O(n)", "O(n log n)", "O(n^2)", "O(log n)"]
+  answer: 2
+  explain: "The inner loop runs 0 + 1 + 2 + ... + (n-1) = n(n-1)/2 times, which is still O(n^2): constant factors and lower terms do not change the class."
+
+- id: big-o-halving-loop
+  topic: "Complexity"
+  question: "What is the running time of this code?"
+  code: |
+    for (int i = n; i > 0; i /= 2)
+        work();
+  choices: ["O(n)", "O(log n)", "O(sqrt n)", "O(1)"]
+  answer: 1
+  explain: "The counter is halved each time, so the loop runs about log2(n) times."
+
+- id: big-o-map-lookup
+  topic: "Complexity"
+  question: "What is the lookup cost in a `std::map` with n elements?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n log n)"]
+  answer: 1
+  explain: "`std::map` is a balanced binary search tree (usually red-black), so a lookup walks one path from the root: O(log n). `std::unordered_map` is O(1) on average."
+
+- id: big-o-hash-worst
+  topic: "Complexity"
+  question: "What is the worst-case lookup cost in a hash table with n elements?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n^2)"]
+  answer: 2
+  explain: "If every key lands in the same bucket (a bad hash function, or an attacker choosing colliding keys), the lookup degenerates into a linear scan of one chain: O(n). The average is O(1)."
+
+- id: big-o-sorting
+  topic: "Complexity"
+  question: "What is the best time complexity possible for a general comparison-based sort of n elements?"
+  choices: ["O(n)", "O(n log n)", "O(n^2)", "O(log n)"]
+  answer: 1
+  explain: "A comparison sort must distinguish n! orderings, and each comparison gives one bit, so it needs about log2(n!) = O(n log n) comparisons. Counting and radix sorts beat this, but do not compare elements."
+
+- id: big-o-string-concat
+  topic: "Complexity"
+  question: "What is the running time of building a string of n characters with `s = s + \"x\";` in a loop?"
+  choices: ["O(n)", "O(n log n)", "O(n^2)", "O(1)"]
+  answer: 2
+  explain: "Each `s + \"x\"` builds a new string and copies the whole old one, so the total is 1 + 2 + ... + n = O(n^2). `s += \"x\"` is amortized O(1) per character."
+
+- id: big-o-fibonacci
+  topic: "Complexity"
+  question: "What is the running time of the naive recursive `fib(n) = fib(n-1) + fib(n-2)`?"
+  choices: ["O(n)", "O(n^2)", "O(2^n) (exponential)", "O(log n)"]
+  answer: 2
+  explain: "Each call makes two more calls, and the same values are recomputed again and again, so the number of calls grows exponentially. Memoization (or a loop) makes it O(n)."
+
+- id: big-o-matrix-multiply
+  topic: "Complexity"
+  question: "What is the running time of the schoolbook multiplication of two n x n matrices?"
+  choices: ["O(n^2)", "O(n^3)", "O(n log n)", "O(2^n)"]
+  answer: 1
+  explain: "Each of the n^2 result entries is a dot product of n products: n^3 multiplications in all. Strassen's algorithm gets about O(n^2.81), at the price of a large constant."
+
+- id: big-o-heap-push
+  topic: "Complexity"
+  question: "What is the cost of `push` on a binary heap (`std::priority_queue`) of n elements?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n log n)"]
+  answer: 1
+  explain: "The new element is added at the end and sifted up along one root-to-leaf path, which has about log2(n) levels. Building a heap from n elements takes only O(n)."
+
+- id: big-o-bfs
+  topic: "Complexity"
+  question: "What is the running time of a breadth-first search on a graph with V vertices and E edges (adjacency lists)?"
+  choices: ["O(V)", "O(E)", "O(V + E)", "O(V * E)"]
+  answer: 2
+  explain: "Every vertex is queued once and every edge is looked at once (twice in an undirected graph): O(V + E). With an adjacency matrix it would be O(V^2)."
+
+- id: big-o-linked-list-index
+  topic: "Complexity"
+  question: "What is the cost of reading the i-th element of a `std::list`?"
+  choices: ["O(1)", "O(log n)", "O(i), up to O(n)", "O(n^2)"]
+  answer: 2
+  explain: "A linked list has no random access: you follow `next` pointers from the beginning (or the end), one node at a time."
+
+- id: big-o-recurrence
+  topic: "Complexity"
+  question: "An algorithm splits its input in two halves, solves each recursively, and merges the results in O(n) time. What is its running time?"
+  choices: ["O(n)", "O(n log n)", "O(n^2)", "O(log n)"]
+  answer: 1
+  explain: "T(n) = 2T(n/2) + O(n): there are log2(n) levels and each level does O(n) work in total. This is merge sort."
+
+- id: big-o-space-merge-sort
+  topic: "Complexity"
+  question: "How much extra memory does a standard array-based merge sort need?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n^2)"]
+  answer: 2
+  explain: "Merging two sorted halves needs a temporary buffer as large as the data, so O(n) extra space. Heapsort needs O(1), and quicksort O(log n) for its recursion stack."
+
+- id: big-o-power-set
+  topic: "Complexity"
+  question: "How many subsets does a set of n elements have?"
+  choices: ["n^2", "2^n", "n!", "n log n"]
+  answer: 1
+  explain: "Each element is either in a subset or not: 2 choices for each of n elements gives 2^n subsets. Algorithms that enumerate them are exponential."
+
+- id: big-o-quickselect
+  topic: "Complexity"
+  question: "What is the average running time of finding the median of n unsorted numbers with quickselect (`std::nth_element`)?"
+  choices: ["O(1)", "O(log n)", "O(n)", "O(n log n)"]
+  answer: 2
+  explain: "Quickselect partitions around a pivot and continues in only one part, so the work is n + n/2 + n/4 + ... = O(n) on average. Sorting first would cost O(n log n)."
+
+- id: big-o-amortized-meaning
+  topic: "Complexity"
+  question: "What does \"amortized O(1)\" mean?"
+  choices: ["Every single operation takes constant time", "The average cost per operation over a worst-case sequence is constant", "The operation is O(1) on random input only", "The cost is constant after a warm-up"]
+  answer: 1
+  explain: "Amortized analysis averages over a sequence of operations: one operation may be expensive (a vector reallocation), but any n operations together cost O(n), whatever the input."

@@ -6,6 +6,10 @@ import { ToastHost } from "./components/ToastHost";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
+import { WarmupPage } from "./pages/Warmup";
+import { allCards } from "./warmup/bank";
+import { counts } from "./warmup/session";
+import { localDate } from "./state/streak";
 import { runner } from "./runner";
 import { useAllProgress } from "./state/store";
 
@@ -35,8 +39,12 @@ function RunnerStatus() {
 function Nav() {
   const state = useAllProgress();
   const earned = badgeDefs.filter((b) => isAvailable(b.rule, catalog) && state.badges[b.id]).length;
+  const { due } = counts({ cards: allCards, reviews: state.reviews, completed: new Set(Object.entries(state.lessons).filter(([, p]) => p.status === "complete").map(([id]) => id)), today: localDate(new Date()) });
   return (
     <nav className="nav" aria-label="Main">
+      <Link to="/warmup">
+        Warm-up{due > 0 && <span className="count" aria-label={`${due} cards to review`}>{Math.min(99, due)}</span>}
+      </Link>
       <Link to="/profile">
         Profile{earned > 0 && <span className="count" aria-label={`${earned} badges earned`}>{earned}</span>}
       </Link>
@@ -59,6 +67,7 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/warmup" element={<WarmupPage />} />
         <Route
           path="/lesson/:id"
           element={

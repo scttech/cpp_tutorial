@@ -80,3 +80,27 @@
   icon: "✂️"
   description: "After a lesson is complete, pass its tests again with fewer lines of code (blank lines and comments do not count)."
   rule: { type: custom-event, event: refactor, atLeast: 1 }
+
+- id: warm-up-bronze
+  name: "Warm-Up"
+  category: habits
+  tier: bronze
+  icon: "🏋️"
+  description: "Answer 5 warm-up cards correctly."
+  rule: { type: custom-event, event: warmup-correct, atLeast: 5 }
+
+- id: warm-up-silver
+  name: "Warm-Up"
+  category: habits
+  tier: silver
+  icon: "🏋️"
+  description: "Answer 25 warm-up cards correctly."
+  rule: { type: custom-event, event: warmup-correct, atLeast: 25 }
+
+- id: warm-up-gold
+  name: "Warm-Up"
+  category: habits
+  tier: gold
+  icon: "🏋️"
+  description: "Answer 100 warm-up cards correctly."
+  rule: { type: custom-event, event: warmup-correct, atLeast: 100 }

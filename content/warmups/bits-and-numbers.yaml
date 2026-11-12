@@ -1,0 +1,140 @@
+- id: bits-twos-complement-minus-one
+  topic: "Bits and numbers"
+  question: "In 8-bit two's complement, what is the bit pattern of -1?"
+  choices: ["10000001", "11111111", "10000000", "01111111"]
+  answer: 1
+  explain: "-1 is all ones: adding 1 to 11111111 overflows to 00000000. In two's complement the negative of x is `~x + 1`."
+
+- id: bits-int8-range
+  topic: "Bits and numbers"
+  question: "What is the range of an 8-bit signed integer in two's complement?"
+  choices: ["-127 to 127", "-128 to 127", "-128 to 128", "0 to 255"]
+  answer: 1
+  explain: "There are 256 patterns: 128 negative (-128 to -1), zero, and 127 positive. The extra negative value, -128, has no positive counterpart, so negating it overflows."
+
+- id: bits-uint8-wrap
+  topic: "Bits and numbers"
+  question: "What does this C++ code print?"
+  code: |
+    std::uint8_t x = 255;
+    x = x + 1;
+    std::cout << static_cast<int>(x);
+  choices: ["256", "0", "1", "Undefined behavior"]
+  answer: 1
+  explain: "`x + 1` is computed as an int (256) and converted back to uint8_t, which wraps modulo 256 to 0. Unsigned conversion and arithmetic wraparound are well defined; only signed overflow is undefined."
+
+- id: bits-clear-lowest-set
+  topic: "Bits and numbers"
+  question: "What does `x & (x - 1)` do?"
+  choices: ["Clears the lowest set bit", "Isolates the lowest set bit", "Sets the lowest clear bit", "Negates x"]
+  answer: 0
+  explain: "Subtracting 1 flips the lowest set bit and every bit below it, so ANDing with x clears exactly that bit. It is the basis of fast bit counting, and `x & (x - 1) == 0` tests for a power of two (or 0)."
+
+- id: bits-isolate-lowest-set
+  topic: "Bits and numbers"
+  question: "What does `x & -x` give for x = 12 (binary 1100)?"
+  choices: ["12", "4", "8", "1"]
+  answer: 1
+  explain: "-x is `~x + 1`, which keeps the lowest set bit and flips everything above it, so ANDing leaves only the lowest set bit: 0100 = 4."
+
+- id: bits-power-of-two-test
+  topic: "Bits and numbers"
+  question: "Which expression is true exactly when a positive integer x is a power of two?"
+  choices: ["(x & (x - 1)) == 0", "(x | (x - 1)) == 0", "(x ^ (x - 1)) == 0", "(x % 2) == 0"]
+  answer: 0
+  explain: "A power of two has a single set bit, and `x & (x - 1)` removes it, leaving 0. For x = 0 the test is also true, so check `x != 0` as well."
+
+- id: bits-shift-left
+  topic: "Bits and numbers"
+  question: "What is `1 << 4`?"
+  choices: ["4", "8", "16", "32"]
+  answer: 2
+  explain: "Shifting left by n multiplies by 2^n: 2^4 = 16 (binary 10000)."
+
+- id: bits-set-bit
+  topic: "Bits and numbers"
+  question: "Which expression sets bit k of x (counting from 0 at the least significant bit)?"
+  choices: ["x | (1u << k)", "x & (1u << k)", "x ^ (1u << k)", "x & ~(1u << k)"]
+  answer: 0
+  explain: "OR with a mask sets bits, `x & ~mask` clears them, `x ^ mask` toggles them, and `x & mask` tests them."
+
+- id: bits-clear-bit
+  topic: "Bits and numbers"
+  question: "Which expression clears bit k of x?"
+  choices: ["x | (1u << k)", "x & ~(1u << k)", "x ^ (1u << k)", "x & (1u << k)"]
+  answer: 1
+  explain: "`~(1u << k)` is a mask with every bit set except bit k; ANDing keeps all the other bits and clears bit k."
+
+- id: bits-hex-ff
+  topic: "Bits and numbers"
+  question: "What is 0xFF in decimal?"
+  choices: ["15", "127", "255", "256"]
+  answer: 2
+  explain: "0xFF = 15 * 16 + 15 = 255, the largest value of 8 bits. Each hexadecimal digit is exactly 4 bits."
+
+- id: bits-bits-needed
+  topic: "Bits and numbers"
+  question: "How many bits are needed to represent 1000 different values?"
+  choices: ["8", "10", "100", "1000"]
+  answer: 1
+  explain: "2^10 = 1024 >= 1000 > 512 = 2^9, so 10 bits are enough and 9 are not: the answer is ceil(log2(1000)) = 10."
+
+- id: bits-arithmetic-shift
+  topic: "Bits and numbers"
+  question: "On most platforms, what is -8 >> 1 in C++ for an int?"
+  choices: ["4", "-4", "0", "Undefined behavior"]
+  answer: 1
+  explain: "Since C++20 a right shift of a negative signed value is an arithmetic shift (the sign bit is copied), so -8 >> 1 is -4. Before C++20 it was implementation-defined, though arithmetic on all common compilers."
+
+- id: bits-float-inexact
+  topic: "Bits and numbers"
+  question: "Why is 0.1 + 0.2 == 0.3 false for doubles?"
+  choices: ["The compiler has a bug", "Neither 0.1 nor 0.2 nor 0.3 is exactly representable in binary floating point", "Doubles cannot add", "Because of integer overflow"]
+  answer: 1
+  explain: "0.1 is a repeating fraction in binary (0.000110011...), so each value is rounded, and the rounding errors do not cancel. Compare floating-point numbers with a tolerance."
+
+- id: bits-ieee-nan-compare
+  topic: "Bits and numbers"
+  question: "In IEEE 754 arithmetic, what does `NaN == NaN` evaluate to?"
+  choices: ["true", "false", "NaN", "It throws an exception"]
+  answer: 1
+  explain: "NaN compares unequal to everything, itself included (and `NaN != NaN` is true). That is why `std::isnan` exists, and why sorting data that contains NaNs is dangerous."
+
+- id: bits-endianness
+  topic: "Bits and numbers"
+  question: "The 32-bit value 0x01020304 is stored at address 100 on a little-endian machine. Which byte is at address 100?"
+  choices: ["0x01", "0x02", "0x03", "0x04"]
+  answer: 3
+  explain: "Little-endian stores the least significant byte first, so address 100 holds 0x04, then 0x03, 0x02 and 0x01. Network protocols use big-endian (\"network byte order\")."
+
+- id: bits-ascii-a
+  topic: "Bits and numbers"
+  question: "In ASCII, what is the code of the character 'A'?"
+  choices: ["0", "48", "65", "97"]
+  answer: 2
+  explain: "'A' is 65, 'a' is 97 (they differ by 32: one bit), and '0' is 48. That is why `c - '0'` converts a digit character to its value."
+
+- id: bits-utf8-bytes
+  topic: "Bits and numbers"
+  question: "How many bytes does the character \"é\" (U+00E9) take in UTF-8?"
+  choices: ["1", "2", "3", "4"]
+  answer: 1
+  explain: "UTF-8 uses 1 byte for U+0000 to U+007F (ASCII), 2 for up to U+07FF, 3 for up to U+FFFF and 4 beyond. That is why `std::string::size()` counts bytes, not characters."
+
+- id: bits-negate-twos
+  topic: "Bits and numbers"
+  question: "How do you negate an integer in two's complement?"
+  choices: ["Flip the sign bit only", "Invert all bits and add 1", "Subtract 1 and invert", "Shift left by 1"]
+  answer: 1
+  explain: "`-x == ~x + 1`: inverting turns x into -x - 1, and adding 1 corrects it. This is why a single addition circuit handles both signed and unsigned numbers."
+
+- id: bits-signed-unsigned-compare
+  topic: "Bits and numbers"
+  question: "What does this C++ code print?"
+  code: |
+    int a = -1;
+    unsigned b = 1;
+    std::cout << (a < b);
+  choices: ["1", "0", "It does not compile", "Undefined behavior"]
+  answer: 1
+  explain: "The usual arithmetic conversions turn -1 into the unsigned value 4294967295, which is not less than 1: it prints 0. Compilers warn about comparing signed and unsigned."

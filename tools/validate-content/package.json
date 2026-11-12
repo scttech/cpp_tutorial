@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "node mutants.mjs --check && node harness-selftest.mjs && node sanitizer-selftest.mjs && node validate.mjs && node friendly-check.mjs && node runtime-check.mjs && node gotchas-check.mjs --strict --run --wasm",
+    "validate": "node mutants.mjs --check && node harness-selftest.mjs && node sanitizer-selftest.mjs && node validate.mjs && node friendly-check.mjs && node runtime-check.mjs && node gotchas-check.mjs --strict --run --wasm && node warmups-check.mjs",
     "mutants": "node mutants.mjs",
     "mutants:check": "node mutants.mjs --check",
     "gotchas": "node gotchas-check.mjs --strict",
+    "warmups": "node warmups-check.mjs",
     "gotchas:demos": "node gotchas-check.mjs --strict --run --wasm",
     "compat": "node compat-wasm.mjs",
     "compat:check": "node compat-wasm.mjs --check"

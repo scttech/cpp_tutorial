@@ -85,9 +85,9 @@ function Output({ r }: { r: RunResult }) {
   );
 }
 
-function DemoBlock({ demo }: { demo: Demo }) {
+export function DemoBlock({ demo, defaultOpen = false }: { demo: Demo; defaultOpen?: boolean }) {
   return (
-    <details className="demo">
+    <details className="demo" open={defaultOpen || undefined}>
       <summary>Try it: the trap and the fix</summary>
       <div className="snips">
         <Snip label="The trap" tone="bad" initial={demo.bad.code} sanitize={demo.sanitize} server={demo.server} thread={demo.thread} />

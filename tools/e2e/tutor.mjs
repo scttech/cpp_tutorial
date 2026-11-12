@@ -105,9 +105,10 @@ try {
   const secret = sol.split("\n").find((l) => l.includes("Hello, World"))?.trim() ?? "";
   check(secret.length > 10, `found the distinctive solution line to look for (${secret})`);
 
-  check((await page.getByRole("option", { name: /Review/ }).isDisabled()) && (await page.getByRole("option", { name: /Quiz/ }).isDisabled()), "Review and Quiz are locked until the lesson is passed");
+  check((await page.getByRole("option", { name: /Review/ }).isDisabled()) && (await page.getByRole("option", { name: /Quiz/ }).isDisabled()) && (await page.getByRole("option", { name: /Another one/ }).isDisabled()), "Review, Quiz and Another one like this are locked until the lesson is passed");
+  check((await page.getByRole("button", { name: "Another one like this" }).count()) === 0, "the one-click practice button is not shown before the lesson is passed");
   const modes = await page.getByLabel("Help mode").locator("option").allTextContents();
-  check(modes.length === 8 && modes.some((m) => m.startsWith("Discuss")), `eight modes including Discuss (${modes.length})`);
+  check(modes.length === 9 && modes.some((m) => m.startsWith("Discuss")), `nine modes including Discuss and practice (${modes.length})`);
 
   await ask(page, "nudge", "I'm lost. Where do I begin?");
   await page.locator(".tutor-reply", { hasText: "What does" }).waitFor({ timeout: 10000 });
@@ -224,7 +225,7 @@ try {
 
   // ======================= Good Question =======================
   const q = await t.newPage({ init: withKey });
-  await mockApi(q, ["Think about what a stream is."]);
+  const qcalls = await mockApi(q, ["Think about what a stream is."]);
   await t.open(q, HELLO);
   await openTutor(q);
   await ask(q, "concept", "What is a stream?");
@@ -236,7 +237,11 @@ try {
   await q.waitForTimeout(500);
   const done = await idb(q);
   check(done?.events?.["good-question"]?.count === 1 && done?.badges?.["good-question"], "explain, then pass without revealing: the Good Question badge is earned");
-  check((await q.getByRole("option", { name: /Review/ }).isEnabled()) && (await q.getByRole("option", { name: /Quiz/ }).isEnabled()), "Review and Quiz unlock once the lesson is passed");
+  check((await q.getByRole("option", { name: /Review/ }).isEnabled()) && (await q.getByRole("option", { name: /Quiz/ }).isEnabled()) && (await q.getByRole("option", { name: /Another one/ }).isEnabled()), "Review, Quiz and Another one like this unlock once the lesson is passed");
+  const before = qcalls.length;
+  await q.getByRole("button", { name: "Another one like this" }).click();
+  await q.locator(".tutor-reply", { hasText: "stream" }).nth(1).waitFor({ timeout: 10000 });
+  check(qcalls.length === before + 1 && qcalls.at(-1).body.system.includes("PRACTICE") && qcalls.at(-1).body.system.includes("Do NOT write a solution"), "the practice button asks the tutor for a fresh problem, and forbids a solution");
   await q.close();
 
   // using the tutor costs the Self-Reliant badge, as hints do

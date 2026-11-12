@@ -5,6 +5,7 @@ import type { BadgeDef } from "../badges/engine";
 import { idbDelete, idbGet, idbSet } from "./idb";
 import { emptyLesson, emptyProgress, normalize } from "./model";
 import type { LessonProgress, Progress } from "./model";
+import { applyReview } from "./reviews";
 import { applyRun } from "./recorder";
 import type { RunInput } from "./recorder";
 import { pushToast } from "./toasts";
@@ -147,6 +148,16 @@ export function recordRun(input: Omit<RunInput, "sessionCompileErrors">, now = n
   sessionCompileErrors = outcome.sessionCompileErrors;
   const earned = newlyEarned(badgeDefs, outcome.state, catalog);
   commit(awardBadges(outcome.state, earned, now.toISOString()));
+  const defs = earned.map((e) => badgeDefs.find((b) => b.id === e.id)).filter((b): b is BadgeDef => b !== undefined);
+  for (const b of defs) pushToast({ kind: "badge", title: `Badge earned: ${b.name}${b.tier ? ` (${b.tier})` : ""}`, body: b.description, icon: b.icon, badgeId: b.id });
+  return defs;
+}
+
+/** Record the answer to a warm-up card, award any newly earned badge, and announce it. */
+export function recordReview(cardId: string, correct: boolean, now = new Date()): BadgeDef[] {
+  const after = applyReview(state, cardId, correct, now);
+  const earned = newlyEarned(badgeDefs, after, catalog);
+  commit(awardBadges(after, earned, now.toISOString()));
   const defs = earned.map((e) => badgeDefs.find((b) => b.id === e.id)).filter((b): b is BadgeDef => b !== undefined);
   for (const b of defs) pushToast({ kind: "badge", title: `Badge earned: ${b.name}${b.tier ? ` (${b.tier})` : ""}`, body: b.description, icon: b.icon, badgeId: b.id });
   return defs;

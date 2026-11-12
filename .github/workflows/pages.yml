@@ -64,6 +64,11 @@ jobs:
         run: node gotchas-check.mjs --strict
         working-directory: tools/validate-content
 
+      # The warm-up question bank (content/warmups): well-formed questions, unique ids, a sensible spread of right answers.
+      - name: Warm-up question bank
+        run: node warmups-check.mjs
+        working-directory: tools/validate-content
+
   deploy:
     needs: verify
     if: github.event_name != 'pull_request'

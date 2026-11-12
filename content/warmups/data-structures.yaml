@@ -1,0 +1,104 @@
+- id: ds-stack-lifo
+  topic: "Data structures"
+  question: "Which order does a stack remove its elements in?"
+  choices: ["First in, first out", "Last in, first out", "Smallest first", "Random order"]
+  answer: 1
+  explain: "A stack is LIFO: the most recently pushed element is popped first. Function calls, undo and depth-first search all use one."
+
+- id: ds-queue-fifo
+  topic: "Data structures"
+  question: "Which data structure removes the oldest element first?"
+  choices: ["A stack", "A queue", "A max-heap", "A set"]
+  answer: 1
+  explain: "A queue is FIFO: elements leave in the order they arrived, which makes it the natural structure for breadth-first search and for scheduling work."
+
+- id: ds-bfs-queue
+  topic: "Data structures"
+  question: "Which data structure does a breadth-first search use to remember what to visit next?"
+  choices: ["A stack", "A queue", "A priority queue", "A hash set only"]
+  answer: 1
+  explain: "BFS visits vertices in order of distance from the start, which is exactly first-in, first-out. Depth-first search uses a stack (or recursion), and Dijkstra's algorithm a priority queue."
+
+- id: ds-bst-inorder
+  topic: "Data structures"
+  question: "What order does an in-order traversal of a binary search tree visit the keys in?"
+  choices: ["Pre-order (parents first)", "Sorted, from smallest to largest", "Level by level", "Random"]
+  answer: 1
+  explain: "In-order visits the left subtree, the node, then the right subtree. Because the left holds smaller keys and the right larger ones, the result is sorted."
+
+- id: ds-balanced-tree
+  topic: "Data structures"
+  question: "Why do `std::map` and `std::set` use self-balancing trees (such as red-black trees)?"
+  choices: ["To use less memory", "To keep lookups, inserts and erases at O(log n) in the worst case", "To make iteration unordered", "To allow duplicate keys"]
+  answer: 1
+  explain: "An unbalanced binary search tree can degrade into a linked list (O(n)) if keys arrive in order. Balancing keeps the height at O(log n) whatever the insertion order."
+
+- id: ds-hash-collision
+  topic: "Data structures"
+  question: "Two different keys hash to the same bucket. What is this called, and what do hash tables do about it?"
+  choices: ["A collision, handled by chaining or probing", "An overflow, handled by crashing", "A rehash, which is always an error", "A deadlock, handled by locking"]
+  answer: 0
+  explain: "Collisions are unavoidable (more keys than buckets). Chaining keeps a list per bucket; open addressing probes for the next free slot. A good hash function keeps them rare."
+
+- id: ds-trie
+  topic: "Data structures"
+  question: "Which data structure is best for finding all words with a given prefix?"
+  choices: ["A hash table", "A trie (prefix tree)", "A binary heap", "A stack"]
+  answer: 1
+  explain: "A trie stores strings character by character along paths from the root, so all words sharing a prefix share a subtree: finding them costs O(length of the prefix + results)."
+
+- id: ds-heap-top
+  topic: "Data structures"
+  question: "What does the top of a binary min-heap hold?"
+  choices: ["The most recently inserted element", "The smallest element", "The median", "The largest element"]
+  answer: 1
+  explain: "A min-heap keeps the smallest element at the root, available in O(1); removing it costs O(log n). `std::priority_queue` is a max-heap by default."
+
+- id: ds-adjacency-list-vs-matrix
+  topic: "Data structures"
+  question: "For a sparse graph with many vertices and few edges, which representation is usually better?"
+  choices: ["An adjacency matrix", "Adjacency lists", "A 2D array of strings", "A single sorted array"]
+  answer: 1
+  explain: "A matrix needs V^2 entries however few edges there are; adjacency lists need only V + E. A matrix wins for dense graphs and for O(1) tests of whether an edge exists."
+
+- id: ds-union-find
+  topic: "Data structures"
+  question: "Which data structure answers \"are these two elements in the same group?\" and merges groups, in nearly constant time?"
+  choices: ["A linked list", "Union-find (disjoint set union)", "A binary heap", "A queue"]
+  answer: 1
+  explain: "Union-find with path compression and union by rank takes inverse-Ackermann time per operation, practically constant. It is used in Kruskal's minimum spanning tree algorithm and in connected-component labelling."
+
+- id: ds-lru-cache
+  topic: "Data structures"
+  question: "Which two structures together give an LRU cache with O(1) get and put?"
+  choices: ["A vector and a stack", "A hash map and a doubly linked list", "A binary tree and a queue", "Two arrays"]
+  answer: 1
+  explain: "The hash map finds an entry in O(1); the linked list keeps the entries in recency order, so moving an entry to the front and evicting the back are both O(1) with `splice`."
+
+- id: ds-bloom-filter
+  topic: "Data structures"
+  question: "A Bloom filter says \"no\" for an item. What do you know?"
+  choices: ["The item was probably not added", "The item was definitely never added", "The item was added but deleted", "Nothing"]
+  answer: 1
+  explain: "A Bloom filter has no false negatives: a \"no\" is certain. A \"yes\" may be wrong (a false positive), with a probability you choose by sizing the filter."
+
+- id: ds-ring-buffer
+  topic: "Data structures"
+  question: "Which structure is a fixed-size array used as if its ends were joined, overwriting the oldest data when full?"
+  choices: ["A ring (circular) buffer", "A skip list", "A trie", "A treap"]
+  answer: 0
+  explain: "A ring buffer keeps a head and a count and wraps indices with a modulo. It gives O(1) push and pop with no allocation, which suits logging, audio and producer-consumer queues."
+
+- id: ds-sorted-array-vs-tree
+  topic: "Data structures"
+  question: "Compared with a sorted array, what is an advantage of a balanced binary search tree?"
+  choices: ["Faster binary search", "Inserts and erases in O(log n) instead of O(n)", "Less memory per element", "Better cache locality"]
+  answer: 1
+  explain: "A sorted array searches in O(log n) and is very cache-friendly, but each insert shifts elements. A tree inserts in O(log n) but pays with pointer chasing and memory overhead."
+
+- id: ds-deque
+  topic: "Data structures"
+  question: "Which structure gives O(1) push and pop at both ends, and O(1) random access?"
+  choices: ["std::list", "std::vector", "std::deque", "std::forward_list"]
+  answer: 2
+  explain: "`std::deque` stores its elements in chunks, so both ends grow in O(1) and indexing is O(1). A `vector` is only O(1) at the back, and a `list` has no random access."

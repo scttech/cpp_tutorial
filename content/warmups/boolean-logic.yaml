@@ -1,0 +1,206 @@
+- id: de-morgan-and
+  topic: "Boolean logic"
+  question: "Which expression is always equal to !(a && b)?"
+  choices: ["!a && !b", "!a || !b", "a || !b", "!a && b"]
+  answer: 1
+  explain: "De Morgan's law: the negation of an AND is the OR of the negations, `!(a && b) == !a || !b`. Check it with a truth table: when only one of a and b is true, both sides are true."
+
+- id: de-morgan-or
+  topic: "Boolean logic"
+  question: "Which expression is always equal to !(a || b)?"
+  choices: ["!a || !b", "!a && !b", "a && b", "!a && b"]
+  answer: 1
+  explain: "De Morgan's other law: the negation of an OR is the AND of the negations, `!(a || b) == !a && !b`. Both sides are true only when a and b are both false."
+
+- id: short-circuit-effect
+  topic: "Boolean logic"
+  question: "What does this C++ program print?"
+  code: |
+    int calls = 0;
+    bool f() { ++calls; return true; }
+    int main() {
+        bool r = false && f();
+        std::cout << calls;
+    }
+  choices: ["0", "1", "2", "It does not compile"]
+  answer: 0
+  explain: "`&&` short-circuits: when the left operand is false the right one is never evaluated, so `f()` is not called. `||` does the same when its left operand is true."
+
+- id: xor-truth
+  topic: "Boolean logic"
+  question: "For two boolean inputs, when is a XOR b true?"
+  choices: ["When both are true", "When at least one is true", "When exactly one is true", "When both are false"]
+  answer: 2
+  explain: "XOR is \"exclusive or\": it is true when the inputs differ. Unlike OR it is false when both are true."
+
+- id: implication-false
+  topic: "Boolean logic"
+  question: "The implication \"a implies b\" is false for exactly one input combination. Which?"
+  choices: ["a false, b true", "a true, b false", "a false, b false", "a true, b true"]
+  answer: 1
+  explain: "\"a implies b\" is the same as `!a || b`. It is only false when the premise a is true and the conclusion b is false; a false premise makes it true whatever b is."
+
+- id: double-negation
+  topic: "Boolean logic"
+  question: "What does `!!x` give for `int x = 5;` in C++?"
+  choices: ["5", "1 (true)", "0 (false)", "-5"]
+  answer: 1
+  explain: "`!x` is false (0) for a non-zero value, and `!!x` turns it back into true: the value 1 of type bool. `!!x` is the old idiom for \"convert to bool\"."
+
+- id: absorption
+  topic: "Boolean logic"
+  question: "Which expression is equal to a || (a && b)?"
+  choices: ["a", "b", "a && b", "a || b"]
+  answer: 0
+  explain: "Absorption law: if a is true the whole thing is true, and if a is false both parts are false. So `a || (a && b) == a`, and the dual `a && (a || b) == a`."
+
+- id: distribution
+  topic: "Boolean logic"
+  question: "Which expression is equal to a && (b || c)?"
+  choices: ["(a && b) || c", "(a && b) || (a && c)", "(a || b) && (a || c)", "a || (b && c)"]
+  answer: 1
+  explain: "AND distributes over OR: `a && (b || c) == (a && b) || (a && c)`. OR also distributes over AND, `a || (b && c) == (a || b) && (a || c)`, which surprises people who know only arithmetic."
+
+- id: nand-universal
+  topic: "Boolean logic"
+  question: "Which single gate can build every other logic gate?"
+  choices: ["AND", "OR", "NAND", "XOR"]
+  answer: 2
+  explain: "NAND (and NOR) is universal: NOT is `NAND(a, a)`, AND is a NAND followed by that NOT, and OR follows by De Morgan. AND, OR and XOR alone cannot build NOT."
+
+- id: truth-table-rows
+  topic: "Boolean logic"
+  question: "How many rows does the truth table of a function of 4 boolean variables have?"
+  choices: ["8", "12", "16", "32"]
+  answer: 2
+  explain: "Each variable doubles the number of combinations, so n variables give 2^n rows: 2^4 = 16."
+
+- id: tautology
+  topic: "Boolean logic"
+  question: "Which expression is true for every value of a?"
+  choices: ["a && !a", "a || !a", "a ^ a", "a && a"]
+  answer: 1
+  explain: "`a || !a` is the law of the excluded middle: exactly one of a and !a is true. `a && !a` is its opposite, a contradiction, always false."
+
+- id: precedence-and-or
+  topic: "Boolean logic"
+  question: "In C++, how is `a || b && c` grouped?"
+  choices: ["(a || b) && c", "a || (b && c)", "It depends on the compiler", "It does not compile"]
+  answer: 1
+  explain: "`&&` binds tighter than `||`, like multiplication over addition. Add parentheses anyway: `a || (b && c)` says what you mean, and compilers warn about the unparenthesized form."
+
+- id: not-binds-tight
+  topic: "Boolean logic"
+  question: "In C++, `!a == b` means which of these?"
+  choices: ["!(a == b)", "(!a) == b", "a != b", "It is a syntax error"]
+  answer: 1
+  explain: "The unary `!` has a higher precedence than `==`, so it applies to `a` only. To negate the comparison write `!(a == b)` or `a != b`."
+
+- id: xnor
+  topic: "Boolean logic"
+  question: "For booleans, which expression is true exactly when a and b are equal?"
+  choices: ["a ^ b", "!(a ^ b)", "a && !b", "a || b"]
+  answer: 1
+  explain: "XNOR is the negation of XOR: it is true when both inputs are the same. In C++ you can simply write `a == b` for two bools."
+
+- id: simplify-split
+  topic: "Boolean logic"
+  question: "Simplify (a && b) || (a && !b)."
+  choices: ["a", "b", "a && b", "true"]
+  answer: 0
+  explain: "Factor out a: `a && (b || !b)`, and `b || !b` is always true, so the result is `a`. This is the combining (or adjacency) law."
+
+- id: nor-of-falses
+  topic: "Boolean logic"
+  question: "What is NOR(false, false)?"
+  choices: ["false", "true", "It depends", "Undefined"]
+  answer: 1
+  explain: "NOR is NOT-OR: `!(false || false) == !false == true`. NOR is true only when every input is false."
+
+- id: half-adder
+  topic: "Boolean logic"
+  question: "A half adder adds two bits. Which pair gives its sum bit and its carry bit?"
+  choices: ["sum = a AND b, carry = a XOR b", "sum = a XOR b, carry = a AND b", "sum = a OR b, carry = a AND b", "sum = a XOR b, carry = a OR b"]
+  answer: 1
+  explain: "1 + 1 = 10 in binary: the sum bit is 0 (XOR) and the carry is 1 (AND). A full adder chains two half adders and ORs their carries."
+
+- id: multiplexer
+  topic: "Boolean logic"
+  question: "A 2-way multiplexer outputs `(s && b) || (!s && a)`. What does it output when s is false?"
+  choices: ["b", "a", "a && b", "Always false"]
+  answer: 1
+  explain: "When s is false the first term `s && b` is false and the second reduces to `a`. A multiplexer selects one of its inputs with the select line."
+
+- id: assignment-in-condition
+  topic: "Boolean logic"
+  question: "What does this C++ code print?"
+  code: |
+    int x = 3;
+    if (x = 0) std::cout << "yes";
+    else std::cout << "no";
+  choices: ["yes", "no", "It does not compile", "Nothing"]
+  answer: 1
+  explain: "`x = 0` is an assignment, not a comparison: it sets x to 0 and its value, 0, is false, so the else branch runs. Compilers warn about this; write `==` for comparison."
+
+- id: truthy-integers
+  topic: "Boolean logic"
+  question: "In C++, is the condition `if (-1)` true or false?"
+  choices: ["False: only positive numbers are true", "True: any non-zero value is true", "False: negative numbers are false", "A compile error"]
+  answer: 1
+  explain: "Any non-zero scalar converts to true, and only 0 (or null) converts to false. So `-1`, `5` and `0.1` are all true."
+
+- id: chained-comparison
+  topic: "Boolean logic"
+  question: "What does `3 > 2 > 1` evaluate to in C++?"
+  choices: ["true, as in mathematics", "false", "A compile error", "It is undefined"]
+  answer: 1
+  explain: "It is parsed as `(3 > 2) > 1`. The inner comparison is true, which is the integer 1, and `1 > 1` is false. C++ has no chained comparisons; write `a > b && b > c`."
+
+- id: nan-detection
+  topic: "Boolean logic"
+  question: "Which expression is true only when the double x is NaN?"
+  choices: ["x == NAN", "x != x", "x < 0 || x > 0", "x == 0"]
+  answer: 1
+  explain: "NaN is not equal to anything, itself included, so `x != x` is true exactly for NaN (this is what `std::isnan` does). `x == NAN` is always false."
+
+- id: karnaugh-or
+  topic: "Boolean logic"
+  question: "Simplify (!a && b) || (a && b) || (a && !b)."
+  choices: ["a && b", "a || b", "a ^ b", "!a || !b"]
+  answer: 1
+  explain: "The three terms cover every combination except a = b = false, which is exactly `a || b`. Karnaugh maps make this kind of simplification visible."
+
+- id: two-input-functions
+  topic: "Boolean logic"
+  question: "How many different boolean functions of two inputs exist?"
+  choices: ["4", "8", "16", "256"]
+  answer: 2
+  explain: "A two-input function has 4 rows in its truth table, each giving 0 or 1, so there are 2^4 = 16 functions (AND, OR, XOR, NAND, NOR, XNOR, implications, constants, and so on)."
+
+- id: majority
+  topic: "Boolean logic"
+  question: "The majority function is true when at least two of three inputs are true. What does it give for a = 1, b = 0, c = 1?"
+  choices: ["0", "1", "Undefined", "It depends on the order"]
+  answer: 1
+  explain: "Two of the three inputs are true, so the majority is 1: `(a && b) || (a && c) || (b && c)` evaluates to `false || true || false`."
+
+- id: de-morgan-three
+  topic: "Boolean logic"
+  question: "Which expression is always equal to !(a && b && c)?"
+  choices: ["!a && !b && !c", "!a || !b || !c", "!a || b || c", "a || b || c"]
+  answer: 1
+  explain: "De Morgan's law extends to any number of terms: the negation of an AND is the OR of the negations, so `!(a && b && c) == !a || !b || !c`."
+
+- id: xor-parity
+  topic: "Boolean logic"
+  question: "What is 1 XOR 1 XOR 1?"
+  choices: ["0", "1", "3", "Undefined"]
+  answer: 1
+  explain: "A chain of XORs gives 1 when the number of ones is odd (the parity): three ones is odd, so the result is 1. XOR is associative, so the grouping does not matter."
+
+- id: boolean-identity
+  topic: "Boolean logic"
+  question: "Which expression is equal to a && true?"
+  choices: ["true", "false", "a", "!a"]
+  answer: 2
+  explain: "True is the identity of AND (`a && true == a`), and false is the identity of OR (`a || false == a`). The opposite constants dominate: `a && false == false`, `a || true == true`."

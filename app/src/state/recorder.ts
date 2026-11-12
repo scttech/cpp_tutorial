@@ -35,7 +35,7 @@ export interface RunOutcome {
   becameComplete: boolean;
 }
 
-function bumpEvent(state: Progress, name: string, nowIso: string, by = 1): Progress {
+export function bumpEvent(state: Progress, name: string, nowIso: string, by = 1): Progress {
   const cur = state.events[name]?.count ?? 0;
   return { ...state, events: { ...state.events, [name]: { count: cur + by, lastAt: nowIso } } };
 }
