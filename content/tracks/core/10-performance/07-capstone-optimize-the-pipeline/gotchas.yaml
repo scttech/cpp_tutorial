@@ -1,0 +1,148 @@
+parsing-with-istringstream:
+  title: "`istringstream` is a slow way to parse numbers"
+  text: "Constructing a stream per line, and extracting through locale-aware formatting, costs far more than the work. `std::from_chars` parses an integer from a `string_view` with no allocation and no locale."
+split-into-a-vector-of-strings:
+  title: "Splitting into a vector of strings allocates for every field"
+  text: "Copying each field into its own `std::string` allocates per field. Split into `std::string_view`s that point into the line, and keep the line alive while you use them."
+linear-search-per-line:
+  title: "A linear search for every line is quadratic"
+  text: "Looking a key up in a `vector` of seen keys for every one of n lines costs O(n squared). Use a hash map, which makes each lookup O(1)."
+copying-the-key:
+  title: "Copying the key to look it up"
+  text: "Building a `std::string` just to find it in a map allocates on every lookup. Use a heterogeneous lookup (`std::less<>`, a transparent hash), or a `string_view`."
+sorting-everything-for-the-top-three:
+  title: "Sorting everything to find the top three"
+  text: "A full sort is O(n log n); `std::partial_sort` for the top 3 is O(n log 3), which is about linear. Use it when you need only a few of the largest."
+tabs-and-carriage-returns:
+  title: "Tabs and carriage returns are whitespace too"
+  text: "Lines may be separated by tabs, or end with `\\r` from a Windows file. Trim both when parsing, or a field such as \"42\\r\" fails to parse."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            std::cout << (line == "ERROR") << "\n";   // the \r is still there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // strip it
+            std::cout << (line == "ERROR") << "\n";
+        }
+      out: "1\n"
+ten-digit-numbers:
+  title: "Ten-digit numbers do not fit in an `int`"
+  text: "A value like 9,999,999,999 overflows a 32-bit `int`. `from_chars` reports `result_out_of_range`; parse into a `long long`, and check the error code."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "99999999999";
+            int value = 0;
+            std::from_chars(text.data(), text.data() + text.size(), value);   // result ignored
+            std::cout << value << "\n";   // still 0, and nobody noticed
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "99999999999";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            if (r.ec == std::errc::result_out_of_range) std::cout << "out of range\n";
+            else std::cout << value << "\n";
+        }
+      out: "out of range\n"
+sign-and-garbage-after-the-number:
+  title: "A sign, or garbage, after the number"
+  text: "\"+5\" is rejected by `from_chars`, and \"12abc\" is accepted as 12 with `abc` left over. Handle an optional sign yourself, and check that the whole token was consumed."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+level-prefix-matches:
+  title: "A prefix match is not an equal match"
+  text: "Checking `line.starts_with(\"ERROR\")` also matches \"ERRORS\" and \"ERROR_CODE\". Compare the whole token when the level must be exactly `ERROR`."
+int-total-overflows:
+  title: "A total in an `int` overflows"
+  text: "Adding up millions of values overflows an `int` (undefined behavior for signed). Keep totals in `long long` or `uint64_t`."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            int sum = 0;
+            for (int x : v) sum += x;   // overflows an int
+            std::cout << sum << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            long long sum = 0;   // a wider accumulator
+            for (int x : v) sum += x;
+            std::cout << sum << "\n";
+        }
+      out: "2147483648\n"
+ties-by-name:
+  title: "Ties need a deterministic order"
+  text: "When two entries have the same count, the specification names the tie-break, usually by name. Implement it in the comparator, or the output changes with the hash order."
+changing-behaviour-while-optimizing:
+  title: "Optimizing must not change the output"
+  text: "A faster parser that accepts input the old one rejected, or the other way round, is a behavior change. Keep the old tests passing after every optimization."

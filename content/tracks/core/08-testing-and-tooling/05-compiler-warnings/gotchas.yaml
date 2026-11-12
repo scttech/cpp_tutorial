@@ -1,0 +1,103 @@
+silencing-with-a-cast:
+  title: "A cast silences a warning without fixing the problem"
+  text: "Casting a `long long` to `int` to remove a conversion warning keeps the truncation: it only hides it. Fix the cause (use the right type), or check that the value fits first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            long long big = 5000000000LL;
+            int n = static_cast<int>(big);   // the warning is gone, the truncation is not
+            std::cout << n << "\n";
+        }
+      out: "705032704\n"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main() {
+            long long big = 5000000000LL;
+            if (big > INT_MAX) std::cout << "too big\n";   // check before narrowing
+            else std::cout << static_cast<int>(big) << "\n";
+        }
+      out: "too big\n"
+silencing-with-a-pragma:
+  title: "A pragma that disables a warning hides the bug"
+  text: "`#pragma GCC diagnostic ignored` makes the message disappear for the whole region, including for the next bug in it. Fix the code, and if you must suppress, do it for one line and say why."
+maybe-unused-on-a-real-bug:
+  title: "`[[maybe_unused]]` on a variable that should be used"
+  text: "An unused variable is often a typo or a missing step (you computed it, then forgot to use it). Marking it `[[maybe_unused]]` silences the one warning that was pointing at the bug."
+default-label-hides-the-missing-case:
+  title: "`default:` hides a missing enumerator"
+  text: "With a `default:` label the compiler stops warning when you add an enumerator and forget to handle it. Switch over an `enum class` without `default`, with `-Wswitch` on, so every new value is flagged."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        enum class Color { Red, Green, Blue };
+
+        const char* name(Color c) {
+            switch (c) {
+                case Color::Red: return "red\n";
+                case Color::Green: return "green\n";
+                default: return "other\n";   // Blue lands here, and nothing warns
+            }
+        }
+
+        int main() {
+            std::cout << name(Color::Blue);
+        }
+      out: "other\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        enum class Color { Red, Green, Blue };
+
+        const char* name(Color c) {
+            switch (c) {   // no default: -Wswitch flags a missing enumerator
+                case Color::Red: return "red\n";
+                case Color::Green: return "green\n";
+                case Color::Blue: return "blue\n";
+            }
+            return "?\n";
+        }
+
+        int main() {
+            std::cout << name(Color::Blue);
+        }
+      out: "blue\n"
+double-parentheses-hide-the-assignment:
+  title: "Double parentheses silence \"assignment in a condition\""
+  text: "`if ((x = f()))` tells the compiler the assignment is deliberate, which is fine when it is. `if (x = 5)` is nearly always a typo for `==`; the warning exists for it, so do not silence it blindly."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = 3;
+            if (x = 5) std::cout << "yes\n";   // assigns 5, always true
+            std::cout << x << "\n";
+        }
+      out: "yes\n5\n"
+      warns: "assignment"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = 3;
+            if (x == 5) std::cout << "yes\n";   // compares
+            std::cout << x << "\n";
+        }
+      out: "3\n"
+shadowing-fixed-by-renaming-only:
+  title: "Renaming fixes shadowing, but check the logic"
+  text: "A variable that shadows another is often a sign that the inner one was meant to be the outer one. Look at what the code intended before you only rename it."
+warning-fixed-but-behavior-still-wrong:
+  title: "A warning-free build is not a correct one"
+  text: "Removing every warning makes the build clean, not the program right. The tests are what say that the behavior is correct, so run them after each warning fix."

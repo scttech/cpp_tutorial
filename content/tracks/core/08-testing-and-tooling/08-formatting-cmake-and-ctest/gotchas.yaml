@@ -1,0 +1,27 @@
+format-config-copied-from-another-project:
+  title: "Do not copy a `.clang-format` you did not read"
+  text: "A configuration from another project brings its column limit, brace style and include order with it. Start from a base style (`BasedOnStyle: Google`) and change only what your team decided."
+disabling-the-formatter:
+  title: "Disabling the formatter for a region"
+  text: "`// clang-format off` regions grow: the next person adds a line there, and the file is no longer consistently formatted. Use it for genuinely tabular code, and keep the region small."
+column-limit-zero:
+  title: "`ColumnLimit: 0` turns line wrapping off"
+  text: "With a column limit of 0 the formatter never wraps, so long lines stay long. Choose a limit your team can read (80 or 100) and let the tool do the wrapping."
+legacy-global-cmake-commands:
+  title: "Prefer target commands to global ones"
+  text: "`include_directories` and `add_definitions` affect every target in the directory. `target_include_directories` and `target_compile_definitions` apply to the target you name, which is what you meant."
+link-without-visibility-keyword:
+  title: "`target_link_libraries` needs PUBLIC, PRIVATE or INTERFACE"
+  text: "The keyword says whether users of your target also need the dependency. Leaving it out is the old, all-or-nothing form: say `PRIVATE` for what only the implementation uses."
+glob-for-sources:
+  title: "Do not `file(GLOB)` your sources"
+  text: "A glob is evaluated when CMake runs, so a new file is not picked up until you re-run it, and a deleted one breaks the build. List the source files explicitly."
+standard-set-with-a-compiler-flag:
+  title: "Set the standard with `CMAKE_CXX_STANDARD`"
+  text: "Adding `-std=c++20` by hand ties the build to one compiler's flag spelling. `target_compile_features(app PUBLIC cxx_std_20)` works on every compiler."
+warnings-added-globally:
+  title: "Add warnings per target, not globally"
+  text: "Putting `-Wall -Werror` in `CMAKE_CXX_FLAGS` applies it to third-party code too, which you cannot fix. Add warnings to your own targets with `target_compile_options`."
+cmake-keywords-only-in-comments:
+  title: "A CMakeLists.txt keyword in a comment does not count"
+  text: "A check that looks for `target_link_libraries` in the text of a file is satisfied by a comment containing it. Real checks parse the commands, or build the project."

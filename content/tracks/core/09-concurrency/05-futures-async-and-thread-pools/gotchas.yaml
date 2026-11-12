@@ -1,0 +1,193 @@
+task-runs-on-the-calling-thread:
+  title: "A task may run on the calling thread"
+  text: "With `std::launch::deferred`, or a pool with no worker threads, the task runs inside `get()` on the caller's thread. Do not assume a different thread; if it matters, check or force `std::launch::async`."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            auto main_id = std::this_thread::get_id();
+            auto f = std::async(std::launch::deferred, [] { return std::this_thread::get_id(); });   // runs inside get()
+            std::cout << (f.get() == main_id ? "same thread" : "different thread") << "\n";
+        }
+      out: "same thread\n"
+    fix:
+      code: |
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            auto main_id = std::this_thread::get_id();
+            auto f = std::async(std::launch::async, [] { return std::this_thread::get_id(); });   // a new thread
+            std::cout << (f.get() == main_id ? "same thread" : "different thread") << "\n";
+        }
+      out: "different thread\n"
+async-default-policy-may-be-deferred:
+  title: "`std::async` with the default policy may not run in parallel"
+  text: "The default policy lets the implementation choose `async` or `deferred`. For real concurrency, ask for `std::launch::async` explicitly."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            auto main_id = std::this_thread::get_id();
+            auto f = std::async(std::launch::deferred, [] { return std::this_thread::get_id(); });   // runs inside get()
+            std::cout << (f.get() == main_id ? "same thread" : "different thread") << "\n";
+        }
+      out: "same thread\n"
+    fix:
+      code: |
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            auto main_id = std::this_thread::get_id();
+            auto f = std::async(std::launch::async, [] { return std::this_thread::get_id(); });   // a new thread
+            std::cout << (f.get() == main_id ? "same thread" : "different thread") << "\n";
+        }
+      out: "different thread\n"
+async-future-blocks-in-its-destructor:
+  title: "The future of an `async` blocks in its destructor"
+  text: "A `std::future` returned by `std::async` waits for the task when it is destroyed, so a discarded temporary turns the \"asynchronous\" call into a synchronous one. Keep the future until you need the result."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <chrono>
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            using namespace std::chrono_literals;
+            std::async(std::launch::async, [] { std::this_thread::sleep_for(100ms); std::cout << "slow\n"; });   // the temporary future waits
+            std::cout << "after\n";
+        }
+      out: "slow\nafter\n"
+    fix:
+      code: |
+        #include <chrono>
+        #include <future>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            using namespace std::chrono_literals;
+            auto f = std::async(std::launch::async, [] { std::this_thread::sleep_for(100ms); std::cout << "slow\n"; });   // kept alive
+            std::cout << "after\n";
+            f.get();
+        }
+      out: "after\nslow\n"
+packaged-task-is-move-only:
+  title: "`packaged_task` is move-only"
+  text: "A `std::packaged_task` owns its result slot, so it cannot be copied. Move it into the queue or the thread, and do not try to share it by copy."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <future>
+
+        int main() {
+            std::packaged_task<int()> a([] { return 1; });
+            std::packaged_task<int()> b = a;   // cannot be copied
+        }
+      error: "deleted"
+    fix:
+      code: |
+        #include <future>
+        #include <iostream>
+        #include <utility>
+
+        int main() {
+            std::packaged_task<int()> a([] { return 1; });
+            auto f = a.get_future();
+            std::packaged_task<int()> b = std::move(a);   // moved, and the result slot comes along
+            b();
+            std::cout << f.get() << "\n";
+        }
+      out: "1\n"
+queue-of-std-function-needs-copyable:
+  title: "A `std::function` queue needs copyable tasks"
+  text: "A move-only task, such as a lambda capturing a `packaged_task` or `unique_ptr`, cannot be stored in a `std::function`. Wrap it in a `shared_ptr`, or use `std::move_only_function` (C++23)."
+  demo:
+    bad:
+      code: |
+        #include <functional>
+        #include <memory>
+
+        int main() {
+            std::function<void()> f = [p = std::make_unique<int>(1)] { (void)p; };   // move-only lambda
+        }
+      error: "std::function"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            std::function<void()> f = [p = std::make_shared<int>(1)] { std::cout << *p << "\n"; };
+            f();
+        }
+      out: "1\n"
+exception-lost-in-a-worker:
+  title: "An exception in a pool worker must not be lost"
+  text: "An exception escaping a worker thread terminates the program, and an exception swallowed silently loses the error. Capture it in the task's future (`packaged_task` does this) so `get()` rethrows it."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::thread t([] { throw std::runtime_error("boom"); });   // nobody can catch it
+            t.join();
+        }
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <exception>
+        #include <iostream>
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::exception_ptr error;
+            std::thread t([&] {
+                try { throw std::runtime_error("boom"); }
+                catch (...) { error = std::current_exception(); }   // catch it inside the thread
+            });
+            t.join();
+            try { if (error) std::rethrow_exception(error); }       // and rethrow where it can be handled
+            catch (const std::exception& e) { std::cout << "caught: " << e.what() << "\n"; }
+        }
+      out: "caught: boom\n"
+destructor-drops-queued-tasks:
+  title: "Destroying the pool must not drop queued tasks"
+  text: "Decide what destruction means: finish the queued tasks, or discard them and say so (a broken promise). Dropping them silently leaves futures that never become ready."
+thread-per-task:
+  title: "A thread per task does not scale"
+  text: "Starting a thread costs tens of microseconds and a stack, and thousands of them thrash the scheduler. A pool of about as many workers as cores, with a queue, reuses its threads."
+workers-spin-when-idle:
+  title: "Idle workers must sleep, not spin"
+  text: "A worker that loops checking an empty queue burns a core while idle. Block on a condition variable until a task arrives or the pool shuts down."
+task-waits-for-another-task:
+  title: "A task that waits for another task can deadlock the pool"
+  text: "If every worker is blocked in `get()` on a task still sitting in the queue, nobody is left to run it. Do not block inside tasks on other tasks of the same pool, or size or structure the pool to avoid it."
+forgot-to-notify:
+  title: "Submitting a task must wake a worker"
+  text: "Pushing a task onto the queue without `notify_one` leaves the workers asleep. Notify after the push, while or after holding the lock."
+submit-after-shutdown:
+  title: "Submitting after shutdown must fail clearly"
+  text: "A task submitted after the pool has stopped will never run, and its future would hang. Reject the submission with an error or a broken promise, so the caller finds out."

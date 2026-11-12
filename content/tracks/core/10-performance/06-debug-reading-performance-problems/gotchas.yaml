@@ -1,0 +1,127 @@
+insert-at-the-front-of-a-vector:
+  title: "Inserting at the front of a vector is O(n)"
+  text: "Every `insert(begin(), x)` shifts the whole vector, so n of them cost O(n squared). Push to the back and reverse once, or use a `std::deque`, which inserts at the front in O(1)."
+vector-passed-by-value-to-a-helper:
+  title: "A helper that takes a vector by value copies it"
+  text: "Each call to a helper with a `std::vector` parameter copies the whole vector, and a helper in a loop makes that quadratic. Take `const std::vector<T>&`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+plus-creates-a-temporary:
+  title: "`a + b + c` creates temporaries"
+  text: "Each `+` on strings builds a new string, so chains and loops of `s = s + x` copy repeatedly. Use `+=`, `append`, or reserve and build the result in place."
+double-lookup-count-then-at:
+  title: "`count` then `at` looks the key up twice"
+  text: "`if (m.count(k)) use(m.at(k));` searches the map twice. `auto it = m.find(k); if (it != m.end()) use(it->second);` searches once."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct CountingMap {
+            std::map<std::string, int> m{{"a", 1}};
+            int lookups = 0;
+            bool contains(const std::string& k) { ++lookups; return m.count(k) > 0; }
+            int at(const std::string& k) { ++lookups; return m.at(k); }
+        };
+
+        int main() {
+            CountingMap c;
+            if (c.contains("a")) (void)c.at("a");   // two searches
+            std::cout << c.lookups << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct CountingMap {
+            std::map<std::string, int> m{{"a", 1}};
+            int lookups = 0;
+            const int* find(const std::string& k) {
+                ++lookups;
+                auto it = m.find(k);
+                return it == m.end() ? nullptr : &it->second;
+            }
+        };
+
+        int main() {
+            CountingMap c;
+            if (const int* v = c.find("a")) (void)v;   // one search
+            std::cout << c.lookups << "\n";
+        }
+      out: "1\n"
+auto-loop-variable-copies:
+  title: "`for (auto x : v)` copies every element"
+  text: "`auto` deduces a value, so each element is copied. Write `const auto&` to read without copying, or `auto&` to modify."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"
+nested-loop-for-duplicates:
+  title: "A nested loop to find duplicates is quadratic"
+  text: "Comparing every element with every other takes n squared steps. Sort and compare neighbors (O(n log n)), or use a hash set (O(n))."
+fixing-the-wrong-function:
+  title: "The profile says which function to fix"
+  text: "Rewriting a function that takes 1% of the time achieves nothing. Read the profile first, from the top, and change the function that dominates it."
+changing-the-result-while-speeding-up:
+  title: "A faster program must give the same answer"
+  text: "An optimization that changes the output (order, rounding, a dropped case) is a bug. Keep the tests, and run them after every change."
+reading-the-biggest-number-first:
+  title: "Start from the biggest number"
+  text: "In a profile or a counter report, the largest figure is where the time goes. Fix that, measure again, and only then look at the next one."

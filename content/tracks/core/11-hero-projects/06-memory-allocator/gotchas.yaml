@@ -1,0 +1,147 @@
+alignment-of-payload:
+  title: "The payload must be aligned to 16"
+  text: "The pointer returned by `allocate` must be a multiple of 16, whatever the request. Round both the header and the payload offsets to 16, and check the actual address."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            char buf[16];
+            double* d = new (buf + 1) double(1.5);   // 1 byte off an 8-byte boundary
+            std::cout << *d << "\n";
+        }
+      reports: "misaligned"
+    fix:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            alignas(double) char buf[16];
+            double* d = new (buf) double(1.5);   // aligned for double
+            std::cout << *d << "\n";
+        }
+      out: "1.5\n"
+header-size-is-a-multiple-of-16:
+  title: "Keep the header a multiple of 16 bytes"
+  text: "If the header is 24 bytes, the payload after it starts at an address that is 8 modulo 16. Pad the header to 16 or 32 bytes, so the payload is aligned."
+minimum-block-size:
+  title: "A block must be big enough for the free-list links"
+  text: "A free block stores its `next` and `prev` pointers in the payload area, so every block needs at least 32 bytes, however small the request. Round tiny requests up."
+rounding-overflow:
+  title: "Rounding a size up can overflow"
+  text: "Adding 15 to a size close to the maximum `size_t` wraps around to a small number, so a huge request becomes a tiny allocation. Check for overflow before rounding."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t request = static_cast<std::size_t>(-1) - 5;   // almost the largest size
+            std::size_t rounded = (request + 15) & ~std::size_t{15};  // wraps around to a tiny number
+            std::cout << (rounded < request ? "wrapped" : "ok") << "\n";
+        }
+      out: "wrapped\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t request = static_cast<std::size_t>(-1) - 5;
+            if (request > static_cast<std::size_t>(-1) - 15) { std::cout << "too big\n"; return 0; }   // refuse
+            std::size_t rounded = (request + 15) & ~std::size_t{15};
+            std::cout << (rounded < request ? "wrapped" : "ok") << "\n";
+        }
+      out: "too big\n"
+allocate-zero:
+  title: "`allocate(0)` needs a decision"
+  text: "Return `nullptr`, or a minimum-size block, but do it consistently and document it. The standard `malloc(0)` may return either; users must not depend on it."
+splitting-leaves-a-sliver:
+  title: "Do not split off a block too small to use"
+  text: "If a free block is only a few bytes bigger than the request, splitting leaves a remainder smaller than the minimum block, which is wasted and corrupts the list. Hand out the whole block in that case."
+forgetting-to-update-the-neighbours-prev-size:
+  title: "A split must update the next block's header"
+  text: "After splitting a block, the block that follows it must record the new size of its predecessor, or backward coalescing later computes a wrong address."
+coalescing-with-the-previous-block-needs-boundary-tags:
+  title: "Coalescing backwards needs boundary tags"
+  text: "To merge with the previous block you must find its start. Store the previous block's size (a boundary tag) in each header, kept up to date on every split and merge."
+free-list-removal-before-merging:
+  title: "Remove a neighbor from the free list before merging"
+  text: "When you merge a freed block with a free neighbor, unlink the neighbor from the free list first. Otherwise the list keeps a pointer to the middle of the merged block."
+double-free:
+  title: "Freeing a block twice corrupts the list"
+  text: "A second `free` of the same pointer inserts the block into the free list twice. Check the header state (\"allocated\" or \"free\") and report or ignore the second free."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        int main() {
+            int* p = new int{1};
+            delete p;
+            delete p;   // freed twice
+        }
+      reports: "double-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        int main() {
+            auto p = std::make_unique<int>(1);   // freed exactly once, automatically
+            std::cout << *p << "\n";
+        }
+      out: "1\n"
+pointer-into-the-middle-of-a-block:
+  title: "A pointer into the middle of a block is not valid"
+  text: "`free(p + 8)` computes a header from a payload address that is not the start of a block. Validate that the pointer is aligned and that its header looks like a block."
+pointer-outside-the-arena:
+  title: "A pointer from outside the arena is not ours"
+  text: "Check that the pointer lies inside the arena before you read its header. Otherwise freeing a stack variable corrupts memory."
+realloc-failure-keeps-the-old-block:
+  title: "A failed `realloc` keeps the old block"
+  text: "If a bigger block cannot be found, return null and leave the original allocation intact and still owned by the caller. Freeing it first loses the data."
+realloc-copies-the-old-size-not-the-new:
+  title: "`realloc` copies the smaller of the two sizes"
+  text: "When growing, copy the old payload size; when shrinking, copy the new size. Copying the new size when growing reads past the old block."
+address-ordered-free-list-is-slow:
+  title: "An address-ordered free list makes `free` slow"
+  text: "Keeping the free list sorted by address makes every `free` walk the list to find the place. A boundary-tag design lets you coalesce in O(1) and insert at the head."
+writing-outside-the-arena:
+  title: "A write must stay inside the arena"
+  text: "A bug in the split or coalesce arithmetic that writes a header past the end of the arena corrupts whatever follows it. Assert block boundaries in tests, and run them under AddressSanitizer."
+misaligned-arena:
+  title: "The arena itself may not be aligned"
+  text: "A `char buffer[N]` can start at any address. Align the start of the usable area (the address, not the offset) to 16, and count the lost bytes as overhead."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            alignas(8) char storage[32];
+            char* base = storage + 1;                  // a buffer that does not start aligned
+            std::size_t offset = (0 + 7) & ~std::size_t{7};   // the offset is aligned ...
+            char* p = base + offset;
+            std::cout << (reinterpret_cast<std::uintptr_t>(p) % 8 == 0 ? "aligned" : "misaligned") << "\n";   // ... the address is not
+        }
+      out: "misaligned\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            alignas(8) char storage[32];
+            char* base = storage + 1;
+            std::uintptr_t a = reinterpret_cast<std::uintptr_t>(base);
+            a = (a + 7) & ~std::uintptr_t{7};          // align the address itself
+            char* p = reinterpret_cast<char*>(a);
+            std::cout << (reinterpret_cast<std::uintptr_t>(p) % 8 == 0 ? "aligned" : "misaligned") << "\n";
+        }
+      out: "aligned\n"

@@ -1,0 +1,180 @@
+pure-virtual-with-a-body:
+  title: "A pure virtual function can still have a body"
+  text: "`virtual void f() = 0;` may be defined out of line, and a derived class can call it as `Base::f()`. A pure virtual destructor must have a body, because every derived destructor calls it."
+  demo:
+    bad:
+      code: |
+        struct Base {
+            virtual ~Base() = 0;   // pure, and never defined
+        };
+        struct Derived : Base {};
+
+        int main() {
+            Derived d;
+        }
+      error: "Base::~Base"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual ~Base() = 0;
+        };
+        Base::~Base() { std::cout << "~Base\n"; }   // the body every derived destructor needs
+        struct Derived : Base {};
+
+        int main() {
+            Derived d;
+        }
+      out: "~Base\n"
+abstract-class-cannot-be-instantiated:
+  title: "An abstract class cannot be instantiated"
+  text: "A class with a pure virtual function is abstract: `Shape s;` and `new Shape` do not compile. Create an object of a concrete derived class and use it through a `Shape&` or `Shape*`."
+  demo:
+    bad:
+      code: |
+        struct Shape {
+            virtual double area() const = 0;
+        };
+
+        int main() {
+            Shape s;   // no such thing as a plain Shape
+        }
+      error: "abstract"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Shape {
+            virtual double area() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            double area() const override { return 4; }
+        };
+
+        int main() {
+            Square s;
+            std::cout << s.area() << "\n";
+        }
+      out: "4\n"
+interface-needs-a-virtual-destructor:
+  title: "An interface needs a virtual destructor"
+  text: "Objects are usually deleted through a pointer to the interface. Without `virtual ~Interface() = default;` that deletes only the base part, which is undefined behavior."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            ~Base() { std::cout << "~Base\n"; }   // not virtual
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;   // only ~Base can run
+        }
+      out: "~Base\n"
+      warns: "non-virtual"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            virtual ~Base() { std::cout << "~Base\n"; }   // virtual: the whole object is destroyed
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() override { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;
+        }
+      out: "~Derived\n~Base\n"
+fat-interface:
+  title: "Keep interfaces small"
+  text: "An interface with twenty functions forces every implementation to provide all of them, and every user to depend on all of them. Split it by what callers need (interface segregation)."
+interface-copy-slices:
+  title: "An interface cannot be passed by value"
+  text: "Passing or copying an abstract class by value does not compile, and for a concrete base it slices. Take references or pointers, and give the interface a `clone()` where copies are needed."
+  demo:
+    bad:
+      code: |
+        struct Shape {
+            virtual double area() const = 0;
+        };
+
+        void print(Shape s) {}   // by value: an abstract class cannot be a parameter
+
+        int main() {}
+      error: "abstract"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Shape {
+            virtual double area() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            double area() const override { return 4; }
+        };
+
+        void print(const Shape& s) { std::cout << s.area() << "\n"; }   // by reference
+
+        int main() {
+            print(Square{});
+        }
+      out: "4\n"
+decorator-target-must-outlive-it:
+  title: "A decorator that holds a reference must not outlive its target"
+  text: "A `Timestamped` logger that stores a `Logger&` dangles if the wrapped logger is destroyed first. Own the target (`unique_ptr`) when the decorator should keep it alive, or document the lifetime."
+stored-string-view-dangles:
+  title: "A stored `string_view` dangles when its string dies"
+  text: "A class member of type `std::string_view` refers to someone else's characters. If the string it came from goes away, every later read is undefined behavior. Store a `std::string` when the object must own its text."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string_view view = make();   // the temporary string dies at the semicolon
+            std::cout << view << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <string_view>
+
+        std::string make() { return "a string that is long enough to live on the heap"; }
+
+        int main() {
+            std::string text = make();         // something that owns the characters
+            std::string_view view = text;
+            std::cout << view << "\n";
+        }
+      out: "a string that is long enough to live on the heap\n"
+sideways-cast-between-unrelated-interfaces:
+  title: "A sideways cast needs `dynamic_cast`"
+  text: "To ask an object behind a `Reader*` whether it also implements `Writer`, use `dynamic_cast<Writer*>(r)`: `static_cast` cannot cross between unrelated bases. A null result means \"no\"."
+repeating-virtual-in-derived-classes:
+  title: "`virtual` in a derived class is optional; `override` is better"
+  text: "An override is virtual whether or not you write `virtual` again. Writing `override` states the intent and makes the compiler check the signature."
+emplace-returns-the-real-type:
+  title: "`emplace_back` returns a reference to the element"
+  text: "Since C++17 `emplace_back` returns a reference to the new element, of the container's element type. To get the derived type, keep the pointer you created, or `static_cast` the result with care."

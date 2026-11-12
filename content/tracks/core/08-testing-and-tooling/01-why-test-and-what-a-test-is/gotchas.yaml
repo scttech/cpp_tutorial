@@ -1,0 +1,76 @@
+macro-evaluates-its-arguments-twice:
+  title: "A macro can evaluate its arguments twice"
+  text: "A check macro that writes `(x)` in both the comparison and the message runs `next()` twice, and shows a value that differs from the one compared. Store each argument in a local variable once."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int counter = 0;
+        int next() { return ++counter; }
+
+        #define SHOW(x) std::cout << (x) << " " << (x) << "\n"   // x is written twice
+
+        int main() {
+            SHOW(next());   // next() runs twice
+        }
+      out: "1 2\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int counter = 0;
+        int next() { return ++counter; }
+
+        #define SHOW(x) do { auto v_ = (x); std::cout << v_ << " " << v_ << "\n"; } while (0)   // evaluated once
+
+        int main() {
+            SHOW(next());
+        }
+      out: "1 1\n"
+macro-not-wrapped-in-do-while:
+  title: "A multi-statement macro needs `do { } while (0)`"
+  text: "A macro that expands to two statements breaks `if (c) CHECK(x);`: only the first statement is conditional. Wrap the body in `do { ... } while (0)` so it behaves as one statement."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        #define LOG(x) std::cout << "log: "; std::cout << (x) << "\n"   // two statements
+
+        int main() {
+            bool verbose = false;
+            if (verbose)
+                LOG(1);   // only the first statement is conditional
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        #define LOG(x) do { std::cout << "log: "; std::cout << (x) << "\n"; } while (0)
+
+        int main() {
+            bool verbose = false;
+            if (verbose)
+                LOG(1);   // all of it, or none of it
+        }
+      out: ""
+failure-leaks-into-the-next-test:
+  title: "A failure must not leak into the next test"
+  text: "If a failed check sets a global flag and nothing resets it, every later test is reported as failed too. Keep the failure state per test and start each test clean."
+registry-built-too-late:
+  title: "Tests registered by static objects need the registry first"
+  text: "Self-registering tests run their constructors before `main`, in an unspecified order between files. The registry itself must be a function-local static, so it exists when the first test registers."
+return-the-wrong-count:
+  title: "Return the number of failures from `main`"
+  text: "A test runner that always returns 0 makes the build pass even when tests fail. Return a non-zero exit status (or the failure count) so that CI notices."
+assert-style-macro-hides-later-failures:
+  title: "A stopping check hides the later failures"
+  text: "A check that returns on the first failure hides everything after it, so you fix one problem per run. Use non-fatal checks by default, and fatal ones only when the rest of the test cannot continue."
+values-missing-from-the-message:
+  title: "A failure message needs the actual values"
+  text: "\"Check failed: a == b\" does not say what `a` and `b` were. Print both values, and the expressions, so a failure can be understood without a debugger."
+tests-run-in-the-wrong-order:
+  title: "Tests should not rely on running in order"
+  text: "Registration order depends on the linker, and tests may be filtered or shuffled. Never let a test assume another has run, and report results in a stable order."

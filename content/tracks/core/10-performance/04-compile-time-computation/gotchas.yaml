@@ -1,0 +1,136 @@
+constexpr-is-not-always-compile-time:
+  title: "`constexpr` does not force compile-time evaluation"
+  text: "A `constexpr` function may run at compile time when its arguments are constants, and at run time otherwise. To make sure, use the result where a constant is required (`static_assert`, `constexpr` variable), or declare it `consteval`."
+  demo:
+    bad:
+      code: |
+        constexpr int square(int x) { return x * x; }
+
+        int main() {
+            int n = 4;
+            static_assert(square(n) == 16);   // n is a run-time variable
+        }
+      error: "constant expression"
+    fix:
+      code: |
+        constexpr int square(int x) { return x * x; }
+
+        int main() {
+            constexpr int n = 4;
+            static_assert(square(n) == 16);   // checked by the compiler
+        }
+      out: ""
+consteval-needs-constant-arguments:
+  title: "`consteval` needs constant arguments"
+  text: "An immediate function must be evaluated at compile time, so calling it with a run-time value is an error: \"call to consteval function is not a constant expression\". Pass a literal or a `constexpr` variable."
+  demo:
+    bad:
+      code: |
+        consteval int square(int x) { return x * x; }
+
+        int main(int argc, char**) {
+            return square(argc);   // argc is only known at run time
+        }
+      error: "constant expression"
+    fix:
+      code: |
+        #include <iostream>
+
+        consteval int square(int x) { return x * x; }
+
+        int main() {
+            std::cout << square(4) << "\n";   // a literal: evaluated by the compiler
+        }
+      out: "16\n"
+signed-char-sign-extension:
+  title: "`char` may be signed, so bytes above 127 go negative"
+  text: "On most platforms `char` is signed: the byte 0xFF becomes -1 when widened to `int`, which breaks table indexes and CRCs. Use `unsigned char` (or `std::uint8_t`) for bytes."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            char c = '\xFF';
+            int value = c;                // sign-extended
+            std::cout << value << "\n";
+        }
+      out: "-1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            unsigned char c = 0xFF;
+            int value = c;                // zero-extended
+            std::cout << value << "\n";
+        }
+      out: "255\n"
+step-limit-exceeded:
+  title: "The compiler limits constant evaluation"
+  text: "Constant evaluation has a step limit, so a loop of ten million iterations fails with \"constexpr evaluation hit maximum step limit\". Make the algorithm cheaper, or compute that part at run time."
+overflow-in-constant-expression:
+  title: "Overflow in a constant expression is a compile error"
+  text: "At run time signed overflow is undefined behavior; in a constant expression the compiler must reject it. That is a gift: the error shows you the overflow. Widen the type, or fix the arithmetic."
+  demo:
+    bad:
+      code: |
+        constexpr int big = 2147483647 + 1;   // overflows an int
+
+        int main() {}
+      error: "overflow"
+    fix:
+      code: |
+        #include <iostream>
+
+        constexpr long long big = 2147483647LL + 1;   // a wider type holds it
+
+        int main() {
+            std::cout << big << "\n";
+        }
+      out: "2147483648\n"
+constinit-is-not-const:
+  title: "`constinit` is not `const`"
+  text: "`constinit` only guarantees that the variable is initialized at compile time (no static-initialization-order trouble); it can still be modified later. Add `const` if it must not change."
+static-initialization-order:
+  title: "Static initialization order differs between files"
+  text: "A global in one `.cpp` that uses a global from another may run first, on an object not yet constructed. `constinit` or `constexpr` variables are initialized at compile time and avoid the problem."
+table-built-at-run-time:
+  title: "A lookup table built at run time costs every start-up"
+  text: "Filling a 256-entry table in `main` or a static constructor runs on every start. Build it with a `constexpr` function: it is computed by the compiler and stored in the executable."
+trial-division-too-slow:
+  title: "Trial division is slow for a prime sieve"
+  text: "Testing every number against every smaller one is quadratic; at compile time it also hits the step limit quickly. A sieve of Eratosthenes finds all primes up to n in roughly n log log n steps."
+forgot-the-zero-and-one:
+  title: "0 and 1 are not prime"
+  text: "A primality test that loops from 2 up to the square root returns true for 0 and 1, because the loop body never runs. Handle `n < 2` explicitly."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        bool is_prime(int n) {
+            for (int d = 2; d * d <= n; ++d)
+                if (n % d == 0) return false;
+            return true;   // 0 and 1 never enter the loop
+        }
+
+        int main() {
+            std::cout << is_prime(1) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        bool is_prime(int n) {
+            if (n < 2) return false;   // 0 and 1 are not prime
+            for (int d = 2; d * d <= n; ++d)
+                if (n % d == 0) return false;
+            return true;
+        }
+
+        int main() {
+            std::cout << is_prime(1) << "\n";
+        }
+      out: "0\n"

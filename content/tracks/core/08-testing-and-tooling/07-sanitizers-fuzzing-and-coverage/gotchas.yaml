@@ -1,0 +1,24 @@
+buffer-not-exactly-sized:
+  title: "An oversized buffer hides an overflow from the sanitizer"
+  text: "AddressSanitizer only sees accesses outside the allocation. If a test allocates 64 bytes for an 8-byte message, an overflow of a few bytes stays inside the allocation. Size buffers exactly in the code you test."
+random-bytes-never-reach-the-parser:
+  title: "Random bytes may never get past the first check"
+  text: "A parser that starts with a magic number or a checksum rejects almost every random input at once, so the fuzzer never reaches the interesting code. Start from valid examples (a corpus), or skip the check while fuzzing."
+only-crash-checks-no-property:
+  title: "Checking only for crashes misses wrong answers"
+  text: "A fuzzer that only looks for crashes passes a parser that returns the wrong result. Add a property to check, such as \"encode then decode gives back the input\"."
+random-seed-from-the-clock:
+  title: "A random test must print its seed"
+  text: "A test seeded from the clock fails once and never again. Fix the seed, or print it on failure, so the failing input can be replayed."
+fuzzing-without-sanitizers:
+  title: "Fuzzing without sanitizers misses silent corruption"
+  text: "Many memory errors do not crash: they quietly read or write the wrong bytes. Build the fuzz target with AddressSanitizer and UBSan, so that those errors become failures."
+truncation-never-tried:
+  title: "Every prefix of a valid message must be tried"
+  text: "A parser that works on a complete packet may read past the end of a truncated one. Feed it every prefix of a valid input, and check that it rejects each cleanly."
+empty-payload-never-tried:
+  title: "The empty input is a case of its own"
+  text: "Zero bytes is the first input a fuzzer tries and the one many parsers forget: it may index `data[0]` or divide by the length. Test it explicitly."
+long-payload-never-tried:
+  title: "A very long input tests the limits"
+  text: "A length field of 4 billion, or a megabyte of data, exercises overflow checks and memory use that short inputs never reach. Test the largest size the format allows, and one more."

@@ -1,0 +1,97 @@
+vtable-cost:
+  title: "A virtual call costs an indirection and blocks inlining"
+  text: "Each polymorphic object carries a pointer to its vtable, and each virtual call goes through it, which usually prevents inlining. That is cheap once and costly in a hot loop over millions of objects."
+one-allocation-per-polymorphic-object:
+  title: "One heap allocation per polymorphic object"
+  text: "A `vector<unique_ptr<Shape>>` allocates every shape separately and scatters them in memory. A `vector<variant<...>>` stores the shapes inline, side by side, which is far friendlier to the cache."
+variant-closed-set:
+  title: "`std::variant` needs a closed set of types"
+  text: "A `variant<Circle, Square>` lists every type up front, so a plugin added later cannot join without editing it. Use virtual functions when the set of types is open."
+adding-a-shape-touches-every-visitor:
+  title: "Adding a type touches every visitor"
+  text: "With `std::variant`, a new alternative must be handled in every `visit`, which the compiler enforces. With virtual functions the opposite holds: a new type is easy, a new operation touches every class."
+crtp-wrong-derived-class:
+  title: "CRTP: a class can name the wrong derived type"
+  text: "If `Circle` mistakenly derives from `Shape<Square>`, `static_cast<Square&>(*this)` is undefined behavior. Make the base constructor private and `friend Derived`, so only the right class can build it."
+crtp-one-type-per-container:
+  title: "CRTP bases share nothing, so they cannot share a container"
+  text: "`Shape<Circle>` and `Shape<Square>` are unrelated types, so they cannot sit in one `vector`. For a mixed container use a virtual base, a `std::variant`, or type erasure."
+type-erasure-needs-clone:
+  title: "A type-erased wrapper needs `clone`"
+  text: "A wrapper that holds any shape behind a hidden interface must know how to copy it. The hidden interface needs a virtual `clone()`, or the wrapper can only be moved."
+member-hides-adl:
+  title: "A member function can hide an ADL candidate"
+  text: "Inside a class that has a member called `draw`, an unqualified call `draw(shape)` finds the member first and never looks for the free function. Qualify the call or rename."
+forwarding-reference-hijacks-copy:
+  title: "A forwarding constructor hijacks copying"
+  text: "A template constructor `Any(T&&)` is a better match than the copy constructor for a non-const lvalue, so `Any b = a;` wraps `a` instead of copying it. Constrain it so it ignores `Any` itself."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Any {
+            Any() = default;
+            Any(const Any&) { std::cout << "copy\n"; }
+            template <class T> Any(T&&) { std::cout << "wrapped\n"; }   // better match for a non-const lvalue
+        };
+
+        int main() {
+            Any a;
+            Any b = a;
+            (void)b;
+        }
+      out: "wrapped\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <type_traits>
+
+        struct Any {
+            Any() = default;
+            Any(const Any&) { std::cout << "copy\n"; }
+            template <class T> requires(!std::is_same_v<std::remove_cvref_t<T>, Any>)
+            Any(T&&) { std::cout << "wrapped\n"; }   // ignores Any itself
+        };
+
+        int main() {
+            Any a;
+            Any b = a;
+            (void)b;
+        }
+      out: "copy\n"
+when-static-polymorphism-wins:
+  title: "Static polymorphism wins when the type is known at compile time"
+  text: "Templates and CRTP resolve the call at compile time, with no vtable and full inlining. If the concrete type is known where the code is written, they are faster and cost nothing at run time."
+visit-must-handle-every-alternative:
+  title: "`visit` must handle every alternative"
+  text: "A visitor that misses one of the variant's types does not compile. That is a feature: adding an alternative later points you at every place to update. A generic catch-all lambda hides it."
+  demo:
+    bad:
+      code: |
+        #include <string>
+        #include <variant>
+
+        struct OnlyInt { void operator()(int) const {} };
+
+        int main() {
+            std::variant<int, std::string> v = 1;
+            std::visit(OnlyInt{}, v);   // nothing handles std::string
+        }
+      error: "visit"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <variant>
+
+        struct Show {
+            void operator()(int) const { std::cout << "int\n"; }
+            void operator()(const std::string&) const { std::cout << "string\n"; }
+        };
+
+        int main() {
+            std::variant<int, std::string> v = 1;
+            std::visit(Show{}, v);
+        }
+      out: "int\n"

@@ -1,0 +1,151 @@
+alignment-ignored:
+  title: "An arena must return aligned pointers"
+  text: "Handing out the next free byte gives a `double` an address that is not a multiple of 8, which is undefined behavior and slow or crashing on some hardware. Round each allocation up to the requested alignment."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            char buf[16];
+            double* d = new (buf + 1) double(1.5);   // 1 byte off an 8-byte boundary
+            std::cout << *d << "\n";
+        }
+      reports: "misaligned"
+    fix:
+      code: |
+        #include <iostream>
+        #include <new>
+
+        int main() {
+            alignas(double) char buf[16];
+            double* d = new (buf) double(1.5);   // aligned for double
+            std::cout << *d << "\n";
+        }
+      out: "1.5\n"
+off-by-one-capacity:
+  title: "Check the capacity with the right comparison"
+  text: "An arena of 64 bytes must serve exactly 64 bytes and refuse the 65th. Compare `used + size <= capacity`, not `<`, and test the exact boundary."
+size-overflow:
+  title: "`n * sizeof(T)` can overflow"
+  text: "Multiplying a huge count by the element size can wrap around to a small number, so the arena hands out too little and the caller writes past it. Check `n <= capacity / sizeof(T)` before multiplying."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t capacity = static_cast<std::size_t>(-1) / 2 + 1;   // half of the range, plus one
+            std::size_t doubled = capacity * 2;                            // wraps around to 0
+            std::cout << doubled << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t capacity = static_cast<std::size_t>(-1) / 2 + 1;
+            if (capacity > static_cast<std::size_t>(-1) / 2) {   // would not fit: refuse
+                std::cout << "too big\n";
+                return 0;
+            }
+            std::cout << capacity * 2 << "\n";
+        }
+      out: "too big\n"
+forgot-to-free-the-block:
+  title: "The arena must free its block"
+  text: "An arena that gets its memory from `new` and never deletes it leaks the whole block. Own it with a `unique_ptr<std::byte[]>` or a `vector`, so the destructor frees it."
+dangling-after-reset:
+  title: "Objects from before `reset()` are gone"
+  text: "`reset()` makes all earlier allocations available again, so pointers handed out before it dangle and will be overwritten. Do not keep them; reset only when nothing uses them."
+destructors-never-run:
+  title: "An arena does not run destructors"
+  text: "Releasing an arena frees the memory without calling the destructors of the objects in it, so anything they own leaks. Call `std::destroy_at` for non-trivial objects, or keep only trivial ones there."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            (void)a; (void)b;
+            std::cout << "destroyed: " << T::destroyed << "\n";   // nobody called the destructors
+        }
+      out: "destroyed: 0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <new>
+
+        struct T {
+            static inline int destroyed = 0;
+            ~T() { ++destroyed; }
+        };
+
+        int main() {
+            alignas(T) unsigned char buf[2 * sizeof(T)];
+            T* a = new (buf) T;
+            T* b = new (buf + sizeof(T)) T;
+            std::destroy_at(a);   // by hand, for every live element
+            std::destroy_at(b);
+            std::cout << "destroyed: " << T::destroyed << "\n";
+        }
+      out: "destroyed: 2\n"
+fallback-pointer-freed-wrongly:
+  title: "A fallback allocation must be freed by the fallback"
+  text: "When the arena is full and hands the request to the general allocator, `deallocate` must send that pointer back to it, not treat it as arena memory. Check whether the pointer lies inside the arena."
+offset-aligned-instead-of-address:
+  title: "Align the address, not the offset"
+  text: "Rounding the offset into the buffer up to a multiple of 8 assumes the buffer itself starts at an aligned address. Align the actual pointer value, or align the buffer when you create it."
+  demo:
+    bad:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            alignas(8) char storage[32];
+            char* base = storage + 1;                  // a buffer that does not start aligned
+            std::size_t offset = (0 + 7) & ~std::size_t{7};   // the offset is aligned ...
+            char* p = base + offset;
+            std::cout << (reinterpret_cast<std::uintptr_t>(p) % 8 == 0 ? "aligned" : "misaligned") << "\n";   // ... the address is not
+        }
+      out: "misaligned\n"
+    fix:
+      code: |
+        #include <cstdint>
+        #include <iostream>
+
+        int main() {
+            alignas(8) char storage[32];
+            char* base = storage + 1;
+            std::uintptr_t a = reinterpret_cast<std::uintptr_t>(base);
+            a = (a + 7) & ~std::uintptr_t{7};          // align the address itself
+            char* p = reinterpret_cast<char*>(a);
+            std::cout << (reinterpret_cast<std::uintptr_t>(p) % 8 == 0 ? "aligned" : "misaligned") << "\n";
+        }
+      out: "aligned\n"
+container-outlives-arena:
+  title: "A container using the arena must not outlive it"
+  text: "A `std::pmr::vector` that allocates from an arena keeps pointers into it. If the arena is destroyed first, the vector's destructor and later uses touch freed memory. Declare the arena before the containers."
+zero-size-request:
+  title: "A zero-size request still needs an answer"
+  text: "An allocation of 0 bytes should return a valid, unique pointer (or `nullptr` consistently), not read or advance past the end. Decide, document and test it."
+arena-copied:
+  title: "An arena must not be copyable"
+  text: "Copying an arena copies the pointer to the memory block, so two arenas hand out the same bytes, and both free it. Delete the copy operations and allow only moves."

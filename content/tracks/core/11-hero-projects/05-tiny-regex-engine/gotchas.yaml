@@ -1,0 +1,60 @@
+precedence-of-alternation:
+  title: "`|` has the lowest precedence"
+  text: "`ab|cd` means \"ab\" or \"cd\", not \"a\", then \"b or c\", then \"d\". Parse alternation at the outermost level, concatenation inside it, and quantifiers tightest of all."
+quantifier-on-nothing:
+  title: "A quantifier needs something to repeat"
+  text: "`*a` and `a|*` apply `*` to nothing. Report an error at the position of the quantifier, instead of treating it as a literal."
+quantifier-after-anchor:
+  title: "A quantifier after an anchor"
+  text: "`^*` and `$+` repeat an assertion, which matches nothing and can loop forever. Reject them, or define exactly what they mean."
+stacked-quantifiers:
+  title: "Two quantifiers in a row"
+  text: "`a**` and `a+*` are ambiguous or redundant. Decide whether they are errors (usually) or equivalent to one quantifier, and test them."
+empty-alternatives:
+  title: "Alternatives may be empty"
+  text: "`a|` and `(|b)` match the empty string as one of their choices. A parser must accept an empty branch, and the matcher must handle it without an infinite loop."
+empty-regex:
+  title: "The empty regex matches the empty string"
+  text: "The empty pattern is valid and matches at every position, with length 0. `match(\"\")` is true only on the empty string, and `find` finds an empty match at position 0."
+escapes-outside-and-inside-classes:
+  title: "Escapes work differently inside brackets"
+  text: "Outside a class `\\.` is a literal dot, and `\\d` a digit. Inside `[...]` `.` is already literal, and a dash or caret may need an escape. Handle the two contexts separately."
+bracket-first-literal:
+  title: "A `]` right after `[` is a literal"
+  text: "In `[]a]` and `[^]a]` the first `]` is part of the set, not its end. Treat a closing bracket in the first position as a character."
+ranges-and-dash:
+  title: "A dash is a range only between two characters"
+  text: "In `[a-z]` it is a range; in `[-a]`, `[a-]` it is a literal dash. Decide by position: first, last, or between two characters."
+reversed-range:
+  title: "A reversed range is an error"
+  text: "`[z-a]` has a start after its end. Report it as an error with the position, rather than matching nothing silently."
+dot-and-newline:
+  title: "Does `.` match a newline?"
+  text: "In most engines `.` matches any character except a newline. Decide, document, and test it, together with the negated class `[^a]`, which usually does match a newline."
+negated-class-matches-newline:
+  title: "A negated class matches a newline"
+  text: "`[^a]` matches any character except `a`, including `\\n`. Do not special-case the newline there unless the specification says so."
+anchors-are-absolute:
+  title: "`^` and `$` anchor the whole text"
+  text: "Unless a multiline mode exists, `^` matches only at the very start and `$` only at the very end, not at each line. Test with a text that contains newlines."
+leftmost-vs-longest:
+  title: "Leftmost match, then which length?"
+  text: "A backtracking engine returns the first alternative that works (`a|ab` matches \"a\" in \"ab\"), while a POSIX engine returns the longest. Choose one rule and test it with alternation."
+empty-matches-in-find-all:
+  title: "Empty matches in `find_all` must advance"
+  text: "A pattern such as `a*` matches the empty string everywhere. After an empty match, step forward one character, or `find_all` loops forever on the same position."
+epsilon-cycles:
+  title: "Empty loops can cycle forever"
+  text: "In an NFA, `(a*)*` has a path that consumes nothing and returns to the same state. Track the states already visited at the current position, so the simulation cannot go round forever."
+star-of-star:
+  title: "`(a*)*` must terminate"
+  text: "Repeating something that can match the empty string must not loop. Stop a repetition whose iteration consumed nothing."
+exponential-backtracking:
+  title: "Backtracking can take exponential time"
+  text: "A pattern such as `(a+)+b` against \"aaaa...a\" tries an exponential number of ways to split the a's. A Thompson NFA simulation takes time proportional to the input times the pattern, whatever the pattern."
+restart-at-every-position:
+  title: "Do not restart the whole search at every position"
+  text: "Running a fresh match at each start position makes `find` O(n squared). Add the start state at each step of one simulation, so a search is a single pass."
+recursion-depth-in-parser:
+  title: "A deeply nested pattern overflows the stack"
+  text: "A hundred thousand open parentheses crash a recursive-descent parser. Limit the nesting depth, and return an error."

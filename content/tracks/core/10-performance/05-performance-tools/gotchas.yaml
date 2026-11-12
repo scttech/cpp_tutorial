@@ -1,0 +1,24 @@
+self-time-vs-inclusive-time:
+  title: "Self time and inclusive time are different numbers"
+  text: "A function with a large inclusive time may only be calling slow children, while its self time is small. Look at self time to find where the work is done, and inclusive time to see which call tree to attack."
+many-cheap-calls:
+  title: "Many cheap calls add up"
+  text: "A function that takes 50 ns looks harmless until it is called 100 million times. A profiler's call counts show it; the fix is to call it less (hoist, batch, cache), not to speed it up."
+memory-bound-vs-compute-bound:
+  title: "Memory-bound and compute-bound code need different fixes"
+  text: "If the CPU waits for memory (cache misses), faster arithmetic changes nothing; improve the layout and access pattern. If it is busy computing, a better algorithm or vectorization helps. Find out which first."
+profiling-an-unoptimized-build:
+  title: "Do not profile an unoptimized build"
+  text: "At `-O0` the profile is dominated by things the optimizer would remove (function calls, loads and stores). Profile an optimized build (`-O2`) that keeps debug information (`-g`)."
+amdahl-ceiling:
+  title: "Amdahl's law sets a ceiling"
+  text: "If a part that takes 20% of the time becomes infinitely fast, the program is only 1.25 times faster. Work out the possible gain from the share of the time before you start."
+optimizing-the-biggest-looking-function:
+  title: "The biggest-looking function is not always the hot one"
+  text: "A long function with many lines may run once, while a two-line function runs a billion times. The profile, not the source, says where the time goes."
+no-frame-pointers:
+  title: "Without frame pointers the call stacks are wrong"
+  text: "A sampling profiler walks the stack by following frame pointers; optimized code omits them, so callers are missing or wrong. Build with `-fno-omit-frame-pointer` while profiling."
+timing-once:
+  title: "Time more than once"
+  text: "A single measurement includes cold caches, a page fault storm and scheduler noise. Repeat the run, discard the first, and report the median or the minimum."

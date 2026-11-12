@@ -1,0 +1,296 @@
+non-virtual-destructor:
+  title: "A polymorphic base needs a virtual destructor"
+  text: "Deleting a derived object through a base pointer, when the base destructor is not virtual, runs only the base destructor: the derived part is never destroyed, and the behavior is undefined. Write `virtual ~Base() = default;`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            ~Base() { std::cout << "~Base\n"; }   // not virtual
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;   // only ~Base can run
+        }
+      out: "~Base\n"
+      warns: "non-virtual"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            virtual ~Base() { std::cout << "~Base\n"; }   // virtual: the whole object is destroyed
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() override { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;
+        }
+      out: "~Derived\n~Base\n"
+forgot-virtual:
+  title: "Without `virtual` there is no dynamic dispatch"
+  text: "A function that is not virtual is chosen by the static type of the pointer or reference. If a derived class is supposed to replace the behavior, the base function must be `virtual`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            void speak() const { std::cout << "animal\n"; }   // not virtual
+        };
+        struct Dog : Animal {
+            void speak() const { std::cout << "dog\n"; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal* a = &d;
+            a->speak();   // chosen by the pointer's type
+        }
+      out: "animal\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            virtual void speak() const { std::cout << "animal\n"; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            void speak() const override { std::cout << "dog\n"; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal* a = &d;
+            a->speak();   // chosen by the real object
+        }
+      out: "dog\n"
+override-with-the-wrong-signature:
+  title: "`override` turns a mismatch into an error"
+  text: "A function with a slightly different signature (an `int` where the base has a `double`) does not override anything and silently adds a new function. Write `override`, and the compiler checks it."
+  demo:
+    bad:
+      code: |
+        struct Animal {
+            virtual double weight() const { return 1.0; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            int weight() const override { return 20; }   // different return type: no override
+        };
+
+        int main() {}
+      error: "override"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            virtual double weight() const { return 1.0; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            double weight() const override { return 20; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal& a = d;
+            std::cout << a.weight() << "\n";
+        }
+      out: "20\n"
+missing-const-hides-instead-of-overrides:
+  title: "A missing `const` hides instead of overriding"
+  text: "`virtual int area() const` is not overridden by `int area()`: `const` is part of the signature. Without `override` the base version is still called through a `Shape&`; with `override` you get an error."
+  demo:
+    bad:
+      code: |
+        struct Shape {
+            virtual int area() const { return 0; }
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            int area() override { return 4; }   // missing const: a different function
+        };
+
+        int main() {}
+      error: "override"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Shape {
+            virtual int area() const { return 0; }
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            int area() const override { return 4; }
+        };
+
+        int main() {
+            Square s;
+            const Shape& r = s;
+            std::cout << r.area() << "\n";
+        }
+      out: "4\n"
+virtual-call-in-constructor:
+  title: "A virtual call in a constructor does not reach the derived class"
+  text: "While `Base`'s constructor runs, the object is only a `Base`, so a virtual call resolves to `Base`'s version: the derived members are not built yet. Call virtuals after construction, for example from an `init()`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            Base() { std::cout << name() << "\n"; }   // the object is only a Base so far
+            virtual const char* name() const { return "base"; }
+            virtual ~Base() = default;
+        };
+        struct Derived : Base {
+            const char* name() const override { return "derived"; }
+        };
+
+        int main() {
+            Derived d;
+        }
+      out: "base\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual const char* name() const { return "base"; }
+            void init() { std::cout << name() << "\n"; }   // called after construction
+            virtual ~Base() = default;
+        };
+        struct Derived : Base {
+            const char* name() const override { return "derived"; }
+        };
+
+        int main() {
+            Derived d;
+            d.init();
+        }
+      out: "derived\n"
+virtual-call-in-destructor:
+  title: "A virtual call in a destructor stops at the base too"
+  text: "By the time `~Base` runs, the derived part is already destroyed, so virtual calls resolve to `Base`. Do cleanup that needs the derived class in the derived destructor."
+dynamic-cast-needs-a-virtual-function:
+  title: "`dynamic_cast` needs a polymorphic class"
+  text: "The source type of a downcast must have at least one virtual function (a virtual destructor is enough), because the type information lives with the vtable. Otherwise the cast does not compile."
+  demo:
+    bad:
+      code: |
+        struct Base {};            // no virtual function
+        struct Derived : Base {};
+
+        int main() {
+            Derived d;
+            Base* b = &d;
+            Derived* p = dynamic_cast<Derived*>(b);
+            (void)p;
+        }
+      error: "polymorphic"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base { virtual ~Base() = default; };   // now polymorphic
+        struct Derived : Base {};
+
+        int main() {
+            Derived d;
+            Base* b = &d;
+            std::cout << (dynamic_cast<Derived*>(b) != nullptr ? "yes" : "no") << "\n";
+        }
+      out: "yes\n"
+dynamic-cast-pointer-vs-reference:
+  title: "A pointer cast gives `nullptr`, a reference cast throws"
+  text: "`dynamic_cast<Dog*>(p)` returns null when `p` is not a `Dog`; `dynamic_cast<Dog&>(r)` throws `std::bad_cast`. Check the pointer result before using it."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <typeinfo>
+
+        struct Animal { virtual ~Animal() = default; };
+        struct Dog : Animal {};
+        struct Cat : Animal {};
+
+        int main() {
+            Cat c;
+            Animal& a = c;
+            try {
+                Dog& d = dynamic_cast<Dog&>(a);   // throws
+                (void)d;
+            } catch (const std::bad_cast&) {
+                std::cout << "bad_cast\n";
+            }
+        }
+      out: "bad_cast\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal { virtual ~Animal() = default; };
+        struct Dog : Animal {};
+        struct Cat : Animal {};
+
+        int main() {
+            Cat c;
+            Animal* a = &c;
+            if (Dog* d = dynamic_cast<Dog*>(a)) { (void)d; std::cout << "dog\n"; }   // null: nothing thrown
+            else std::cout << "not a dog\n";
+        }
+      out: "not a dog\n"
+typeid-is-exact:
+  title: "`typeid` gives the exact dynamic type"
+  text: "`typeid(*p) == typeid(Animal)` is false for a `Dog` behind an `Animal*`, while `dynamic_cast<Animal*>` succeeds for the whole family. Use `dynamic_cast` for \"is a\", `typeid` for \"is exactly\"."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <typeinfo>
+
+        struct Animal { virtual ~Animal() = default; };
+        struct Dog : Animal {};
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            std::cout << (typeid(*a) == typeid(Animal)) << "\n";   // the exact type is Dog
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal { virtual ~Animal() = default; };
+        struct Dog : Animal {};
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            std::cout << (dynamic_cast<Animal*>(a) != nullptr) << "\n";   // "is an Animal"
+        }
+      out: "1\n"
+prefer-virtual-to-casting:
+  title: "Prefer a virtual function to a type switch"
+  text: "A chain of `dynamic_cast`s that picks behavior by type must be updated for every new class. A virtual function puts the behavior in the class, and a new class cannot be forgotten."
+repeating-virtual-in-derived-classes:
+  title: "`virtual` in a derived class is optional; `override` is better"
+  text: "An override is virtual whether or not you write `virtual` again. Writing `override` instead states the intent and makes the compiler check it."

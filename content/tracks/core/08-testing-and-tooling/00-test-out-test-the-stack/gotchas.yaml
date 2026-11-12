@@ -1,0 +1,60 @@
+test-checks-nothing:
+  title: "A test that checks nothing always passes"
+  text: "A test that calls the code but never asserts on the result passes even when the code is wrong. Every test needs at least one check, and it should be able to fail: change the code and see it go red."
+only-the-happy-path:
+  title: "Testing only the happy path"
+  text: "A test that pushes and pops once finds only the bugs that happen on the normal path. The bugs live at the edges: empty, full, one element, the largest value, and bad input."
+one-push-cannot-tell-first-from-last:
+  title: "One push cannot tell first-in from last-in"
+  text: "With a single element, a stack and a queue return the same thing. Push at least two different values and check the order they come back in."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Stack {   // a queue in disguise: the bug to find
+            std::vector<int> v;
+            void push(int x) { v.push_back(x); }
+            int pop() { int x = v.front(); v.erase(v.begin()); return x; }
+        };
+
+        int main() {
+            Stack s;
+            s.push(1);
+            std::cout << (s.pop() == 1 ? "pass" : "fail") << "\n";   // one element: first and last are the same
+        }
+      out: "pass\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Stack {
+            std::vector<int> v;
+            void push(int x) { v.push_back(x); }
+            int pop() { int x = v.front(); v.erase(v.begin()); return x; }
+        };
+
+        int main() {
+            Stack s;
+            s.push(1);
+            s.push(2);
+            std::cout << (s.pop() == 2 ? "pass" : "caught the bug") << "\n";   // two values reveal the order
+        }
+      out: "caught the bug\n"
+forgot-the-empty-stack:
+  title: "The empty stack is a case of its own"
+  text: "Popping or peeking at an empty stack must do the documented thing (throw, or return an error), not read garbage. Test it explicitly, with the exact exception type the contract names."
+forgot-the-full-stack:
+  title: "The full stack is a case of its own"
+  text: "A fixed-capacity stack must reject the push that does not fit, and not write past the end. Fill it exactly to capacity, then push once more."
+expect-throw-with-the-wrong-type:
+  title: "Check the exception type, not just that something was thrown"
+  text: "A test that accepts any exception also passes when the code throws the wrong one, or throws for the wrong reason. Name the exact type the contract promises."
+test-depends-on-another-test:
+  title: "A test must not depend on another test"
+  text: "If test B only passes after test A has run (shared state, a global, an order), a reordered or filtered run fails mysteriously. Every test sets up its own world and cleans up after itself."
+magic-numbers:
+  title: "Magic numbers make a test unreadable"
+  text: "`EXPECT_EQ(s.size(), 7)` says nothing about why 7. Name the value (`kCapacity`) or compute it from the setup, so a reader can see what is being checked."

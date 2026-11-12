@@ -1,0 +1,162 @@
+leading-zeros:
+  title: "JSON numbers have no leading zeros"
+  text: "\"01\" is not valid JSON, although `from_chars` and most parsers accept it. After an optional minus, the integer part is either a single 0 or a digit 1 to 9 followed by digits."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "01";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "accepted" : "rejected") << "\n";   // JSON forbids "01"
+        }
+      out: "accepted\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "01";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool leading_zero = text.size() > 1 && text[0] == '0' && text[1] != '.';   // JSON: a 0 is alone
+            std::cout << (r.ec == std::errc() && !leading_zero ? "accepted" : "rejected") << "\n";
+        }
+      out: "rejected\n"
+minus-without-digits:
+  title: "A minus sign needs digits after it"
+  text: "\"-\" and \"-x\" are not numbers. After the minus there must be at least one digit; report the error at the position of the offending character."
+dot-without-digits:
+  title: "A decimal point needs digits after it"
+  text: "\"1.\" and \"1.e5\" are not valid JSON. A fraction is a dot followed by at least one digit, and \"1.5\" is fine."
+exponent-without-digits:
+  title: "An exponent needs digits"
+  text: "\"1e\" and \"1e+\" are errors: after `e` and an optional sign there must be at least one digit."
+control-characters-in-strings:
+  title: "Raw control characters are not allowed in strings"
+  text: "A string may not contain a literal newline, tab or any character below U+0020; they must be written as escapes. Reject them with an error at their position."
+surrogate-pairs:
+  title: "A surrogate pair is one code point"
+  text: "\"\\ud83d\\ude00\" is two escapes that together mean one character (U+1F600), which is four bytes in UTF-8. Combine the high and low surrogate before you encode."
+lone-surrogates:
+  title: "A lone surrogate is an error"
+  text: "A high surrogate without a following low surrogate, or a low one by itself, does not encode a character. Reject it rather than writing invalid UTF-8."
+utf8-encoding-of-escapes:
+  title: "Encode `\\uXXXX` as UTF-8 correctly"
+  text: "A code point below 0x80 is one byte, below 0x800 two, below 0x10000 three, and above that four. Getting a threshold wrong corrupts every non-ASCII string."
+trailing-commas:
+  title: "Trailing commas are not JSON"
+  text: "`[1, 2,]` and `{\"a\": 1,}` are errors in JSON, although JavaScript and many parsers allow them. After a comma a value (or a key) must follow."
+duplicate-keys:
+  title: "Duplicate keys: decide and document"
+  text: "JSON does not forbid `{\"a\": 1, \"a\": 2}`, but behaviors differ: last wins, first wins, or an error. Pick one, state it, and test it."
+trailing-content:
+  title: "Content after the value is an error"
+  text: "`1 2` and `{} x` are not a single JSON document. After the top-level value only whitespace may follow; otherwise report an error at the first extra character."
+depth-limit-and-stack-overflow:
+  title: "Deep nesting overflows the stack"
+  text: "A recursive-descent parser uses a stack frame per level, so a million `[` crash the program. Add a depth limit and return an error when it is exceeded."
+line-and-column-of-the-error:
+  title: "Report line and column of the error"
+  text: "An error message that says \"invalid\" without a position is hard to use. Track the line and column as you read, count a newline as the start of a new line, and report where the problem is."
+copying-values-instead-of-moving:
+  title: "Move parsed values into their parent"
+  text: "Building an array by copying each parsed element copies whole subtrees again at every level. `std::move` the child into the parent, so each value is built once."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Value {
+            Value() = default;
+            Value(const Value&) { std::cout << "copy\n"; }
+            Value(Value&&) noexcept {}
+        };
+
+        int main() {
+            std::vector<Value> array;
+            array.reserve(1);
+            Value child;
+            array.push_back(child);   // copies the child (and everything under it)
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <utility>
+        #include <vector>
+
+        struct Value {
+            Value() = default;
+            Value(const Value&) { std::cout << "copy\n"; }
+            Value(Value&&) noexcept {}
+        };
+
+        int main() {
+            std::vector<Value> array;
+            array.reserve(1);
+            Value child;
+            array.push_back(std::move(child));   // moves it into the parent
+        }
+      out: ""
+quadratic-string-building:
+  title: "Building a string with `s = s + x` is quadratic"
+  text: "Each `s = s + x` allocates and copies the whole string again. Append with `+=` or `append`, which are amortized O(1), and reserve when you know the size."
+number-output-round-trip:
+  title: "A double must print so that it reads back identically"
+  text: "The default `cout` shows 6 significant digits, so 0.1 + 0.2 prints as 0.3 and loses information. `std::to_chars` produces the shortest text that parses back to exactly the same double."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << 0.1 + 0.2 << "\n";   // six significant digits: information is lost
+        }
+      out: "0.3\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+
+        int main() {
+            char buf[32];
+            auto r = std::to_chars(buf, buf + sizeof buf, 0.1 + 0.2);   // the shortest text that reads back exactly
+            std::cout << std::string(buf, r.ptr) << "\n";
+        }
+      out: "0.30000000000000004\n"
+negative-zero:
+  title: "A rounded result can print as `-0`"
+  text: "A tiny negative value rounds to zero but keeps its sign, so formatted output shows `-0.00`. Decide whether to keep or drop the sign, and test both zero and negative zero."
+  demo:
+    bad:
+      code: |
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            std::cout << std::fixed << std::setprecision(2) << x << "\n";
+        }
+      out: "-0.00\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iomanip>
+        #include <iostream>
+
+        int main() {
+            double x = -0.001;
+            double rounded = std::round(x * 100) / 100;   // -0.0
+            if (rounded == 0) rounded = 0;                // -0.0 == 0, so this drops the sign
+            std::cout << std::fixed << std::setprecision(2) << rounded << "\n";
+        }
+      out: "0.00\n"

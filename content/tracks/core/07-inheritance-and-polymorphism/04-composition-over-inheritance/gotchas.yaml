@@ -1,0 +1,263 @@
+fragile-base-class:
+  title: "A fragile base class: a change in the base breaks derived classes"
+  text: "When a derived class relies on how the base calls its own virtual functions, an innocent change in the base (such as `add_all` no longer calling `add`) silently changes the derived behavior. Composition has no such coupling."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            virtual void add(int) { ++size; }
+            virtual void add_all(const std::vector<int>& v) { for (int x : v) add(x); }   // calls the virtual add
+            virtual ~Bag() = default;
+        };
+        struct Counting : Bag {
+            int adds = 0;
+            void add(int x) override { ++adds; Bag::add(x); }
+            void add_all(const std::vector<int>& v) override { adds += static_cast<int>(v.size()); Bag::add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";   // 3 elements, counted twice
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            void add(int) { ++size; }
+            void add_all(const std::vector<int>& v) { for (int x : v) add(x); }
+        };
+        struct Counting {                 // composition: holds a Bag, does not inherit from it
+            Bag bag;
+            int adds = 0;
+            void add(int x) { ++adds; bag.add(x); }
+            void add_all(const std::vector<int>& v) { adds += static_cast<int>(v.size()); bag.add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";
+        }
+      out: "3\n"
+base-method-calls-an-overridable-method:
+  title: "A base method that calls an overridable one"
+  text: "If `Bag::add_all` calls the virtual `add`, an override of `add` in a derived class is also called for every element of `add_all`. Document it, or call a non-virtual helper."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            virtual void add(int) { ++size; }
+            virtual void add_all(const std::vector<int>& v) { for (int x : v) add(x); }   // calls the virtual add
+            virtual ~Bag() = default;
+        };
+        struct Counting : Bag {
+            int adds = 0;
+            void add(int x) override { ++adds; Bag::add(x); }
+            void add_all(const std::vector<int>& v) override { adds += static_cast<int>(v.size()); Bag::add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";   // 3 elements, counted twice
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            void add(int) { ++size; }
+            void add_all(const std::vector<int>& v) { for (int x : v) add(x); }
+        };
+        struct Counting {                 // composition: holds a Bag, does not inherit from it
+            Bag bag;
+            int adds = 0;
+            void add(int x) { ++adds; bag.add(x); }
+            void add_all(const std::vector<int>& v) { adds += static_cast<int>(v.size()); bag.add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";
+        }
+      out: "3\n"
+double-counting-in-an-override:
+  title: "An override that counts can count twice"
+  text: "A `Counting` subclass that overrides both `add` and `add_all`, where the base `add_all` calls `add`, counts every element twice. Composition (a counter around a `Bag`) counts exactly once."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            virtual void add(int) { ++size; }
+            virtual void add_all(const std::vector<int>& v) { for (int x : v) add(x); }   // calls the virtual add
+            virtual ~Bag() = default;
+        };
+        struct Counting : Bag {
+            int adds = 0;
+            void add(int x) override { ++adds; Bag::add(x); }
+            void add_all(const std::vector<int>& v) override { adds += static_cast<int>(v.size()); Bag::add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";   // 3 elements, counted twice
+        }
+      out: "6\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        struct Bag {
+            int size = 0;
+            void add(int) { ++size; }
+            void add_all(const std::vector<int>& v) { for (int x : v) add(x); }
+        };
+        struct Counting {                 // composition: holds a Bag, does not inherit from it
+            Bag bag;
+            int adds = 0;
+            void add(int x) { ++adds; bag.add(x); }
+            void add_all(const std::vector<int>& v) { adds += static_cast<int>(v.size()); bag.add_all(v); }
+        };
+
+        int main() {
+            Counting c;
+            c.add_all({1, 2, 3});
+            std::cout << c.adds << "\n";
+        }
+      out: "3\n"
+deep-hierarchy-explosion:
+  title: "Deep hierarchies multiply"
+  text: "Adding \"with logging\" and \"with caching\" as subclasses turns three classes into six, and each new feature doubles it again. Combine behaviors as members or decorators instead."
+inheriting-for-code-reuse:
+  title: "Do not inherit just to reuse code"
+  text: "Inheritance says \"is a\". If `Stack` merely wants a `Vector`'s code, it should hold one: otherwise every `Vector` function becomes part of `Stack`'s interface, including ones that break its rules."
+behavior-fixed-at-compile-time:
+  title: "Inheritance fixes behavior at compile time"
+  text: "A `Dog` that inherits its walking behavior cannot change it while running. Hold a strategy object (a member) and swap it when the behavior needs to change."
+diamond-two-copies-of-the-base:
+  title: "A diamond has two copies of the base"
+  text: "If `B` and `C` both inherit from `A` and `D` inherits from both, `D` contains two `A` subobjects, and `d.x` is ambiguous. Virtual inheritance (`B : virtual A`) shares a single copy."
+  demo:
+    bad:
+      code: |
+        struct A { int x = 0; };
+        struct B : A {};
+        struct C : A {};
+        struct D : B, C {};
+
+        int main() {
+            D d;
+            d.x = 5;   // which A?
+        }
+      error: "ambiguous"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct A { int x = 0; };
+        struct B : virtual A {};
+        struct C : virtual A {};
+        struct D : B, C {};   // one shared A
+
+        int main() {
+            D d;
+            d.x = 5;
+            std::cout << d.x << "\n";
+        }
+      out: "5\n"
+virtual-base-built-by-the-most-derived-class:
+  title: "The most derived class builds a virtual base"
+  text: "With virtual inheritance, `D` initializes `A` directly: the `A(...)` calls written in `B` and `C` are ignored. If `A` has no default constructor, `D` must call it itself."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct A {
+            int x;
+            A() : x(0) {}
+            explicit A(int v) : x(v) {}
+        };
+        struct B : virtual A { B() : A(1) {} };
+        struct C : virtual A { C() : A(2) {} };
+        struct D : B, C {};   // D does not initialize A: the default constructor runs
+
+        int main() {
+            D d;
+            std::cout << d.x << "\n";   // not 1, not 2
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct A {
+            int x;
+            A() : x(0) {}
+            explicit A(int v) : x(v) {}
+        };
+        struct B : virtual A { B() : A(1) {} };
+        struct C : virtual A { C() : A(2) {} };
+        struct D : B, C { D() : A(3) {} };   // the most derived class decides
+
+        int main() {
+            D d;
+            std::cout << d.x << "\n";
+        }
+      out: "3\n"
+protected-data-couples-classes:
+  title: "Protected data couples classes"
+  text: "A protected data member lets every derived class change it directly, so the base can never change its representation or keep its invariants. Keep data private and offer protected functions."
+moving-a-class-with-unique-ptr:
+  title: "A class with a `unique_ptr` is move-only"
+  text: "A member `unique_ptr` deletes the copy constructor of the whole class. Provide a `clone()` or a hand-written copy when copies are needed, and move when they are not."
+  demo:
+    bad:
+      code: |
+        #include <memory>
+
+        struct Node { std::unique_ptr<Node> left; int value = 5; };
+
+        int main() {
+            Node a;
+            Node b = a;   // a unique_ptr cannot be copied
+            (void)b;
+        }
+      error: "deleted"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <utility>
+
+        struct Node { std::unique_ptr<Node> left; int value = 5; };
+
+        int main() {
+            Node a;
+            Node b = std::move(a);   // moved: a gives it up
+            std::cout << b.value << "\n";
+        }
+      out: "5\n"

@@ -1,0 +1,152 @@
+ids-must-be-lower-case:
+  title: "Ids are lower-case words"
+  text: "A room id such as `Hall` or `the-hall` is an error if the format says lower-case letters and underscores. Check the id rules when you read a definition, and report the line."
+quoted-descriptions:
+  title: "Descriptions are quoted and may contain spaces and escapes"
+  text: "A description in quotes belongs to one token, including the spaces, a `#`, and escaped quotes. Parse the quoted string as a unit."
+hash-inside-quotes:
+  title: "A `#` inside quotes is not a comment"
+  text: "Stripping everything after the first `#` also cuts the text of a description such as `\"room #7\"`. Find the comment start outside quotes only."
+crlf-line-endings:
+  title: "Windows lines end in `\\r\\n`"
+  text: "A world file saved on Windows leaves a trailing `\\r` after each line, which then becomes part of the last word. Strip a trailing `\\r` from every line."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            std::cout << (line == "ERROR") << "\n";   // the \r is still there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // strip it
+            std::cout << (line == "ERROR") << "\n";
+        }
+      out: "1\n"
+line-numbers-count-blank-lines:
+  title: "Line numbers count blank and comment lines too"
+  text: "An error \"on line 12\" must mean line 12 of the file. Keep counting through blank lines and comments, and do not renumber after you skip them."
+forward-references:
+  title: "A room may refer to one defined later"
+  text: "An exit from `hall` to `kitchen` is valid even if `kitchen` appears further down the file. Read the whole file first, then check that every reference exists."
+reading-errors-before-reference-errors:
+  title: "Report syntax errors before reference errors"
+  text: "A line with a syntax error is reported before a missing room that is referred to somewhere else. Check in the documented order, so the first message is always the same."
+duplicate-directions:
+  title: "The same exit twice"
+  text: "A room with two exits `north` is ambiguous. Report it as an error with the line of the second one, rather than letting the later one win."
+switch-and-door-conflict:
+  title: "A switch and a door in one place"
+  text: "Two features that both control the same exit (a locked door and a hidden switch) can contradict each other. Define which wins, or reject the combination when the file is loaded."
+darkness-and-light:
+  title: "Dark rooms need a light source"
+  text: "In a dark room the player cannot see or take items unless a light is present: carried, lit, or in the room. Check the light rule in every command that depends on seeing."
+light-lying-on-the-floor:
+  title: "A light on the floor lights the room"
+  text: "A lantern on the floor of a dark room is a light source even though nobody carries it. Check both the inventory and the room's contents."
+articles-in-commands:
+  title: "Ignore articles in commands"
+  text: "`take the lamp` and `take lamp` mean the same. Drop \"a\", \"an\" and \"the\" when you tokenize the command, then match the item name."
+aliases-expand-once:
+  title: "Expand an alias once"
+  text: "If `n` stands for `go north` and `go` itself could be an alias, expanding repeatedly can loop forever. Expand once, and then parse the result."
+case-insensitive-input:
+  title: "Player input is case-insensitive"
+  text: "`TAKE Lamp` and `take lamp` are the same command. Lower-case the player's words before matching, but keep the stored ids as they are defined."
+blocked-by-a-door:
+  title: "A locked door blocks the exit"
+  text: "Moving through an exit with a locked door fails with a message, and the player stays where they are. Check the door before changing the current room."
+unlock-needs-the-right-key:
+  title: "Unlocking needs the right key"
+  text: "Any key must not open every door. Check that the key the player holds is the one the door names, and say so when it is the wrong one."
+game-over:
+  title: "After the game ends, commands stop"
+  text: "Once the player has won or lost, further commands must not change the world. Check the finished state at the start of every command."
+verbs-in-game-hpp:
+  title: "Keep the verbs in one place"
+  text: "A verb table spread over several files drifts apart: one handles `take`, another has the alias. Register each verb once, with its aliases, in one table."
+copying-the-world:
+  title: "Do not copy the world on every command"
+  text: "Passing the whole `World` by value copies every room and item for each command. Take it by reference, and mutate it in place."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+copying-rooms-and-items:
+  title: "Do not copy rooms and items to look at them"
+  text: "`auto room = world.rooms[id];` copies the room, so changes to the copy are lost, and it costs time. Bind with `auto&` or `const auto&`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct Room { std::string name; int visits = 0; };
+
+        int main() {
+            std::map<std::string, Room> rooms{{"hall", {"Hall", 0}}};
+            auto room = rooms["hall"];   // a copy
+            ++room.visits;
+            std::cout << rooms["hall"].visits << "\n";   // the change was lost
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        struct Room { std::string name; int visits = 0; };
+
+        int main() {
+            std::map<std::string, Room> rooms{{"hall", {"Hall", 0}}};
+            auto& room = rooms["hall"];  // the room itself
+            ++room.visits;
+            std::cout << rooms["hall"].visits << "\n";
+        }
+      out: "1\n"

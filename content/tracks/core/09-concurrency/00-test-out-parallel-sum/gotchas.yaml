@@ -1,0 +1,162 @@
+shared-accumulator-race:
+  title: "Threads adding into one shared variable race"
+  text: "Every thread doing `total += x` on the same variable is a data race: updates are lost and the behavior is undefined. Give each thread its own partial sum and add the partial sums after joining."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            long long total = 0;
+            auto add = [&](int from, int to) { for (int i = from; i <= to; ++i) total += i; };   // both write total
+            std::thread a(add, 1, 500), b(add, 501, 1000);
+            a.join();
+            b.join();
+            std::cout << total << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            long long part[2] = {0, 0};   // one slot per thread
+            auto add = [&](int slot, int from, int to) { for (int i = from; i <= to; ++i) part[slot] += i; };
+            std::thread a(add, 0, 1, 500), b(add, 1, 501, 1000);
+            a.join();
+            b.join();
+            std::cout << part[0] + part[1] << "\n";   // combine after joining
+        }
+      out: "500500\n"
+lambda-captures-loop-variable-by-reference:
+  title: "A thread lambda that captures the loop variable by reference"
+  text: "`[&] { use(i); }` in a loop refers to one `i` that the loop keeps changing, and that is destroyed after the loop. Capture it by value, `[i]`, so each thread gets its own copy."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+        #include <vector>
+
+        int main() {
+            std::vector<int> squares(4);
+            std::vector<std::thread> threads;
+            for (int i = 0; i < 4; ++i)
+                threads.emplace_back([&] { squares[i] = i * i; });   // i changes under the threads
+            for (auto& t : threads) t.join();
+            std::cout << squares[3] << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <thread>
+        #include <vector>
+
+        int main() {
+            std::vector<int> squares(4);
+            std::vector<std::thread> threads;
+            for (int i = 0; i < 4; ++i)
+                threads.emplace_back([&squares, i] { squares[i] = i * i; });   // a copy of i for each thread
+            for (auto& t : threads) t.join();
+            std::cout << squares[3] << "\n";
+        }
+      out: "9\n"
+thread-not-joined:
+  title: "A joinable `std::thread` must be joined before it is destroyed"
+  text: "Destroying a `std::thread` that has been started and neither joined nor detached calls `std::terminate`. Join every thread you start, or use `std::jthread`, which joins in its destructor."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+        }   // destroyed while still joinable
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+            t.join();   // wait for it first
+            std::cout << "done\n";
+        }
+      out: "done\n"
+more-threads-than-values:
+  title: "More threads than values"
+  text: "Splitting 3 values over 8 threads gives chunks of size 0: some threads do nothing, and a division like `n / threads` is 0. Use at most one thread per value, `min(threads, n)`."
+int-accumulator-overflows:
+  title: "Summing into an `int` can overflow"
+  text: "Adding many large `int`s overflows, and signed overflow is undefined behavior. Accumulate in a `long long` (start from `0LL`), in each thread and in the final sum."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            int sum = 0;
+            for (int x : v) sum += x;   // overflows an int
+            std::cout << sum << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+        #include <vector>
+
+        int main(int argc, char**) {
+            std::vector<int> v = {INT_MAX - 1 + argc, 1};
+            long long sum = 0;   // a wider accumulator
+            for (int x : v) sum += x;
+            std::cout << sum << "\n";
+        }
+      out: "2147483648\n"
+remainder-values-dropped:
+  title: "The remainder of the division is dropped"
+  text: "With 10 values and 3 threads, `n / 3 == 3` per chunk covers only 9 values. Give the last thread everything that is left, or spread the remainder over the first threads."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n = 10, threads = 3;
+            int chunk = n / threads;                 // 3
+            std::cout << chunk * threads << "\n";    // values covered: one is dropped
+        }
+      out: "9\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int n = 10, threads = 3;
+            int chunk = n / threads;
+            int covered = 0;
+            for (int t = 0; t < threads; ++t)
+                covered += (t == threads - 1) ? n - chunk * t : chunk;   // the last chunk takes the rest
+            std::cout << covered << "\n";
+        }
+      out: "10\n"
+zero-threads:
+  title: "Zero threads must not divide by zero"
+  text: "A request for 0 threads (or an empty input) makes `n / threads` a division by zero. Decide what it means, usually \"at least one thread\", and test it."
+no-thread-really-used:
+  title: "A \"parallel\" sum that never starts a thread"
+  text: "A function that quietly does everything in the calling thread passes a correctness test and gives no speedup. Check that the work really is split, for example by counting the distinct thread ids."
+detach:
+  title: "`detach` lets a thread outlive the data it uses"
+  text: "A detached thread keeps running after `main` or the function returns, and may use locals that no longer exist. Join instead, unless the thread owns everything it touches."

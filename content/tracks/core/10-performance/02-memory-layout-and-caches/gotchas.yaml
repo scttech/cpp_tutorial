@@ -1,0 +1,129 @@
+aos-wastes-the-cache-line:
+  title: "An array of structs wastes cache when you need one field"
+  text: "Summing one field of a `struct { x, y, z, name... }` array drags the other fields through the cache too. A struct of arrays stores each field contiguously, so a loop over one field reads only what it uses."
+hot-and-cold-fields-mixed:
+  title: "Keep hot and cold fields apart"
+  text: "A struct that mixes a field the loop touches with a big rarely-used one spreads the hot data over more cache lines. Split the cold fields out, and keep the hot ones small and together."
+members-in-the-wrong-order:
+  title: "Member order changes the size of a struct"
+  text: "Padding is inserted so each member is aligned, so `char, double, char` takes 24 bytes while `double, char, char` takes 16. Put the largest members first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Wasteful {
+            char a;
+            double b;
+            char c;
+        };
+
+        int main() {
+            std::cout << (sizeof(Wasteful) == sizeof(char) + sizeof(double) + sizeof(char)) << "\n";   // padding adds bytes
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Wasteful { char a; double b; char c; };
+        struct Compact  { double b; char a; char c; };   // largest member first
+
+        int main() {
+            std::cout << (sizeof(Compact) < sizeof(Wasteful)) << "\n";
+        }
+      out: "1\n"
+padding-bytes:
+  title: "Padding bytes are part of the size"
+  text: "`sizeof` of a struct is usually larger than the sum of its members. Do not compute sizes by adding member sizes, do not `memcmp` structs with padding, and check `sizeof` when layout matters."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Wasteful {
+            char a;
+            double b;
+            char c;
+        };
+
+        int main() {
+            std::cout << (sizeof(Wasteful) == sizeof(char) + sizeof(double) + sizeof(char)) << "\n";   // padding adds bytes
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Wasteful { char a; double b; char c; };
+        struct Compact  { double b; char a; char c; };   // largest member first
+
+        int main() {
+            std::cout << (sizeof(Compact) < sizeof(Wasteful)) << "\n";
+        }
+      out: "1\n"
+vector-of-pointers:
+  title: "A vector of pointers scatters the data"
+  text: "In a `vector<Item*>` every element lives in its own heap block, so a loop chases a pointer per item and misses the cache. Store the items in the vector itself."
+list-is-pointer-chasing:
+  title: "A `std::list` is pointer chasing"
+  text: "Each node is a separate allocation, so walking the list is a chain of dependent loads that the CPU cannot prefetch. For most uses a `std::vector` is faster, even for inserts, up to surprisingly large sizes."
+false-sharing:
+  title: "Two threads on one cache line slow each other down"
+  text: "Two counters in the same 64-byte line, written by two threads, make the line bounce between cores although the variables are different. Pad or align per-thread data to its own cache line."
+alignas-changes-sizeof:
+  title: "`alignas` changes `sizeof`"
+  text: "A struct declared `alignas(64)` is padded to a multiple of 64 bytes, so an array of them is much bigger. Use it where it is worth it, such as per-thread counters, not everywhere."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Counter { int n; };
+
+        int main() {
+            std::cout << sizeof(Counter) << "\n";
+        }
+      out: "4\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct alignas(64) Counter { int n; };   // padded out to a whole cache line
+
+        int main() {
+            std::cout << sizeof(Counter) << "\n";
+        }
+      out: "64\n"
+reference-into-moved-vector:
+  title: "A reference into a vector dangles when it grows"
+  text: "A reference or pointer to an element is invalidated when the vector reallocates. Do not keep one across a `push_back`; use an index."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+cold-data-in-the-hot-loop:
+  title: "Do not touch cold data in the hot loop"
+  text: "A loop that reads a rarely-needed field (such as a name) for every element pays for the cache lines it occupies. Keep the hot loop to the data it needs, and look up the rest on demand."

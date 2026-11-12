@@ -41,9 +41,9 @@ const DEMO_LIMITS = { lines: 24, chars: 1200 };
 function checkDemo(id, d, bad, rel) {
   const at = (m) => bad(`"${id}": demo ${m}`);
   if (typeof d !== "object" || d === null || Array.isArray(d)) return at("must be a mapping with bad and fix");
-  const extra = Object.keys(d).filter((k) => !["bad", "fix", "sanitize", "server"].includes(k));
+  const extra = Object.keys(d).filter((k) => !["bad", "fix", "sanitize", "server", "thread"].includes(k));
   if (extra.length) at(`has an unknown field ${extra.join(", ")}`);
-  for (const k of ["sanitize", "server"]) if (d[k] !== undefined && typeof d[k] !== "boolean") at(`${k} must be true or false`);
+  for (const k of ["sanitize", "server", "thread"]) if (d[k] !== undefined && typeof d[k] !== "boolean") at(`${k} must be true or false`);
   let ok = true;
   for (const kind of ["bad", "fix"]) {
     const sn = d[kind];
@@ -68,7 +68,7 @@ function checkDemo(id, d, bad, rel) {
       if (typeof sn.out !== "string") at("fix needs out (its exact stdout)");
       for (const k of ["error", "reports", "warns"]) if (sn[k] !== undefined) at(`fix must not have ${k}: it has to run clean`);
     }
-    if (sn.reports !== undefined && d.sanitize !== true) at("reports needs sanitize: true");
+    if (sn.reports !== undefined && d.sanitize !== true && d.thread !== true) at("reports needs sanitize: true (or thread: true)");
   }
   if (ok) demos.push({ rel, id, demo: d });
 }
@@ -165,7 +165,7 @@ async function runDemos(name, run, only) {
   for (const { rel, id, demo } of demos) {
     if (!only(demo)) continue;
     for (const kind of ["bad", "fix"]) {
-      const flags = ["-std=c++20", "-Wall", "-Wextra", ...(demo.sanitize ? ["-fsanitize=address,undefined"] : [])];
+      const flags = ["-std=c++20", "-Wall", "-Wextra", ...(demo.thread ? ["-pthread", "-fsanitize=thread"] : demo.sanitize ? ["-fsanitize=address,undefined"] : [])];
       let r;
       try {
         r = await run({ mode: "run", userFiles: { "main.cpp": demo[kind].code }, testFiles: {}, flags, limits: { wallMs: 8000 } });
@@ -174,7 +174,7 @@ async function runDemos(name, run, only) {
         continue;
       }
       n++;
-      for (const m of judge(kind, demo[kind], demo.sanitize, r)) problems.push(`${rel}: "${id}" ${kind} [${name}]: ${m}`);
+      for (const m of judge(kind, demo[kind], demo.sanitize || demo.thread, r)) problems.push(`${rel}: "${id}" ${kind} [${name}]: ${m}`);
     }
   }
   console.log(`${name}: ran ${n} demo program(s)`);
@@ -188,7 +188,7 @@ if (runWasm) {
   const { createNodeRunner } = await import("../../wasm-runner/src/node-host.mjs");
   const runner = createNodeRunner();
   try {
-    await runDemos("wasm", (req) => runner.run(req), (d) => !d.sanitize && !d.server);
+    await runDemos("wasm", (req) => runner.run(req), (d) => !d.sanitize && !d.server && !d.thread);
   } finally {
     await runner.close();
   }

@@ -1,0 +1,82 @@
+optimizing-the-wrong-stage:
+  title: "Optimize the stage that takes the time"
+  text: "Making a stage twice as fast helps only in proportion to its share of the total. Measure each stage first, and work on the biggest; a 10x speedup of a 2% stage gains 1.8%."
+guessing-instead-of-measuring:
+  title: "Measure; do not guess"
+  text: "The slow part is rarely where it looks slow. Use a counter or a profiler to find the real hot spot, then change one thing at a time and measure again."
+by-value-parameter-looks-expensive:
+  title: "A by-value parameter looks costly but may not be"
+  text: "Passing a `std::string` by value is a copy, but if the function is called twice and does heavy work, the copy is not the problem. Measure before you rewrite signatures for a cost that is not there."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+quadratic-membership-test:
+  title: "A membership test inside a loop can make it quadratic"
+  text: "`std::find` on a vector for every element is O(n) per test and O(n squared) overall. Use an `unordered_set` for the seen values, which makes each test O(1)."
+losing-first-occurrence-order:
+  title: "Deduplicating must keep the first occurrence order"
+  text: "Putting the values into a `std::set` removes duplicates but also sorts them, so the first-seen order is gone. Keep a set of what you have seen and a vector for the output order."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <set>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{3, 1, 3, 2};
+            std::set<int> unique(v.begin(), v.end());   // removes duplicates, and sorts
+            for (int x : unique) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <unordered_set>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{3, 1, 3, 2};
+            std::unordered_set<int> seen;
+            for (int x : v)
+                if (seen.insert(x).second) std::cout << x << " ";   // print the first occurrence only
+            std::cout << "\n";
+        }
+      out: "3 1 2 \n"
+unstable-sort-reorders-ties:
+  title: "`std::sort` may reorder equal elements"
+  text: "Elements that compare equal can swap places, so a result that depended on their original order changes. Use `std::stable_sort`, or add a tie-breaking key, when ties matter."
+timing-noise:
+  title: "One timing is not a measurement"
+  text: "The first run includes cold caches and page faults, and any run is disturbed by other processes. Repeat, take the minimum or the median, and prefer counting operations to reading a clock."

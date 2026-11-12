@@ -1,0 +1,24 @@
+section-code-runs-once-per-leaf:
+  title: "Code before a `SECTION` runs once per leaf section"
+  text: "Catch2 runs the test case again for every leaf `SECTION`, with the shared setup code before it executed each time. Each section therefore starts from a fresh setup, and counters in it are not cumulative."
+require-stops-the-test-case:
+  title: "`REQUIRE` stops the test case, `CHECK` continues"
+  text: "A failed `REQUIRE` aborts the rest of the test case, which is right when later lines depend on it. Use `CHECK` when you want to see all the failures in one run."
+generate-without-a-loop:
+  title: "`GENERATE` replaces a hand-written loop"
+  text: "`auto x = GENERATE(1, 2, 3);` runs the test case once per value, each as its own run. Writing a `for` loop inside the test instead stops at the first failure and hides which value failed."
+throw-with-the-wrong-type:
+  title: "Name the exception type in `REQUIRE_THROWS_AS`"
+  text: "`REQUIRE_THROWS` accepts any exception. `REQUIRE_THROWS_AS(expr, std::out_of_range)` fails when the type differs, and `REQUIRE_THROWS_WITH` can check the message as well."
+test-names-must-be-unique:
+  title: "Test case names must be unique"
+  text: "Two `TEST_CASE`s with the same name are an error, and running one by name would be ambiguous. Give each a descriptive, unique name."
+tags-forgotten:
+  title: "Tags let you select tests"
+  text: "A tag such as `[slow]` or `[parser]` lets you run or skip a group of tests from the command line. Tests without tags can only be selected by name."
+matcher-header-not-included:
+  title: "Matchers live in their own header"
+  text: "`REQUIRE_THAT(s, Catch::Matchers::StartsWith(\"a\"))` needs `<catch2/matchers/catch_matchers_string.hpp>` (or the matchers header you use). Without it you get \"not a member of Catch::Matchers\"."
+one-test-case-checks-everything:
+  title: "One test case, one behavior"
+  text: "A test case with many unrelated checks hides which behavior failed. Split it into several test cases, or into `SECTION`s that share setup but report separately."

@@ -1,0 +1,181 @@
+use-after-move:
+  title: "Using an object after it was moved from"
+  text: "After `auto b = std::move(a);` the object `a` is valid but unspecified (a string is usually empty). Reading its value is almost always a bug: use `b`, or assign a new value to `a` first."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <utility>
+
+        int main() {
+            std::string a = "hello";
+            std::string b = std::move(a);
+            std::cout << a.size() << "\n";   // a is unspecified now: usually empty
+            (void)b;
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+        #include <utility>
+
+        int main() {
+            std::string a = "hello";
+            std::string b = std::move(a);
+            std::cout << b.size() << "\n";   // use the new owner
+        }
+      out: "5\n"
+integer-division-in-a-floating-point-context:
+  title: "Integer division inside a floating-point expression"
+  text: "`double half = 7 / 2;` divides integers first and only then converts: the result is 3. Make one operand a `double` before the division."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double half = 7 / 2;   // the division is done on ints first
+            std::cout << half << "\n";
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double half = 7 / 2.0;   // a double operand makes it a real division
+            std::cout << half << "\n";
+        }
+      out: "3.5\n"
+identical-branches:
+  title: "Both branches do the same thing"
+  text: "An `if` and its `else` with identical bodies is nearly always a copy-and-paste error, where one branch should have differed. Decide what each branch should do, or remove the `if`."
+copy-of-a-big-argument:
+  title: "A big argument passed by value is copied"
+  text: "clang-tidy flags `void f(std::string s)` when `s` is only read: every call copies it. Take `const std::string&` (or `std::string_view`) instead."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+copy-in-a-range-for:
+  title: "A range-`for` by value copies every element"
+  text: "`for (auto s : strings)` copies each string. Use `const auto&` to read and `auto&` to change."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"
+null-instead-of-nullptr:
+  title: "Use `nullptr`, not `0` or `NULL`"
+  text: "`0` and `NULL` are integers, so `f(0)` picks the `int` overload rather than the pointer one. `nullptr` has its own type and always means \"no pointer\"."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        void f(int) { std::cout << "int\n"; }
+        void f(const char*) { std::cout << "pointer\n"; }
+
+        int main() {
+            f(0);   // 0 is an int
+        }
+      out: "int\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        void f(int) { std::cout << "int\n"; }
+        void f(const char*) { std::cout << "pointer\n"; }
+
+        int main() {
+            f(nullptr);   // always a pointer
+        }
+      out: "pointer\n"
+size-equals-zero:
+  title: "Use `empty()` instead of `size() == 0`"
+  text: "`empty()` states the intent and is O(1) for every container, while `size()` can be O(n) for some. clang-tidy suggests the change (`readability-container-size-empty`)."
+off-by-one-array-write:
+  title: "The analyzer sees the off-by-one write"
+  text: "A loop `for (i = 0; i <= 4; ++i) a[i] = ...` over an array of 4 writes one past the end. Static analysis and sanitizers both report it; fix the bound."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {0, 0, 0, 0};
+            for (int i = 0; i <= 4; ++i) a[i] = i;   // <= also writes a[4]
+            std::cout << a[3] << "\n";
+        }
+      reports: "out of bounds"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a[4] = {0, 0, 0, 0};
+            for (int i = 0; i < 4; ++i) a[i] = i;
+            std::cout << a[3] << "\n";
+        }
+      out: "3\n"
+uninitialized-member:
+  title: "A member that no constructor initializes"
+  text: "A member without a default initializer holds garbage in any constructor that does not set it. Give every member a default member initializer, such as `int count = 0;`."
+silencing-with-nolint:
+  title: "`NOLINT` hides a warning, it does not fix it"
+  text: "A `// NOLINT` comment suppresses the check for that line. Use it only for a false positive, with the check's name and a reason, never to make a real warning go away."
+fixing-the-warning-not-the-bug:
+  title: "Fixing the warning is not fixing the bug"
+  text: "A tool points at a symptom. Changing code until the message disappears may leave the underlying problem in place. Understand what the tool saw, then fix that."

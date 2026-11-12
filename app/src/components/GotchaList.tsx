@@ -15,16 +15,17 @@ function Ticks({ text }: { text: string }) {
 
 const FLAGS = ["-std=c++20", "-Wall", "-Wextra"];
 const SANITIZE = ["-fsanitize=address,undefined"];
+const THREAD = ["-pthread", "-fsanitize=thread"];
 
 /** One editable, runnable program of a demo. Nothing here is graded and nothing is recorded. */
-function Snip({ label, tone, initial, sanitize, server }: { label: string; tone: "bad" | "fix"; initial: string; sanitize: boolean; server: boolean }) {
+function Snip({ label, tone, initial, sanitize, server, thread }: { label: string; tone: "bad" | "fix"; initial: string; sanitize: boolean; server: boolean; thread: boolean }) {
   const [code, setCode] = useState(initial);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   // sanitizers exist only on the server runner; `server` marks demos that need anything else the browser compiler lacks
-  const unavailable = (sanitize && !runner.capabilities.has("sanitizers")) || (server && runner.id !== "server");
+  const unavailable = ((sanitize || thread) && !runner.capabilities.has("sanitizers")) || ((server || thread) && runner.id !== "server");
 
   const run = async () => {
     if (busyRef.current) return;
@@ -32,7 +33,7 @@ function Snip({ label, tone, initial, sanitize, server }: { label: string; tone:
     setBusy(true);
     setError(null);
     try {
-      const res = await runner.run({ mode: "run", userFiles: { "main.cpp": code }, testFiles: {}, flags: sanitize ? [...FLAGS, ...SANITIZE] : FLAGS, limits: { wallMs: 8000 } });
+      const res = await runner.run({ mode: "run", userFiles: { "main.cpp": code }, testFiles: {}, flags: thread ? [...FLAGS, ...THREAD] : sanitize ? [...FLAGS, ...SANITIZE] : FLAGS, limits: { wallMs: 8000 } });
       setResult(res);
     } catch (e) {
       setResult(null);
@@ -58,7 +59,7 @@ function Snip({ label, tone, initial, sanitize, server }: { label: string; tone:
         </button>
       </div>
       <textarea value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} wrap="off" rows={Math.min(18, code.split("\n").length + 1)} aria-label={`${label}: code`} />
-      {unavailable && <p className="muted small">Needs the full (Docker) version{sanitize ? ": it uses the sanitizers" : ""}.</p>}
+      {unavailable && <p className="muted small">Needs the full (Docker) version{sanitize || thread ? ": it uses the sanitizers" : ""}.</p>}
       {error && <p className="banner error">{error}</p>}
       {result && <Output r={result} />}
     </div>
@@ -89,8 +90,8 @@ function DemoBlock({ demo }: { demo: Demo }) {
     <details className="demo">
       <summary>Try it: the trap and the fix</summary>
       <div className="snips">
-        <Snip label="The trap" tone="bad" initial={demo.bad.code} sanitize={demo.sanitize} server={demo.server} />
-        <Snip label="The fix" tone="fix" initial={demo.fix.code} sanitize={demo.sanitize} server={demo.server} />
+        <Snip label="The trap" tone="bad" initial={demo.bad.code} sanitize={demo.sanitize} server={demo.server} thread={demo.thread} />
+        <Snip label="The fix" tone="fix" initial={demo.fix.code} sanitize={demo.sanitize} server={demo.server} thread={demo.thread} />
       </div>
     </details>
   );

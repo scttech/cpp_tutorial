@@ -1,0 +1,276 @@
+stateful-stage-shared-between-runs:
+  title: "A stage with state must be reset between runs"
+  text: "A stage that counts lines, or remembers the previous one, keeps that state when the pipeline runs a second time. Reset the state at the start of each run, or create fresh stages for every run."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n = 0;
+            int next() { return ++n; }   // state survives the run
+        };
+
+        int main() {
+            Counter stage;
+            std::cout << stage.next() << " " << stage.next() << "\n";   // two runs of the same stage
+        }
+      out: "1 2\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Counter {
+            int n = 0;
+            void reset() { n = 0; }
+            int next() { return ++n; }
+        };
+
+        int main() {
+            Counter stage;
+            stage.reset();
+            int a = stage.next();
+            stage.reset();               // reset at the start of each run
+            std::cout << a << " " << stage.next() << "\n";
+        }
+      out: "1 1\n"
+clone-slices-a-stage:
+  title: "Copying a stage through the base slices it"
+  text: "Copying a `Stage` by value copies only the base part, so a `Replace` stage turns into a plain `Stage`. Give the interface a virtual `clone()` and copy through it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Shape {
+            virtual std::string name() const { return "shape"; }
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {
+            std::string name() const override { return "circle"; }
+        };
+
+        int main() {
+            std::unique_ptr<Shape> p = std::make_unique<Circle>();
+            Shape copy = *p;               // slices
+            std::cout << copy.name() << "\n";
+        }
+      out: "shape\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Shape {
+            virtual std::string name() const { return "shape"; }
+            virtual std::unique_ptr<Shape> clone() const = 0;   // each class copies itself
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {
+            std::string name() const override { return "circle"; }
+            std::unique_ptr<Shape> clone() const override { return std::make_unique<Circle>(*this); }
+        };
+
+        int main() {
+            std::unique_ptr<Shape> p = std::make_unique<Circle>();
+            auto copy = p->clone();
+            std::cout << copy->name() << "\n";
+        }
+      out: "circle\n"
+copy-of-pipeline-shares-stages:
+  title: "A copied pipeline shares its stages if they are `shared_ptr`s"
+  text: "Copying a pipeline of `shared_ptr<Stage>` copies the pointers, not the stages, so changing a stage in the copy changes the original. Clone the stages when you copy the pipeline."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <vector>
+
+        int main() {
+            std::vector<std::shared_ptr<int>> a{std::make_shared<int>(0)};
+            auto b = a;       // copies the pointers
+            *b[0] = 5;
+            std::cout << *a[0] << "\n";   // the original changed too
+        }
+      out: "5\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <vector>
+
+        int main() {
+            std::vector<std::shared_ptr<int>> a{std::make_shared<int>(0)};
+            std::vector<std::shared_ptr<int>> b;
+            for (const auto& p : a) b.push_back(std::make_shared<int>(*p));   // clone each stage
+            *b[0] = 5;
+            std::cout << *a[0] << "\n";
+        }
+      out: "0\n"
+dropped-line-reaches-later-stage:
+  title: "A dropped line must not reach later stages"
+  text: "When a filter removes a line, the later stages must not see it, and must not receive an empty replacement either. Decide how \"no line\" is represented and test a drop in the middle of a pipeline."
+error-line-number-counts-output-lines:
+  title: "Error line numbers count input lines"
+  text: "After a filter drops lines, the position in the output is not the position in the input. Report errors with the line number of the original input, carried along with each line."
+final-newline-makes-an-extra-line:
+  title: "A final newline makes an empty last piece"
+  text: "Splitting \"a\\nb\\n\" on newlines yields \"a\", \"b\" and an empty string. Count a trailing newline as the end of the last line, not as an extra empty line."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string text = "a\nb\n";
+            std::cout << std::count(text.begin(), text.end(), '\n') + 1 << "\n";   // one piece per newline, plus one
+        }
+      out: "3\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string text = "a\nb\n";
+            std::cout << std::count(text.begin(), text.end(), '\n') + (text.back() != '\n') << "\n";   // a final newline ends the last line
+        }
+      out: "2\n"
+replacement-scanned-again:
+  title: "Do not rescan the text you just inserted"
+  text: "Replacing \"aa\" with \"a\" and then searching again from the start of the string rescans the replacement and keeps replacing. Continue the search after the inserted text, never inside it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string s = "aaaa";
+            std::size_t pos;
+            while ((pos = s.find("aa")) != std::string::npos) s.replace(pos, 2, "a");   // rescans from the start
+            std::cout << s << "\n";
+        }
+      out: "a\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string s = "aaaa";
+            std::size_t pos = 0;
+            while ((pos = s.find("aa", pos)) != std::string::npos) {
+                s.replace(pos, 2, "a");
+                pos += 1;                 // continue after the inserted text
+            }
+            std::cout << s << "\n";
+        }
+      out: "aa\n"
+overlapping-matches:
+  title: "Overlapping matches: \"aa\" in \"aaa\""
+  text: "Searching \"aa\" in \"aaa\" finds one match if you continue after it, and two if you step forward by one. The specification decides which; write a test for it."
+number-parsed-with-trailing-text:
+  title: "A number with trailing text is not a number"
+  text: "Parsing \"12abc\" with `from_chars` succeeds with 12 and leaves `abc` unread. Check that the whole token was consumed before accepting the value."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+split-at-the-last-colon:
+  title: "Split at the first separator when the value may contain it"
+  text: "For \"key:value:more\" the key ends at the first colon. Splitting at the last one (`rfind`) gives the key \"key:value\", which is wrong whenever values contain the separator."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string line = "key:value:more";
+            std::cout << line.substr(0, line.rfind(':')) << "\n";   // the last colon
+        }
+      out: "key:value\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        int main() {
+            std::string line = "key:value:more";
+            std::cout << line.substr(0, line.find(':')) << "\n";    // the first colon
+        }
+      out: "key\n"
+duplicate-registration-overwrites:
+  title: "Registering a name twice overwrites silently"
+  text: "`registry[name] = factory;` replaces an earlier registration without a word. Use `emplace` or `try_emplace` and report the duplicate."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, std::string> registry;
+            registry["upper"] = "first";
+            registry["upper"] = "second";   // silently replaces
+            std::cout << registry["upper"] << "\n";
+        }
+      out: "second\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <string>
+
+        int main() {
+            std::map<std::string, std::string> registry;
+            registry.emplace("upper", "first");
+            bool added = registry.emplace("upper", "second").second;   // false: already there
+            std::cout << (added ? "added" : "duplicate") << "\n";
+        }
+      out: "duplicate\n"
+factory-returns-null:
+  title: "A factory for an unknown name returns null"
+  text: "Looking up a name that was never registered gives `nullptr`, and calling a method on it is undefined behavior. Return an error, or `std::optional`, and make callers check."
+null-stage-added:
+  title: "A null stage added to the pipeline"
+  text: "A pipeline that accepts a null `unique_ptr<Stage>` crashes when it runs. Reject nulls in `add`, so the pipeline only holds usable stages."
+virtual-repeated-in-derived-classes:
+  title: "`virtual` in a derived class is optional; `override` is better"
+  text: "An override is virtual whether or not you write `virtual` again. Writing `override` states the intent and makes the compiler check the signature."
+raw-new-for-a-stage:
+  title: "Create stages with `make_unique`, not a raw `new`"
+  text: "A stage created with `new` and stored in a raw pointer leaks on any early return or exception. `std::make_unique<Replace>(...)` owns it from the first moment."

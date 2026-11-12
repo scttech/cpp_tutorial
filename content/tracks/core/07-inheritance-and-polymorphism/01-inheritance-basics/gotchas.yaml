@@ -1,0 +1,277 @@
+object-slicing:
+  title: "Assigning a derived object to a base object slices it"
+  text: "`Animal a = dog;` copies only the `Animal` part: the `Dog` members and its overrides are gone, and `a` is a plain `Animal`. Use a reference or a pointer to keep the real object."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        int main() {
+            Dog d;
+            Animal a = d;                   // copies only the Animal part
+            std::cout << a.sound() << "\n";
+        }
+      out: "...\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal& a = d;            // a reference keeps the real object
+            std::cout << a.sound() << "\n";
+        }
+      out: "woof\n"
+pass-by-value-copies-the-base-part:
+  title: "A by-value base parameter slices what you pass"
+  text: "`void speak(Animal a)` called with a `Dog` receives only the `Animal` part, so virtual calls inside it reach `Animal`'s version. Take `const Animal&` instead."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        void speak(Animal a) { std::cout << a.sound() << "\n"; }   // by value: sliced
+
+        int main() {
+            speak(Dog{});
+        }
+      out: "...\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        void speak(const Animal& a) { std::cout << a.sound() << "\n"; }   // by reference
+
+        int main() {
+            speak(Dog{});
+        }
+      out: "woof\n"
+base-built-first-destroyed-last:
+  title: "The base is built first and destroyed last"
+  text: "Construction runs base first, then members, then the derived constructor body; destruction runs in exactly the opposite order. A derived constructor can therefore rely on its base being ready."
+base-constructor-in-the-initializer-list:
+  title: "Build a base without a default constructor explicitly"
+  text: "If `Base` has only `Base(int)`, every `Derived` constructor must call it from its initializer list, as in `Derived() : Base(1)`. Otherwise the compiler asks for a default constructor that does not exist."
+  demo:
+    bad:
+      code: |
+        struct Base {
+            explicit Base(int v) : value(v) {}
+            int value;
+        };
+        struct Derived : Base {
+            Derived() {}   // Base has no default constructor
+        };
+
+        int main() {}
+      error: "Base"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            explicit Base(int v) : value(v) {}
+            int value;
+        };
+        struct Derived : Base {
+            Derived() : Base(5) {}   // the base is built here
+        };
+
+        int main() {
+            Derived d;
+            std::cout << d.value << "\n";
+        }
+      out: "5\n"
+protected-is-not-public:
+  title: "`protected` is for derived classes, not for everyone"
+  text: "A protected member is usable inside derived classes (through their own objects), but outside code cannot touch it. If outside code needs it, provide a public accessor."
+  demo:
+    bad:
+      code: |
+        struct Base {
+        protected:
+            int x = 5;
+        };
+
+        int main() {
+            Base b;
+            return b.x;   // not for outside code
+        }
+      error: "protected"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            int get() const { return x; }   // a public way in
+        protected:
+            int x = 5;
+        };
+
+        int main() {
+            Base b;
+            std::cout << b.get() << "\n";
+        }
+      out: "5\n"
+class-defaults-to-private-inheritance:
+  title: "`class D : Base` inherits privately"
+  text: "With `class`, inheritance is private unless you write `public`, so `Base* p = &d;` fails to compile. Write `class Dog : public Animal`; with `struct` the default is public."
+  demo:
+    bad:
+      code: |
+        struct Animal {};
+        class Dog : Animal {};   // private inheritance
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            (void)a;
+        }
+      error: "private base"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {};
+        class Dog : public Animal {};   // public: a Dog is an Animal
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            std::cout << (a != nullptr) << "\n";
+        }
+      out: "1\n"
+name-hiding-is-not-overriding:
+  title: "A derived function hides every base overload of that name"
+  text: "Declaring `speak(int)` in `Dog` hides `Animal::speak()` as well, so `dog.speak()` stops compiling. Add `using Animal::speak;` to bring the base overloads back."
+  demo:
+    bad:
+      code: |
+        struct Animal {
+            void speak() const {}
+        };
+        struct Dog : Animal {
+            void speak(int) const {}   // hides Animal::speak()
+        };
+
+        int main() {
+            Dog d;
+            d.speak();
+        }
+      error: "too few arguments"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            void speak() const { std::cout << "...\n"; }
+        };
+        struct Dog : Animal {
+            using Animal::speak;        // bring the base overloads back
+            void speak(int) const {}
+        };
+
+        int main() {
+            Dog d;
+            d.speak();
+        }
+      out: "...\n"
+non-virtual-call-uses-the-static-type:
+  title: "A non-virtual call uses the pointer's type"
+  text: "Without `virtual`, `Animal* a = &dog; a->speak();` calls `Animal::speak`, whatever the object really is. Make the function virtual to dispatch on the real object."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            void speak() const { std::cout << "animal\n"; }   // not virtual
+        };
+        struct Dog : Animal {
+            void speak() const { std::cout << "dog\n"; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal* a = &d;
+            a->speak();   // chosen by the pointer's type
+        }
+      out: "animal\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            virtual void speak() const { std::cout << "animal\n"; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            void speak() const override { std::cout << "dog\n"; }
+        };
+
+        int main() {
+            Dog d;
+            const Animal* a = &d;
+            a->speak();   // chosen by the real object
+        }
+      out: "dog\n"
+private-inheritance-is-not-is-a:
+  title: "Private inheritance means \"implemented in terms of\""
+  text: "With private inheritance a `Stack` is not a `Vector` to its callers: there is no conversion to `Vector*`. If you only want to reuse code, hold the `Vector` as a member instead."
+  demo:
+    bad:
+      code: |
+        struct Animal {};
+        class Dog : Animal {};   // private inheritance
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            (void)a;
+        }
+      error: "private base"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {};
+        class Dog : public Animal {};   // public: a Dog is an Animal
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            std::cout << (a != nullptr) << "\n";
+        }
+      out: "1\n"

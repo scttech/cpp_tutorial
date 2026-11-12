@@ -1,0 +1,176 @@
+thread-arguments-are-copied:
+  title: "Thread arguments are copied"
+  text: "`std::thread t(f, x)` stores a copy of `x`, so a function that changes its parameter changes the copy and the original is untouched. To share the variable, pass `std::ref(x)`, and keep it alive until the join."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        void bump(int v) { ++v; }   // changes its own copy
+
+        int main() {
+            int x = 0;
+            std::thread t(bump, x);
+            t.join();
+            std::cout << x << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <thread>
+
+        void bump(int& v) { ++v; }
+
+        int main() {
+            int x = 0;
+            std::thread t(bump, std::ref(x));   // share x, on purpose
+            t.join();
+            std::cout << x << "\n";
+        }
+      out: "1\n"
+reference-parameter-needs-std-ref:
+  title: "A reference parameter needs `std::ref`"
+  text: "If `f` takes `int&`, `std::thread t(f, x)` does not compile, because the copy stored by the thread cannot bind to a non-const reference. Write `std::thread t(f, std::ref(x));`."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <thread>
+
+        void bump(int& v) { ++v; }
+
+        int main() {
+            int x = 0;
+            std::thread t(bump, x);   // a copy cannot bind to int&
+            t.join();
+        }
+      error: "invocable"
+    fix:
+      code: |
+        #include <functional>
+        #include <iostream>
+        #include <thread>
+
+        void bump(int& v) { ++v; }
+
+        int main() {
+            int x = 0;
+            std::thread t(bump, std::ref(x));
+            t.join();
+            std::cout << x << "\n";
+        }
+      out: "1\n"
+thread-destroyed-while-joinable:
+  title: "A joinable thread must not be destroyed"
+  text: "Destroying a `std::thread` that is still joinable calls `std::terminate`. Join (or detach) before it goes out of scope, including on early returns and exceptions; `std::jthread` does it for you."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+        }   // destroyed while still joinable
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+            t.join();   // wait for it first
+            std::cout << "done\n";
+        }
+      out: "done\n"
+exception-escapes-the-thread:
+  title: "An exception must not leave the thread function"
+  text: "An exception that escapes the function a thread runs ends in `std::terminate`: it cannot reach whoever started the thread. Catch inside, and hand the error over with `std::exception_ptr` or a future."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::thread t([] { throw std::runtime_error("boom"); });   // nobody can catch it
+            t.join();
+        }
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <exception>
+        #include <iostream>
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::exception_ptr error;
+            std::thread t([&] {
+                try { throw std::runtime_error("boom"); }
+                catch (...) { error = std::current_exception(); }   // catch it inside the thread
+            });
+            t.join();
+            try { if (error) std::rethrow_exception(error); }       // and rethrow where it can be handled
+            catch (const std::exception& e) { std::cout << "caught: " << e.what() << "\n"; }
+        }
+      out: "caught: boom\n"
+detach-and-dangling-reference:
+  title: "A detached thread may use dead variables"
+  text: "After `detach()` nothing waits for the thread. If it holds a reference to a local of the function that started it, that local is gone when the function returns. Copy what it needs, or join."
+sleep-instead-of-interruptible-wait:
+  title: "Sleeping cannot be interrupted"
+  text: "A worker that sleeps for a second between checks takes up to a second to notice a stop request. Wait on a condition variable (or use `std::stop_token` with `condition_variable_any`) so it wakes at once."
+thread-member-declared-too-early:
+  title: "Declare the thread member last"
+  text: "Members are constructed in declaration order, so a `std::jthread` declared before the data it uses starts running when that data does not exist yet. Declare the thread last: it is also destroyed first."
+jobs-run-one-after-the-other:
+  title: "Jobs started and joined one by one run sequentially"
+  text: "Starting a thread and joining it in the same loop iteration waits for each job before starting the next, which gives no parallelism. Start all the threads first, then join them all."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <chrono>
+        #include <iostream>
+        #include <thread>
+        #include <vector>
+
+        int main() {
+            using namespace std::chrono;
+            auto start = steady_clock::now();
+            for (int i = 0; i < 4; ++i) {
+                std::thread t([] { std::this_thread::sleep_for(100ms); });
+                t.join();   // waits before starting the next one
+            }
+            auto ms = duration_cast<milliseconds>(steady_clock::now() - start).count();
+            std::cout << (ms >= 400 ? "sequential" : "parallel") << "\n";
+        }
+      out: "sequential\n"
+    fix:
+      code: |
+        #include <chrono>
+        #include <iostream>
+        #include <thread>
+        #include <vector>
+
+        int main() {
+            using namespace std::chrono;
+            auto start = steady_clock::now();
+            std::vector<std::thread> threads;
+            for (int i = 0; i < 4; ++i)
+                threads.emplace_back([] { std::this_thread::sleep_for(100ms); });
+            for (auto& t : threads) t.join();   // start them all, then wait
+            auto ms = duration_cast<milliseconds>(steady_clock::now() - start).count();
+            std::cout << (ms >= 400 ? "sequential" : "parallel") << "\n";
+        }
+      out: "parallel\n"
+first-tick-delayed:
+  title: "The first tick of a timer should not wait a full period"
+  text: "A periodic worker that sleeps first and works afterwards delays its first tick by one period. Do the work, then wait, or wait only for the remaining time."

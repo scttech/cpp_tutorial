@@ -1,0 +1,171 @@
+unsynchronized-increment:
+  title: "`++counter` from two threads is a data race"
+  text: "`++counter` is a read, an add and a write, so two threads can interleave and lose updates. It is also undefined behavior. Protect it with a mutex, or make the counter a `std::atomic`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int counter = 0;
+
+        void work() { for (int i = 0; i < 100000; ++i) ++counter; }   // unsynchronized
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";   // rarely 200000
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        int counter = 0;
+        std::mutex m;
+
+        void work() {
+            for (int i = 0; i < 100000; ++i) {
+                std::lock_guard<std::mutex> lock(m);   // one thread at a time
+                ++counter;
+            }
+        }
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";
+        }
+      out: "200000\n"
+read-without-the-lock:
+  title: "Reading without the lock is a race too"
+  text: "A writer that locks and a reader that does not still race: the lock only protects when both sides take it. Every access to the shared data, reads included, goes through the same mutex."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        int count = 0;
+        std::mutex m;
+
+        int main() {
+            std::thread writer([] {
+                for (int i = 0; i < 1000; ++i) { std::lock_guard<std::mutex> l(m); ++count; }
+            });
+            int seen = count;   // no lock on the reading side
+            writer.join();
+            std::cout << (seen >= 0) << " " << count << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        int count = 0;
+        std::mutex m;
+
+        int main() {
+            std::thread writer([] {
+                for (int i = 0; i < 1000; ++i) { std::lock_guard<std::mutex> l(m); ++count; }
+            });
+            int seen;
+            { std::lock_guard<std::mutex> l(m); seen = count; }   // the reader locks too
+            writer.join();
+            std::cout << (seen >= 0) << " " << count << "\n";
+        }
+      out: "1 1000\n"
+lock-order-inversion:
+  title: "Two locks taken in opposite orders can deadlock"
+  text: "If one thread locks A then B while another locks B then A, each can end up holding one and waiting for the other. Take locks in a fixed order, or lock both at once with `std::scoped_lock`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::lock_guard<std::mutex> x(a); std::lock_guard<std::mutex> y(b); });
+            t1.join();
+            std::thread t2([] { std::lock_guard<std::mutex> x(b); std::lock_guard<std::mutex> y(a); });   // the other way round
+            t2.join();
+        }
+      reports: "lock-order-inversion"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::scoped_lock lock(a, b); });   // locks both, deadlock-free
+            t1.join();
+            std::thread t2([] { std::scoped_lock lock(b, a); });
+            t2.join();
+            std::cout << "ok\n";
+        }
+      out: "ok\n"
+deadlock-on-opposite-transfers:
+  title: "Opposite transfers deadlock"
+  text: "`transfer(a, b)` in one thread and `transfer(b, a)` in another lock the two accounts in opposite orders. Lock both accounts together with `std::scoped_lock`, or always in order of address or id."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::lock_guard<std::mutex> x(a); std::lock_guard<std::mutex> y(b); });
+            t1.join();
+            std::thread t2([] { std::lock_guard<std::mutex> x(b); std::lock_guard<std::mutex> y(a); });   // the other way round
+            t2.join();
+        }
+      reports: "lock-order-inversion"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::scoped_lock lock(a, b); });   // locks both, deadlock-free
+            t1.join();
+            std::thread t2([] { std::scoped_lock lock(b, a); });
+            t2.join();
+            std::cout << "ok\n";
+        }
+      out: "ok\n"
+lock-the-same-mutex-twice:
+  title: "Locking a non-recursive mutex twice deadlocks"
+  text: "A function that holds `m` and calls another function that locks `m` again blocks forever (or is undefined). Split the code into a public function that locks and a private one that assumes the lock is held."
+torn-snapshot:
+  title: "Two reads under two locks give an inconsistent pair"
+  text: "Reading the balance of two accounts, each under its own lock, can see one before and one after a transfer, so the sum is wrong. Take one lock covering both, or lock them together, for a consistent snapshot."
+check-then-act-with-the-lock-released:
+  title: "Checking and acting must happen under one lock"
+  text: "Testing `if (balance >= x)` under a lock, releasing it, and withdrawing under a new lock lets another thread slip in between. Keep the check and the action inside one critical section."
+manual-lock-unlock:
+  title: "Do not call `lock()` and `unlock()` by hand"
+  text: "An early `return` or an exception between the two leaves the mutex locked forever. Use `std::lock_guard` or `std::scoped_lock`, which unlock in their destructor on every path."
+lock-held-too-long:
+  title: "Do not hold a lock longer than needed"
+  text: "Holding a mutex while doing slow work (I/O, a long computation) makes every other thread wait. Copy what you need under the lock, release it, and do the slow part outside."

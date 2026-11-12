@@ -1,0 +1,180 @@
+quote-not-doubled:
+  title: "A quote inside a quoted field must be doubled"
+  text: "In CSV, a field containing `\"` is written inside quotes with each inner quote doubled: `say \"hi\"` becomes `\"say \"\"hi\"\"\"`. Wrapping the text in quotes without doubling it produces output that no reader parses back."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        std::string quote(const std::string& f) { return "\"" + f + "\""; }   // inner quotes not doubled
+
+        int main() {
+            std::cout << quote("say \"hi\"") << "\n";
+        }
+      out: "\"say \"hi\"\"\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        std::string quote(const std::string& f) {
+            std::string out = "\"";
+            for (char c : f) {
+                if (c == '"') out += '"';   // double every quote
+                out += c;
+            }
+            return out + "\"";
+        }
+
+        int main() {
+            std::cout << quote("say \"hi\"") << "\n";
+        }
+      out: "\"say \"\"hi\"\"\"\n"
+trailing-delimiter-lost:
+  title: "A trailing delimiter means an empty last field"
+  text: "\"a,b,\" has three fields, the last one empty. A split that ends when the text runs out drops it. Remember that a separator at the end creates a field."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("a,b,");
+            std::string field;
+            int n = 0;
+            while (std::getline(in, field, ',')) ++n;   // the empty last field is lost
+            std::cout << n << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::string text = "a,b,";
+            std::istringstream in(text);
+            std::string field;
+            int n = 0;
+            while (std::getline(in, field, ',')) ++n;
+            if (!text.empty() && text.back() == ',') ++n;   // a trailing comma starts one more field
+            std::cout << n << "\n";
+        }
+      out: "3\n"
+unterminated-quote-accepted:
+  title: "An unterminated quote is an error"
+  text: "`\"abc` with no closing quote must be rejected, not accepted as the field `abc`. Report the error with the position where the quote was opened."
+text-after-closing-quote-accepted:
+  title: "Text after a closing quote is an error"
+  text: "`\"abc\"def` is not a valid field. A reader that silently joins them hides malformed input; reject it with a clear error."
+crlf-leaves-a-carriage-return:
+  title: "Windows lines end in `\\r\\n`"
+  text: "A CSV written on Windows leaves a trailing `\\r` on the last field after `getline`, so comparisons fail. Strip a trailing `\\r` from each line."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            std::cout << (line == "ERROR") << "\n";   // the \r is still there
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <sstream>
+        #include <string>
+
+        int main() {
+            std::istringstream in("ERROR\r\nINFO\r\n");
+            std::string line;
+            std::getline(in, line);
+            if (!line.empty() && line.back() == '\r') line.pop_back();   // strip it
+            std::cout << (line == "ERROR") << "\n";
+        }
+      out: "1\n"
+field-with-delimiter-not-quoted:
+  title: "A field containing the delimiter must be quoted"
+  text: "When writing, a field that contains a comma, a quote or a newline must be wrapped in quotes. Without that, the output reads back as more fields than you wrote."
+newline-inside-quotes-splits-the-record:
+  title: "A newline inside quotes belongs to the field"
+  text: "A quoted field may contain line breaks. Splitting the input into lines first cuts such a record in two; parse the text character by character, tracking whether you are inside quotes."
+quadratic-string-building:
+  title: "Building a string with `s = s + x` is quadratic"
+  text: "Each `s = s + x` allocates and copies the whole string again. Append with `+=` or `append`, which are amortized O(1)."
+value-parameter-copy:
+  title: "A big parameter passed by value is copied"
+  text: "clang-tidy flags `void f(std::string s)` when `s` is only read: every call copies it. Take `const std::string&` or `std::string_view` instead."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+unused-variable:
+  title: "An unused variable is a warning worth reading"
+  text: "A variable that is computed and never used often means a missing line, not a harmless leftover. Look at what it was meant for before deleting it."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int unused = 5;   // computed, never used
+            std::cout << "ok\n";
+        }
+      out: "ok\n"
+      warns: "unused"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << "ok\n";
+        }
+      out: "ok\n"
+tests-that-only-run-the-code:
+  title: "Tests that only run the code"
+  text: "A test that calls the parser and checks nothing about the result raises coverage and finds no bug. Check outputs, and make sure the test fails when the code is broken."
+fixing-the-library-without-tests:
+  title: "A fix without a test is unproven"
+  text: "If you change the library and add no test, nothing says the bug is fixed or stays fixed. Write the failing test first, see it fail, then fix the code."
+tests-without-fixing-the-library:
+  title: "Tests that find bugs must lead to fixes"
+  text: "A test suite that reports a failure and a library that still has the bug is half the job. The task is to harden the library: every bug the tests find is fixed in the code."

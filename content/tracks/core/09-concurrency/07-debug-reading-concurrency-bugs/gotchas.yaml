@@ -1,0 +1,176 @@
+unsynchronized-counter:
+  title: "ThreadSanitizer: \"data race\""
+  text: "The report names the two accesses (with a stack for each) and the variable. Find the shared data they touch, and put both accesses behind one mutex, or make the variable atomic."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int counter = 0;
+
+        void work() { for (int i = 0; i < 100000; ++i) ++counter; }   // unsynchronized
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";   // rarely 200000
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        int counter = 0;
+        std::mutex m;
+
+        void work() {
+            for (int i = 0; i < 100000; ++i) {
+                std::lock_guard<std::mutex> lock(m);   // one thread at a time
+                ++counter;
+            }
+        }
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";
+        }
+      out: "200000\n"
+opposite-lock-order:
+  title: "ThreadSanitizer: \"lock-order-inversion\""
+  text: "The report lists two mutexes and the two places that lock them in opposite orders: a possible deadlock, even if it did not happen in this run. Lock in a fixed order, or with `std::scoped_lock`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::lock_guard<std::mutex> x(a); std::lock_guard<std::mutex> y(b); });
+            t1.join();
+            std::thread t2([] { std::lock_guard<std::mutex> x(b); std::lock_guard<std::mutex> y(a); });   // the other way round
+            t2.join();
+        }
+      reports: "lock-order-inversion"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        std::mutex a, b;
+
+        int main() {
+            std::thread t1([] { std::scoped_lock lock(a, b); });   // locks both, deadlock-free
+            t1.join();
+            std::thread t2([] { std::scoped_lock lock(b, a); });
+            t2.join();
+            std::cout << "ok\n";
+        }
+      out: "ok\n"
+wait-without-predicate:
+  title: "A wait without a predicate"
+  text: "Intermittent hangs or a thread proceeding too early point to a `cv.wait(lock)` without a condition. Add the predicate, so spurious and early wakeups are harmless."
+thread-never-joined:
+  title: "\"terminate called without an active exception\""
+  text: "A `std::thread` was destroyed while joinable. Find the thread object and join it on every path, or use `std::jthread`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+        }   // destroyed while still joinable
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            std::thread t([] {});
+            t.join();   // wait for it first
+            std::cout << "done\n";
+        }
+      out: "done\n"
+plain-bool-stop-flag:
+  title: "A plain `bool` as a stop flag"
+  text: "A worker that loops `while (!stop)` on a plain `bool` has a data race, and the compiler may keep the value in a register forever. Use `std::atomic<bool>` or a `std::stop_token`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            bool ready = false;
+            std::thread t([&] { ready = true; });
+            bool seen = ready;   // read while the thread may write
+            t.join();
+            std::cout << seen << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            std::atomic<bool> ready{false};
+            std::thread t([&] { ready = true; });
+            t.join();
+            std::cout << ready << "\n";
+        }
+      out: "1\n"
+exception-escapes-the-thread:
+  title: "An exception escaping a thread ends the program"
+  text: "\"terminate called after throwing an instance of ...\" means an exception left a thread function. Catch it inside the thread and pass it on with `std::exception_ptr`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::thread t([] { throw std::runtime_error("boom"); });   // nobody can catch it
+            t.join();
+        }
+      reports: "terminate called"
+    fix:
+      code: |
+        #include <exception>
+        #include <iostream>
+        #include <stdexcept>
+        #include <thread>
+
+        int main() {
+            std::exception_ptr error;
+            std::thread t([&] {
+                try { throw std::runtime_error("boom"); }
+                catch (...) { error = std::current_exception(); }   // catch it inside the thread
+            });
+            t.join();
+            try { if (error) std::rethrow_exception(error); }       // and rethrow where it can be handled
+            catch (const std::exception& e) { std::cout << "caught: " << e.what() << "\n"; }
+        }
+      out: "caught: boom\n"
+fixing-the-symptom-not-the-cause:
+  title: "Do not fix the symptom"
+  text: "Adding a `sleep` or a retry makes the intermittent failure rarer, not gone. Find the missing synchronization that the report points at, and fix that."
+reading-the-last-report-first:
+  title: "Start from the first report"
+  text: "Later reports are often consequences of the first race. Fix the first one, rebuild, run again, and then look at what is left."

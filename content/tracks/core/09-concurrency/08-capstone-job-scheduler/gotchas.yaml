@@ -1,0 +1,86 @@
+priority-ignored:
+  title: "The priority is ignored"
+  text: "A scheduler that runs jobs in submission order has the interface of a priority queue and none of its behavior. Order the queue by priority, and test a high-priority job submitted last."
+lifo-within-priority:
+  title: "Jobs of equal priority should run in submission order"
+  text: "A `std::priority_queue` does not order equal elements by arrival. Add a sequence number to each job, and compare by priority first and sequence second, so ties are first in, first out."
+cancel-leaves-the-future-unfinished:
+  title: "Cancelling must finish the job's future"
+  text: "A job removed from the queue by `cancel` must make its future ready (with an error or a \"cancelled\" status), or whoever waits on it blocks forever."
+cancel-a-running-job:
+  title: "A running job cannot be cancelled by removing it"
+  text: "Once a job has started, `cancel` cannot take it out of the queue. Report \"too late\", or set a flag the job checks, and never leave it ambiguous whether the job ran."
+discard-leaves-handles-hanging:
+  title: "Discarding queued jobs must resolve their handles"
+  text: "If shutdown throws away the queue, each discarded job's future has to be completed (with \"cancelled\"). Otherwise every caller waiting on a discarded job hangs."
+drain-drops-queued-jobs:
+  title: "`drain` must run what is queued"
+  text: "A graceful shutdown stops accepting new jobs, runs all the queued ones, and then stops the workers. A `drain` that just stops the workers drops the work."
+shutdown-does-not-wake-workers:
+  title: "Shutdown must wake the workers"
+  text: "Idle workers wait on a condition variable. Setting the stop flag without `notify_all` leaves them asleep, and joining them hangs forever."
+submit-after-shutdown:
+  title: "Submitting after shutdown must fail clearly"
+  text: "A job submitted after shutdown will never run, and its handle would hang. Reject it with an error or a cancelled handle, so the caller finds out immediately."
+wait-idle-ignores-running-jobs:
+  title: "`wait_idle` must also wait for running jobs"
+  text: "An empty queue does not mean the scheduler is idle: a worker may still be running the last job. Idle means \"queue empty and no job running\"."
+wait-idle-never-woken:
+  title: "`wait_idle` needs a notification"
+  text: "The thread waiting for idle sleeps until someone notifies it. Notify when the last running job finishes (and when the queue becomes empty), not only when a job is added."
+job-runs-under-the-lock:
+  title: "Never run a job while holding the scheduler lock"
+  text: "Running user code under the mutex blocks every other thread, and a job that submits another job deadlocks. Take the job out of the queue under the lock, release it, then run the job."
+exception-kills-a-worker:
+  title: "An exception must not kill a worker"
+  text: "A job that throws would end the worker thread (and with it the process) unless the worker catches it. Catch around each job, and report the error through the job's future."
+queue-without-the-lock:
+  title: "Queue operations need the lock"
+  text: "Pushing or popping the job queue without the mutex is a data race, even when it usually works. All access to the shared queue goes through the same lock."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int counter = 0;
+
+        void work() { for (int i = 0; i < 100000; ++i) ++counter; }   // unsynchronized
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";   // rarely 200000
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <iostream>
+        #include <mutex>
+        #include <thread>
+
+        int counter = 0;
+        std::mutex m;
+
+        void work() {
+            for (int i = 0; i < 100000; ++i) {
+                std::lock_guard<std::mutex> lock(m);   // one thread at a time
+                ++counter;
+            }
+        }
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";
+        }
+      out: "200000\n"
+busy-waiting-workers:
+  title: "Workers must block, not spin"
+  text: "A worker that polls an empty queue in a loop uses a full core while idle. Wait on a condition variable until a job arrives or shutdown is requested."
+stats-wrong:
+  title: "Statistics must be updated under the lock"
+  text: "Counters such as \"jobs run\" and \"jobs cancelled\" are shared data. Update them in the same critical sections as the state changes, or the numbers will not add up."

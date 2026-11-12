@@ -1,0 +1,230 @@
+override-without-const:
+  title: "\"Marked override, but does not override\""
+  text: "This error usually means a signature mismatch, most often a missing `const` on the derived function, or a different parameter type. Compare the two declarations character by character."
+  demo:
+    bad:
+      code: |
+        struct Shape {
+            virtual int area() const { return 0; }
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            int area() override { return 4; }   // missing const: a different function
+        };
+
+        int main() {}
+      error: "override"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Shape {
+            virtual int area() const { return 0; }
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            int area() const override { return 4; }
+        };
+
+        int main() {
+            Square s;
+            const Shape& r = s;
+            std::cout << r.area() << "\n";
+        }
+      out: "4\n"
+abstract-class-missing-an-override:
+  title: "\"Cannot instantiate an abstract class\""
+  text: "The error lists the pure virtual function you did not override. Check its exact signature in the base, including `const`, and mark your function `override` so a mismatch is reported at the declaration."
+  demo:
+    bad:
+      code: |
+        struct Shape {
+            virtual double area() const = 0;
+            virtual double perimeter() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            double area() const override { return 4; }   // perimeter() is missing
+        };
+
+        int main() {
+            Square s;
+        }
+      error: "abstract"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Shape {
+            virtual double area() const = 0;
+            virtual double perimeter() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Square : Shape {
+            double area() const override { return 4; }
+            double perimeter() const override { return 8; }
+        };
+
+        int main() {
+            Square s;
+            std::cout << s.perimeter() << "\n";
+        }
+      out: "8\n"
+class-defaults-to-private-inheritance:
+  title: "\"Inaccessible base class\""
+  text: "A `class` inherits privately unless you write `public`, so the conversion to the base is not allowed outside the class. Write `class Derived : public Base`."
+  demo:
+    bad:
+      code: |
+        struct Animal {};
+        class Dog : Animal {};   // private inheritance
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            (void)a;
+        }
+      error: "private base"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {};
+        class Dog : public Animal {};   // public: a Dog is an Animal
+
+        int main() {
+            Dog d;
+            Animal* a = &d;
+            std::cout << (a != nullptr) << "\n";
+        }
+      out: "1\n"
+non-virtual-destructor:
+  title: "A polymorphic base needs a virtual destructor"
+  text: "Deleting a derived object through a base pointer, when the base destructor is not virtual, runs only the base destructor, and the behavior is undefined. The compiler warns with `-Wdelete-non-virtual-dtor`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            ~Base() { std::cout << "~Base\n"; }   // not virtual
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;   // only ~Base can run
+        }
+      out: "~Base\n"
+      warns: "non-virtual"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            virtual ~Base() { std::cout << "~Base\n"; }   // virtual: the whole object is destroyed
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() override { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;
+        }
+      out: "~Derived\n~Base\n"
+hidden-virtual-overload:
+  title: "\"Hides overloaded virtual function\""
+  text: "A derived function with the same name but different parameters hides the base virtual instead of overriding it. Add `using Base::name;`, or fix the signature and write `override`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            virtual void speak() const { std::cout << "...\n"; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            void speak(int) const { std::cout << "int\n"; }   // hides the virtual speak()
+        };
+
+        int main() {
+            Dog d;
+            d.speak(1);
+        }
+      out: "int\n"
+      warns: "hides"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Animal {
+            virtual void speak() const { std::cout << "...\n"; }
+            virtual ~Animal() = default;
+        };
+        struct Dog : Animal {
+            using Animal::speak;   // keep the base overload visible
+            void speak(int) const { std::cout << "int\n"; }
+        };
+
+        int main() {
+            Dog d;
+            d.speak(1);
+        }
+      out: "int\n"
+slicing-by-value-parameter:
+  title: "A by-value base parameter slices what you pass"
+  text: "`void f(Animal a)` called with a `Dog` receives only the `Animal` part, so virtual calls inside it reach the base. Take `const Animal&` instead."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        void speak(Animal a) { std::cout << a.sound() << "\n"; }   // by value: sliced
+
+        int main() {
+            speak(Dog{});
+        }
+      out: "...\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <string>
+
+        struct Animal {
+            virtual std::string sound() const { return "..."; }
+        };
+        struct Dog : Animal {
+            std::string sound() const override { return "woof"; }
+        };
+
+        void speak(const Animal& a) { std::cout << a.sound() << "\n"; }   // by reference
+
+        int main() {
+            speak(Dog{});
+        }
+      out: "woof\n"
+warning-is-a-bug:
+  title: "Treat a warning as a bug until proven otherwise"
+  text: "Warnings such as \"hides overloaded virtual\" or \"deleting an object of polymorphic class with a non-virtual destructor\" point at real defects. Fix them, rather than silencing them, and build with `-Wall -Wextra`."
+error-inside-the-library:
+  title: "The error is in the library, the cause is in your call"
+  text: "Template errors are reported where the failing code is, deep inside the library. Scroll to the \"required from here\" notes: the first one in your own file is the place to look."
+read-the-first-error-first:
+  title: "Read the first error first"
+  text: "One mistake can produce dozens of follow-up errors. Fix the first one and rebuild: most of the rest usually vanish."

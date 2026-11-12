@@ -1,0 +1,66 @@
+expect-where-assert-is-needed:
+  title: "`EXPECT_*` continues, `ASSERT_*` stops"
+  text: "If the next line dereferences a pointer, a failed `EXPECT_NE(p, nullptr)` lets the test crash on it. Use `ASSERT_*` for conditions the rest of the test depends on, and `EXPECT_*` otherwise."
+fixture-state-shared-between-tests:
+  title: "Each test gets a new fixture object"
+  text: "A `TEST_F` fixture is constructed fresh for every test, so state does not carry over. If a test seems to rely on another one's leftovers, the cause is a `static` or a global, not the fixture."
+signed-unsigned-comparison:
+  title: "Comparing signed and unsigned values"
+  text: "`EXPECT_EQ(v.size(), -1)` compares `size_t` with a negative `int`, converts the -1 to a huge unsigned number, and warns about it. Use matching types in tests: `EXPECT_EQ(v.size(), 3u)`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = -1;
+            unsigned int b = 1;
+            std::cout << (a < b) << "\n";   // -1 becomes a huge unsigned number
+        }
+      out: "0\n"
+      warns: "sign"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int a = -1;
+            unsigned int b = 1;
+            std::cout << (a < static_cast<int>(b)) << "\n";   // compare in one signed type
+        }
+      out: "1\n"
+throw-with-the-wrong-exception-type:
+  title: "Name the exact exception type in `EXPECT_THROW`"
+  text: "`EXPECT_ANY_THROW` accepts any exception, including the wrong one. `EXPECT_THROW(stmt, std::out_of_range)` fails when the type is different, which is what you want."
+parameterized-test-never-instantiated:
+  title: "A parameterized test needs an instantiation"
+  text: "A `TEST_P` runs nothing until `INSTANTIATE_TEST_SUITE_P` supplies values: it simply does not run, and recent versions report it as an error. Always check that the expected number of tests ran."
+comparing-doubles-with-equal:
+  title: "Compare doubles with `EXPECT_NEAR` or `EXPECT_DOUBLE_EQ`"
+  text: "`EXPECT_EQ(0.1 + 0.2, 0.3)` fails, because the two sides differ in the last bit. Use `EXPECT_DOUBLE_EQ` (4 ULPs) or `EXPECT_NEAR(a, b, eps)` with a tolerance suited to the numbers."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double a = 0.1 + 0.2;
+            std::cout << (a == 0.3) << "\n";
+        }
+      out: "0\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double a = 0.1 + 0.2;
+            std::cout << (std::abs(a - 0.3) < 1e-9) << "\n";   // within a tolerance
+        }
+      out: "1\n"
+one-test-checks-everything:
+  title: "One test, one behavior"
+  text: "A single test with twenty checks stops telling you what broke after the first failure. Several small tests, named for the behavior they check, show the whole picture at once."
+test-name-says-nothing:
+  title: "A test name should say what it checks"
+  text: "`Test1` tells you nothing when it fails. A name such as `PopOnEmptyStackThrows` is the first line of the bug report."

@@ -1,0 +1,93 @@
+plain-variable-shared-between-threads:
+  title: "A plain variable shared between threads is a data race"
+  text: "Even a simple `bool ready` written by one thread and read by another is a data race and undefined behavior; the reader may never see the change. Make it `std::atomic<bool>`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            bool ready = false;
+            std::thread t([&] { ready = true; });
+            bool seen = ready;   // read while the thread may write
+            t.join();
+            std::cout << seen << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        int main() {
+            std::atomic<bool> ready{false};
+            std::thread t([&] { ready = true; });
+            t.join();
+            std::cout << ready << "\n";
+        }
+      out: "1\n"
+relaxed-spinlock:
+  title: "`memory_order_relaxed` is not enough for a lock"
+  text: "A spinlock built with relaxed operations does not order the protected data: another thread can see the lock free and still see stale data. Acquire on lock, release on unlock."
+relaxed-publication:
+  title: "Publishing data needs release and acquire"
+  text: "To hand data to another thread through a flag, write the data, then store the flag with `release`; the reader loads it with `acquire`, and only then reads the data. Relaxed gives no such ordering."
+atomic-check-then-act:
+  title: "Two atomic operations are not one atomic step"
+  text: "`if (x.load() == 0) x.store(1);` can interleave with another thread between the load and the store. Use `compare_exchange_strong` to test and change in one indivisible operation."
+forgot-notify:
+  title: "Waiting on an atomic needs a notify"
+  text: "`flag.wait(false)` sleeps until another thread calls `flag.notify_one()` or `notify_all()` after changing the value. Storing the new value alone does not wake the waiter."
+busy-wait-on-an-atomic:
+  title: "Spinning on an atomic wastes the CPU"
+  text: "A `while (!flag.load()) {}` loop keeps a core busy. Use `flag.wait(false)` (C++20), a condition variable, or at least `std::this_thread::yield()` for short waits."
+relaxed-compare-exchange-publishing-a-node:
+  title: "Publishing a node needs release on the exchange"
+  text: "In a lock-free stack, the successful `compare_exchange` that links a new node must use `release`, so the node's contents are visible to the thread that pops it with `acquire`."
+load-and-store-are-not-an-update:
+  title: "A load followed by a store is not an increment"
+  text: "`x.store(x.load() + 1)` is two atomic operations, and another thread can run between them and lose an update. Use `fetch_add(1)`, or `x++`, which is a single atomic step."
+volatile-is-not-atomic:
+  title: "`volatile` is not atomic"
+  text: "`volatile` only stops the compiler from optimizing accesses away; it gives no atomicity and no ordering between threads. Two threads incrementing a `volatile int` still race. Use `std::atomic`."
+  demo:
+    thread: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <thread>
+
+        volatile int counter = 0;
+
+        void work() { for (int i = 0; i < 100000; ++i) ++counter; }   // volatile does not make this atomic
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";
+        }
+      reports: "data race"
+    fix:
+      code: |
+        #include <atomic>
+        #include <iostream>
+        #include <thread>
+
+        std::atomic<int> counter{0};
+
+        void work() { for (int i = 0; i < 100000; ++i) ++counter; }   // a real atomic increment
+
+        int main() {
+            std::thread a(work), b(work);
+            a.join();
+            b.join();
+            std::cout << counter << "\n";
+        }
+      out: "200000\n"
+mutex-in-a-lock-free-class:
+  title: "A mutex inside a \"lock-free\" class"
+  text: "A class that claims to be lock-free but takes a mutex in some path is not. Check `is_lock_free()` and `is_always_lock_free`, and remember that big atomics may use a hidden lock."

@@ -9,6 +9,7 @@ import { parse } from "yaml";
 //     demo:
 //       sanitize: false            # true: both programs run with AddressSanitizer + UBSan (the full version only)
 //       server: false              # true: needs something the in-browser compiler lacks (the full version only)
+//       thread: false              # true: both programs run with -pthread and ThreadSanitizer (the full version only)
 //       bad:
 //         code: |                  # a complete program (main.cpp)
 //           ...
@@ -35,6 +36,8 @@ export interface Demo {
   sanitize: boolean;
   /** Uses something the in-browser compiler lacks (for example `from_chars` for doubles): needs the full version too. */
   server: boolean;
+  /** Run with -pthread -fsanitize=thread: needs the full (Docker) version. */
+  thread: boolean;
 }
 
 export interface Gotcha {
@@ -72,7 +75,7 @@ export function parseDemo(v: unknown): Demo | undefined {
   const bad = snippet(v.bad);
   const fix = snippet(v.fix);
   if (!bad || !fix) return undefined;
-  return { bad, fix, sanitize: v.sanitize === true, server: v.server === true };
+  return { bad, fix, sanitize: v.sanitize === true, server: v.server === true, thread: v.thread === true };
 }
 
 /** The lesson's gotchas, in the order lesson.yaml lists them. Tolerates a missing or malformed gotchas.yaml. */

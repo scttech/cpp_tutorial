@@ -1,0 +1,165 @@
+quadratic-pair-search:
+  title: "Checking every pair is O(n squared)"
+  text: "Two nested loops over n values take n squared steps, which is fine for 1,000 and hopeless for 1,000,000. For \"how many pairs sum to a target\" a hash map of the values seen so far makes it linear."
+pair-with-itself:
+  title: "An element must not pair with itself"
+  text: "With target 10 and the value 5, `5 + 5` is only a pair if there are two different 5s. Make the inner loop start after the outer index, or check that the second element is a different one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5};
+            int target = 10, pairs = 0;
+            for (std::size_t i = 0; i < v.size(); ++i)
+                for (std::size_t j = i; j < v.size(); ++j)   // j == i pairs 5 with itself
+                    if (v[i] + v[j] == target) ++pairs;
+            std::cout << pairs << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5};
+            int target = 10, pairs = 0;
+            for (std::size_t i = 0; i < v.size(); ++i)
+                for (std::size_t j = i + 1; j < v.size(); ++j)   // a different element
+                    if (v[i] + v[j] == target) ++pairs;
+            std::cout << pairs << "\n";
+        }
+      out: "0\n"
+equal-values-are-many-pairs:
+  title: "Equal values make many pairs"
+  text: "Three 5s with target 10 form three pairs (3 times 2 divided by 2), not one. Count with the multiplicity of each value, not with a set that forgets how many there were."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <set>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 5, 5};
+            std::set<int> seen(v.begin(), v.end());   // forgets how many 5s there were
+            int pairs = 0;
+            for (int x : seen)
+                if (seen.count(10 - x) && x <= 10 - x) ++pairs;
+            std::cout << pairs << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <map>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 5, 5};
+            std::map<int, long long> freq;
+            for (int x : v) ++freq[x];
+            long long pairs = 0;
+            for (auto [x, n] : freq)
+                if (x == 10 - x) pairs += n * (n - 1) / 2;   // n equal values: n(n-1)/2 pairs
+            std::cout << pairs << "\n";
+        }
+      out: "3\n"
+sorting-the-callers-vector:
+  title: "A function must not reorder the caller's data"
+  text: "Taking the vector by non-const reference to sort it in place changes the caller's vector as a side effect. Take `const&` and sort a copy, or document the side effect."
+  demo:
+    bad:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int smallest(std::vector<int>& v) {   // sorts the caller's vector
+            std::sort(v.begin(), v.end());
+            return v.front();
+        }
+
+        int main() {
+            std::vector<int> v{3, 1, 2};
+            smallest(v);
+            std::cout << v.front() << "\n";   // no longer 3
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <algorithm>
+        #include <iostream>
+        #include <vector>
+
+        int smallest(std::vector<int> v) {   // a copy: the caller's data is untouched
+            std::sort(v.begin(), v.end());
+            return v.front();
+        }
+
+        int main() {
+            std::vector<int> v{3, 1, 2};
+            smallest(v);
+            std::cout << v.front() << "\n";
+        }
+      out: "3\n"
+unsigned-index-underflow:
+  title: "`size_t` counters never go below zero"
+  text: "`for (size_t i = n - 1; i >= 0; --i)` never ends, because an unsigned `i` wraps to a huge number instead of becoming -1, and `n - 1` wraps for `n == 0`. Count down with `while (i-- > 0)`."
+  demo:
+    bad:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t i = 0;
+            --i;   // an unsigned type has no -1
+            std::cout << (i > 1000000) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <cstddef>
+        #include <iostream>
+
+        int main() {
+            std::size_t n = 3;
+            while (n-- > 0) std::cout << n << " ";   // counts 2 1 0 and stops
+            std::cout << "\n";
+        }
+      out: "2 1 0 \n"
+counting-ordered-pairs-twice:
+  title: "Count each pair once, not twice"
+  text: "The pair (a, b) and the pair (b, a) are the same pair when order does not matter. Looping over all ordered pairs counts every pair twice: iterate `j > i`, or divide by two."
+copying-in-the-loop:
+  title: "Do not copy inside the hot loop"
+  text: "A copy of a string or vector in the body of a loop that runs a million times is a million allocations. Bind with `const auto&`, and hoist what does not change out of the loop."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto x : v) x *= 2;   // doubles a copy
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "1 2 3 \n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            for (auto& x : v) x *= 2;   // doubles the element itself
+            for (int x : v) std::cout << x << " ";
+            std::cout << "\n";
+        }
+      out: "2 4 6 \n"

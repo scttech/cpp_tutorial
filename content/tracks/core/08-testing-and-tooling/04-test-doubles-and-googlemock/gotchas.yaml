@@ -1,0 +1,27 @@
+mock-without-expect-call:
+  title: "A mock without `EXPECT_CALL` verifies nothing"
+  text: "A mock method that is called with no expectation is a \"naggy\" mock: it works, but the test never checked that the call happened. Say what you expect, and how often."
+over-specified-mock:
+  title: "Do not over-specify the interaction"
+  text: "A test that pins every call, argument and order breaks whenever the implementation is refactored, even though the behavior is the same. Verify what matters to the outcome and leave the rest loose."
+forgot-virtual-destructor-in-the-interface:
+  title: "The interface under a mock needs a virtual destructor"
+  text: "The mock is deleted through a pointer to the interface, so the interface needs `virtual ~Interface() = default;`. Otherwise the mock's destructor never runs and its expectations are never verified."
+mock-method-missing-override:
+  title: "Mark a mock method `override`"
+  text: "With `MOCK_METHOD(..., (override))`, a signature mismatch against the interface is a compile error. Without it, the mock quietly defines a new function and the real one is never replaced."
+expectations-set-after-the-call:
+  title: "Set expectations before the call"
+  text: "`EXPECT_CALL` must come before the code that triggers the call, or the call has already been made as an unexpected one. Write the expectations first, then run the code, then let the mock verify."
+unexpected-call-on-a-strict-mock:
+  title: "A strict mock fails on any unexpected call"
+  text: "A `StrictMock` treats every call without an `EXPECT_CALL` as an error, which is useful for finding calls you did not intend, and brittle when the implementation changes. Use it deliberately."
+will-once-too-few-actions:
+  title: "`WillOnce` actions need to cover every call"
+  text: "If you expect three calls but give only two `WillOnce` actions, the third call returns a default value and a warning. Add `WillRepeatedly`, or one `WillOnce` per call."
+mock-outlives-nothing:
+  title: "The mock must outlive its users"
+  text: "A mock is verified when it is destroyed. If the object under test holds a reference to it and is destroyed later, it uses a dead mock. Declare the mock first, so it is destroyed last."
+testing-the-mock:
+  title: "Do not end up testing the mock"
+  text: "If every dependency is mocked and the test only checks that the mock returned what you told it to, the test proves nothing about the real code. Use real objects where they are cheap and fast."

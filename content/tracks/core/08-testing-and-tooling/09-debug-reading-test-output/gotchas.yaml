@@ -1,0 +1,112 @@
+off-by-one-boundary:
+  title: "The failing test names the boundary"
+  text: "A test called \"at exactly 10 units\" fails: the code uses `>` where it should use `>=`, or the other way round. Read the test name as the specification, and check the comparison at the boundary."
+wrong-exception-type:
+  title: "The right problem, the wrong exception"
+  text: "The test expects `std::out_of_range` and the code throws `std::invalid_argument`. The message tells you both types: change the code to the type the contract names, not the test."
+signed-overflow-in-balance:
+  title: "A balance that wraps around"
+  text: "Adding to an `int` balance past the maximum is undefined behavior, and may appear as a large negative number. Check before adding, or use a wider type, and test with the largest values."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;   // INT_MAX
+            stock += 1;                       // one more
+            std::cout << stock << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;
+            if (stock > INT_MAX - 1) {        // would not fit: say so instead of adding
+                std::cout << "too many items\n";
+            } else {
+                stock += 1;
+                std::cout << stock << "\n";
+            }
+        }
+      out: "too many items\n"
+reference-to-vector-element:
+  title: "A reference to an element can dangle"
+  text: "Keeping `Account& a = accounts[0];` and then adding another account may reallocate the vector, leaving `a` dangling. Look the element up again after any insertion, or use indices."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int& first = v[0];
+            v.push_back(4);   // reallocates: `first` now dangles
+            std::cout << first << "\n";
+        }
+      reports: "heap-use-after-free"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v = {1, 2, 3};
+            int first = v[0];   // keep the value, not a reference into the vector
+            v.push_back(4);
+            std::cout << first << "\n";
+        }
+      out: "1\n"
+no-rollback-after-a-failed-step:
+  title: "A failed second step must undo the first"
+  text: "A transfer that withdraws and then fails to deposit leaves the money gone. Do the checks first, or undo the first step when the second fails, and test the failure path."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            balance -= amount;                                  // changed first ...
+            if (balance < 0) throw std::runtime_error("no");    // ... checked afterwards
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";   // the failed call left its mark
+        }
+      out: "-10\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            if (balance < amount) throw std::runtime_error("no");   // check first
+            balance -= amount;
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";
+        }
+      out: "10\n"
+id-never-incremented:
+  title: "An id counter that is never incremented"
+  text: "If every new object gets id 0 because the counter is not advanced, lookups return the wrong one. Use one increment in one place, and test that two objects have different ids."
+fixing-the-test-instead-of-the-code:
+  title: "Do not fix the test to make it pass"
+  text: "When a test fails, first decide which side is wrong. If the test states the specification, changing it to match the code hides the bug rather than fixing it."
+reading-the-last-failure-first:
+  title: "Start from the first failure"
+  text: "Later failures are often consequences of the first one. Read the output from the top, fix the first failure, and run again before you look at the rest."

@@ -1,0 +1,166 @@
+unary-minus-vs-power:
+  title: "`-2^2` is -4, not 4"
+  text: "In mathematics, and in this grammar, exponentiation binds tighter than unary minus, so `-2^2` is `-(2^2)`. Put the unary minus at a lower precedence level than `^`, but let the exponent itself accept a unary minus: `2^-1`."
+power-is-right-associative:
+  title: "`^` is right-associative"
+  text: "`2^3^2` means `2^(3^2)` = 512, not `(2^3)^2` = 64. A recursive-descent rule for it calls itself for the right operand, instead of looping."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::pow(std::pow(2, 3), 2) << "\n";   // (2^3)^2: folded to the left
+        }
+      out: "64\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            std::cout << std::pow(2, std::pow(3, 2)) << "\n";   // 2^(3^2): folded to the right
+        }
+      out: "512\n"
+subtraction-is-left-associative:
+  title: "`-` and `/` are left-associative"
+  text: "`8 - 3 - 2` is `(8 - 3) - 2` = 3, not `8 - (3 - 2)` = 7. Parse `+ - * /` with a loop that folds to the left; a right-recursive rule gets it wrong."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << 8 - (3 - 2) << "\n";   // folded to the right
+        }
+      out: "7\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            std::cout << (8 - 3) - 2 << "\n";   // folded to the left, like the language says
+        }
+      out: "3\n"
+modulo-sign:
+  title: "`%` follows the sign of the left operand"
+  text: "`-7 % 3` is -1 in C++, not 2. Decide whether your language uses truncating or flooring modulo, document it, and test negative operands."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = -7;
+            std::cout << x % 3 << "\n";   // not 2
+        }
+      out: "-1\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        int main() {
+            int x = -7;
+            int r = x % 3;
+            if (r < 0) r += 3;   // bring it back into 0..2
+            std::cout << r << "\n";
+        }
+      out: "2\n"
+number-grammar:
+  title: "Define exactly what a number looks like"
+  text: "Are `.5`, `5.`, `1e3`, `1_000` and `+5` numbers? Write the grammar down and parse by it (digits, optional fraction, optional exponent), instead of accepting whatever `from_chars` does."
+errors-with-positions:
+  title: "Report where the error is"
+  text: "An error such as \"unexpected token\" without a column is not much use. Carry the character position through the tokenizer and parser, and put it in every error."
+unexpected-end-vs-unexpected-token:
+  title: "The end of the input is a different error"
+  text: "For `1 +` the problem is that the input ends; for `1 + )` it is a token that cannot appear there. Report them differently, and point at the position after the last token for the first."
+function-arity:
+  title: "Check the number of arguments"
+  text: "`sin(1, 2)` and `max()` have the wrong number of arguments. Check the arity when the call is parsed or evaluated, and say how many were expected."
+unknown-function-vs-variable:
+  title: "An unknown name is a function or a variable by its use"
+  text: "`foo(1)` is an unknown function; `foo + 1` is an unknown variable. Look at whether an opening parenthesis follows the name, and report the right kind of error."
+division-by-zero-vs-not-finite:
+  title: "`1/0` is infinity in floating point, but an error for the user"
+  text: "IEEE division by zero gives `inf` (or NaN for 0/0) without any signal. Check for it explicitly (`std::isfinite` on the result, or test the divisor) and report an error."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        int main() {
+            double zero = 0;
+            std::cout << 1.0 / zero << "\n";   // IEEE: infinity, no error
+        }
+      out: "inf\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        int main() {
+            double zero = 0;
+            double r = 1.0 / zero;
+            if (!std::isfinite(r)) std::cout << "error: division by zero\n";
+            else std::cout << r << "\n";
+        }
+      out: "error: division by zero\n"
+error-order-left-to-right:
+  title: "Report the first error from the left"
+  text: "In `1/0 + foo` there are two problems. The one that comes first in the text, or in evaluation order, is reported, so the same input always gives the same message."
+folding-must-not-hide-errors:
+  title: "Constant folding must not hide an error"
+  text: "Folding `1/0` to a number, or dropping `0 * (1/0)` because it \"is zero\", removes an error the unoptimized program would report. An optimizer must keep the behavior, errors included."
+x-times-zero-is-not-zero:
+  title: "`x * 0` is not always 0"
+  text: "If `x` is infinity or NaN, `x * 0` is NaN. Simplifying `x * 0` to `0` changes the result for those values. Keep it unless `x` is known to be finite."
+no-reassociation:
+  title: "Do not reassociate floating-point operations"
+  text: "`(a + b) + c` and `a + (b + c)` can differ in the last bits, so rewriting one into the other changes results. An optimizer must keep the evaluation order the user wrote."
+copying-the-tree-to-optimize-it:
+  title: "Optimize the tree in place, or build it once"
+  text: "Copying the whole expression tree at every optimization step turns a linear pass into a quadratic one. Transform nodes by moving their children, and rebuild only what changes."
+copying-the-environment:
+  title: "Do not copy the variable table for every evaluation"
+  text: "Passing the `std::map` of variables by value copies it on every call. Take `const Environment&`, and use `find` for lookups."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+double-lookup:
+  title: "Look a variable up once"
+  text: "`if (env.count(name)) use(env.at(name));` searches the map twice. Call `find` once and use the iterator."
+recursion-depth:
+  title: "Deep nesting overflows the stack"
+  text: "An expression with a hundred thousand open parentheses makes a recursive parser use a stack frame per level and crash. Add a depth limit and report an error."

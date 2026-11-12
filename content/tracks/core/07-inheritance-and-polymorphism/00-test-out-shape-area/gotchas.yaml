@@ -1,0 +1,347 @@
+non-virtual-destructor:
+  title: "A polymorphic base needs a virtual destructor"
+  text: "Deleting a derived object through a base pointer, when the base destructor is not virtual, runs only the base destructor: the derived part is never destroyed, and the behavior is undefined. Write `virtual ~Base() = default;`."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            ~Base() { std::cout << "~Base\n"; }   // not virtual
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;   // only ~Base can run
+        }
+      out: "~Base\n"
+      warns: "non-virtual"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            virtual ~Base() { std::cout << "~Base\n"; }   // virtual: the whole object is destroyed
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() override { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;
+        }
+      out: "~Derived\n~Base\n"
+derived-destructor-not-run:
+  title: "The derived destructor does not run through a non-virtual base"
+  text: "If `delete base_ptr` calls only `~Base`, whatever `Derived` owns (memory, files, locks) leaks. A virtual destructor in the base makes the whole chain run, derived first and base last."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            ~Base() { std::cout << "~Base\n"; }   // not virtual
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;   // only ~Base can run
+        }
+      out: "~Base\n"
+      warns: "non-virtual"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Base {
+            virtual void f() {}
+            virtual ~Base() { std::cout << "~Base\n"; }   // virtual: the whole object is destroyed
+        };
+        struct Derived : Base {
+            int data[4] = {};
+            ~Derived() override { std::cout << "~Derived\n"; }
+        };
+
+        int main() {
+            Base* p = new Derived;
+            delete p;
+        }
+      out: "~Derived\n~Base\n"
+clone-slices-a-subclass:
+  title: "Copying through a base slices the object"
+  text: "`Shape copy = *p;` copies only the `Shape` part of a `Circle`. Give the base a virtual `clone()` that returns a `unique_ptr<Shape>`, so each class copies itself."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Shape {
+            virtual std::string name() const { return "shape"; }
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {
+            std::string name() const override { return "circle"; }
+        };
+
+        int main() {
+            std::unique_ptr<Shape> p = std::make_unique<Circle>();
+            Shape copy = *p;               // slices
+            std::cout << copy.name() << "\n";
+        }
+      out: "shape\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <string>
+
+        struct Shape {
+            virtual std::string name() const { return "shape"; }
+            virtual std::unique_ptr<Shape> clone() const = 0;   // each class copies itself
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {
+            std::string name() const override { return "circle"; }
+            std::unique_ptr<Shape> clone() const override { return std::make_unique<Circle>(*this); }
+        };
+
+        int main() {
+            std::unique_ptr<Shape> p = std::make_unique<Circle>();
+            auto copy = p->clone();
+            std::cout << copy->name() << "\n";
+        }
+      out: "circle\n"
+forgot-the-clone-override:
+  title: "Every derived class must override `clone()`"
+  text: "If `Circle` forgets to override `clone()`, copies made through a `Shape*` come back as the wrong type. Make `clone` pure virtual and mark every override with `override`, so forgetting is a compile error."
+  demo:
+    bad:
+      code: |
+        #include <memory>
+
+        struct Shape {
+            virtual std::unique_ptr<Shape> clone() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {};   // forgot to override clone()
+
+        int main() {
+            auto c = std::make_unique<Circle>();
+        }
+      error: "abstract"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+
+        struct Shape {
+            virtual std::unique_ptr<Shape> clone() const = 0;
+            virtual ~Shape() = default;
+        };
+        struct Circle : Shape {
+            std::unique_ptr<Shape> clone() const override { return std::make_unique<Circle>(*this); }
+        };
+
+        int main() {
+            auto c = std::make_unique<Circle>();
+            auto copy = c->clone();
+            std::cout << (copy != nullptr) << "\n";
+        }
+      out: "1\n"
+null-entries-in-the-vector:
+  title: "A vector of base pointers can hold null"
+  text: "Calling `->area()` on a null entry of a `vector<unique_ptr<Shape>>` is undefined behavior. Reject nulls when adding, or check before use."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <vector>
+
+        struct Shape {
+            virtual double area() const { return 1; }
+            virtual ~Shape() = default;
+        };
+
+        int main() {
+            std::vector<std::unique_ptr<Shape>> shapes;
+            shapes.push_back(nullptr);
+            for (const auto& s : shapes) std::cout << s->area() << "\n";   // a null entry
+        }
+      reports: "null pointer"
+    fix:
+      code: |
+        #include <iostream>
+        #include <memory>
+        #include <vector>
+
+        struct Shape {
+            virtual double area() const { return 1; }
+            virtual ~Shape() = default;
+        };
+
+        int main() {
+            std::vector<std::unique_ptr<Shape>> shapes;
+            shapes.push_back(nullptr);
+            for (const auto& s : shapes) {
+                if (!s) { std::cout << "skipped\n"; continue; }
+                std::cout << s->area() << "\n";
+            }
+        }
+      out: "skipped\n"
+ties-go-to-the-first:
+  title: "With a tie, which shape wins?"
+  text: "Two shapes with equal area: `std::max_element` returns the first, a loop with `>=` returns the last. Follow the specification, and put a tie in the tests."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 3, 5};
+            std::size_t best = 0;
+            for (std::size_t i = 1; i < v.size(); ++i)
+                if (v[i] >= v[best]) best = i;   // >= moves to the LAST maximum
+            std::cout << best << "\n";
+        }
+      out: "2\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v{5, 3, 5};
+            std::size_t best = 0;
+            for (std::size_t i = 1; i < v.size(); ++i)
+                if (v[i] > v[best]) best = i;    // > keeps the FIRST maximum, like std::max_element
+            std::cout << best << "\n";
+        }
+      out: "0\n"
+degenerate-triangle:
+  title: "Sides 1, 2 and 10 are not a triangle"
+  text: "Heron's formula takes the square root of a negative number when the triangle inequality fails. Check that each side is shorter than the sum of the other two before computing the area."
+  demo:
+    bad:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        double area(double a, double b, double c) {
+            double s = (a + b + c) / 2;
+            return std::sqrt(s * (s - a) * (s - b) * (s - c));   // negative under the root
+        }
+
+        int main() {
+            std::cout << std::isnan(area(1, 2, 10)) << "\n";
+        }
+      out: "1\n"
+    fix:
+      code: |
+        #include <cmath>
+        #include <iostream>
+
+        double area(double a, double b, double c) {
+            double s = (a + b + c) / 2;
+            return std::sqrt(s * (s - a) * (s - b) * (s - c));
+        }
+
+        int main() {
+            double a = 1, b = 2, c = 10;
+            if (a + b <= c || a + c <= b || b + c <= a) std::cout << "not a triangle\n";   // check first
+            else std::cout << area(a, b, c) << "\n";
+        }
+      out: "not a triangle\n"
+validation-in-the-constructor:
+  title: "Validate in the constructor"
+  text: "A `Circle` with a negative radius should never exist. Throw `std::invalid_argument` from the constructor, so every object that exists is valid and `area()` needs no checks."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Time {
+            int hours, minutes;
+            Time(int h, int m) : hours(h), minutes(m) {}   // accepts anything
+        };
+
+        int main() {
+            Time t{25, 99};
+            std::cout << t.hours << ":" << t.minutes << "\n";
+        }
+      out: "25:99\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        struct Time {
+            int hours, minutes;
+            Time(int h, int m) : hours(h), minutes(m) {
+                if (h < 0 || h > 23 || m < 0 || m > 59) throw std::invalid_argument("not a time");
+            }
+        };
+
+        int main() {
+            try {
+                Time t{25, 99};
+            } catch (const std::invalid_argument&) {
+                std::cout << "invalid time\n";
+            }
+        }
+      out: "invalid time\n"
+reserve-before-push-back:
+  title: "`reserve` before many `push_back`s"
+  text: "When you know how many elements are coming, `reserve(n)` avoids the repeated reallocations (and element moves) of growing one by one."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            int moves = 0;
+            const int* data = nullptr;
+            for (int i = 0; i < 100; ++i) {
+                v.push_back(i);
+                if (v.data() != data) { ++moves; data = v.data(); }
+            }
+            std::cout << (moves > 1 ? "several reallocations\n" : "one allocation\n");
+        }
+      out: "several reallocations\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <vector>
+
+        int main() {
+            std::vector<int> v;
+            v.reserve(100);   // allocate once
+            int moves = 0;
+            const int* data = nullptr;
+            for (int i = 0; i < 100; ++i) {
+                v.push_back(i);
+                if (v.data() != data) { ++moves; data = v.data(); }
+            }
+            std::cout << (moves > 1 ? "several reallocations\n" : "one allocation\n");
+        }
+      out: "one allocation\n"

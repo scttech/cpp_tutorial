@@ -1,0 +1,30 @@
+wait-without-a-predicate:
+  title: "`wait` needs a predicate"
+  text: "A condition variable can wake up without a notification (a spurious wakeup), and a notification can arrive before you wait. Always write `cv.wait(lock, [&]{ return ready; });` and test the real condition."
+lost-wakeup:
+  title: "A notification sent before the wait is lost"
+  text: "If the producer notifies before the consumer starts waiting, the consumer sleeps forever. Keep the condition in a variable guarded by the mutex, and wait with a predicate, so a missed notification does not matter."
+notify-before-the-state-changes:
+  title: "Change the state before you notify"
+  text: "Notifying first and updating afterwards lets the woken thread see the old state and go back to sleep. Update the shared state under the lock, then notify."
+notify-one-when-all-must-wake:
+  title: "`notify_one` when everyone must wake"
+  text: "If every waiter has to see an event (a shutdown, a close), `notify_one` wakes only one and the others sleep forever. Use `notify_all` for conditions that concern all waiters."
+forgot-to-wake-the-other-side:
+  title: "A bounded queue must wake both sides"
+  text: "A push that makes the queue non-empty must wake a consumer, and a pop that makes room must wake a producer. Forgetting one side leaves a thread waiting although the condition is true."
+push-ignores-the-capacity:
+  title: "`push` ignores the capacity"
+  text: "A \"bounded\" queue whose `push` never waits for room grows without limit. Wait until `size() < capacity` (with a predicate), then push."
+close-does-not-wake-waiters:
+  title: "`close` must wake the waiters"
+  text: "Threads blocked in `pop` on an empty queue sleep forever unless `close()` sets the flag and calls `notify_all`. A woken `pop` then returns \"closed\" instead of waiting again."
+busy-waiting:
+  title: "Busy waiting burns a whole core"
+  text: "A loop that keeps checking a flag uses 100% of a CPU while it waits. Block on a condition variable instead, so the thread sleeps until there is something to do."
+size-without-the-lock:
+  title: "Reading `size()` needs the lock too"
+  text: "A `size()` that reads the container without locking races with `push` and `pop`. Lock inside `size()`, and remember the answer may be stale the moment you return it."
+throwing-away-queued-items-on-close:
+  title: "Closing must not drop queued items"
+  text: "After `close()`, consumers should still receive the items that were already queued, and only then see \"closed\". Dropping them loses work the producers believed was accepted."

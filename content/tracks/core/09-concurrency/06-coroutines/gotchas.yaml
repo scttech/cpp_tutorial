@@ -1,0 +1,27 @@
+eager-start:
+  title: "A coroutine does not have to start immediately"
+  text: "Whether the body runs at the call or at the first `resume` is decided by the promise's `initial_suspend`. A lazy generator returns `suspend_always`, so nothing happens until you ask for the first value."
+frame-destroyed-at-the-end:
+  title: "The frame is destroyed after the last suspension point"
+  text: "When a coroutine finishes with `final_suspend` returning `suspend_never`, its frame is destroyed immediately, and the handle dangles. Return `suspend_always` and destroy the handle yourself."
+handle-never-destroyed:
+  title: "A coroutine handle must be destroyed"
+  text: "The coroutine frame lives on the heap until `handle.destroy()` is called. A generator type must call it in its destructor, or every coroutine leaks its frame."
+handle-copied-by-move:
+  title: "A generator that owns a handle must be move-only"
+  text: "If a generator can be copied, two objects would destroy the same handle. Delete the copy operations and implement the move operations to transfer the handle and null the source."
+resume-after-done:
+  title: "Resuming a finished coroutine is undefined"
+  text: "Calling `resume()` when `done()` is true is undefined behavior. Check `handle.done()` before each resume."
+reference-parameter-dangles:
+  title: "Coroutine parameters passed by reference dangle"
+  text: "The frame stores references, not the objects they refer to. If the caller's argument is a temporary or dies before the coroutine runs, the coroutine reads a dead object. Take parameters by value."
+take-pulls-one-too-many:
+  title: "`take(n)` must not pull an (n+1)th value"
+  text: "A `take` that resumes the source once more to check for another value runs the source one step too far (and may have side effects). Stop after n values without asking for more."
+off-by-one-range:
+  title: "An off-by-one in a range generator"
+  text: "`range(1, 5)` should produce 1, 2, 3, 4 (the end is exclusive, like the standard algorithms). Check the first and last value, and the empty range."
+forgot-co-return:
+  title: "A coroutine needs `co_return` or must end normally"
+  text: "Falling off the end of a coroutine without `co_return` calls `return_void()`, which must exist in the promise type, or it is undefined behavior. Write `co_return;` explicitly."

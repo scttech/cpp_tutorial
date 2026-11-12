@@ -51,6 +51,7 @@ describe("demos", () => {
     "  demo:",
     "    sanitize: true",
     "    server: true",
+    "    thread: true",
     "    bad:",
     "      code: |",
     "        int main() { return 0; }",
@@ -69,6 +70,7 @@ describe("demos", () => {
     const d = gotchaEntries(["array-decay"], yaml)[0]?.demo;
     expect(d?.sanitize).toBe(true);
     expect(d?.server).toBe(true);
+    expect(d?.thread).toBe(true);
     expect(d?.bad).toEqual({ code: "int main() { return 0; }\n", reports: "AddressSanitizer" });
     expect(d?.fix.out).toBe("ok\n");
   });
@@ -76,7 +78,7 @@ describe("demos", () => {
     expect(gotchaEntries(["half"], yaml)[0]?.demo).toBeUndefined();
     expect(parseDemo({ bad: { code: "x" }, fix: { code: "  " } })).toBeUndefined();
     expect(parseDemo("nope")).toBeUndefined();
-    expect(parseDemo({ bad: { code: "a" }, fix: { code: "b" } })).toEqual({ bad: { code: "a" }, fix: { code: "b" }, sanitize: false, server: false });
+    expect(parseDemo({ bad: { code: "a" }, fix: { code: "b" } })).toEqual({ bad: { code: "a" }, fix: { code: "b" }, sanitize: false, server: false, thread: false });
   });
   it("an entry without a demo has none", () => {
     expect(gotchaEntries(["a"], "a:\n  title: T\n  text: x")[0]).toEqual({ id: "a", title: "T", text: "x" });

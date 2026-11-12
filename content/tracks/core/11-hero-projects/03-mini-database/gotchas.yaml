@@ -1,0 +1,186 @@
+case-insensitive-commands:
+  title: "Commands are case-insensitive, keys are not"
+  text: "`set`, `SET` and `Set` are the same command, but the keys \"Apple\" and \"apple\" are different. Lower-case the command word only, and leave keys and values exactly as typed."
+quoted-keys-and-values:
+  title: "Quoted keys and values may contain spaces"
+  text: "`SET \"my key\" \"a value\"` has two arguments, not four. Tokenize with quotes in mind, so spaces inside quotes belong to the token."
+escapes-in-quotes:
+  title: "Handle escapes inside quotes"
+  text: "Inside quotes, `\\\"` is a quote character and `\\\\` is a backslash. Process them in the tokenizer, and report an unknown escape."
+stray-quotes:
+  title: "A stray quote is an error"
+  text: "A quote in the middle of a token (`ab\"c`) or an unterminated quoted token must be reported, not silently included or dropped."
+error-order:
+  title: "Check errors in the documented order"
+  text: "When a command is wrong in several ways (unknown command with too many arguments), the specification says which error comes first. Check in that order, so the message matches."
+wrong-arity:
+  title: "Check the number of arguments"
+  text: "`GET` with no key, and `SET k` with no value, are errors with their own message. Count the arguments before you use them."
+rollback-of-a-deleted-key:
+  title: "Rolling back a delete restores the old value"
+  text: "If a transaction deletes a key and is rolled back, the key must come back with its old value. Remember the previous value (or its absence) of each key the first time the transaction changes it."
+rollback-of-a-new-key:
+  title: "Rolling back a new key removes it"
+  text: "A key created inside a transaction did not exist before it, so a rollback must delete it, not set it to an empty value. Record \"absent\" as a state of its own."
+nested-rollback-only-inner:
+  title: "A nested rollback undoes only the inner transaction"
+  text: "After `BEGIN`, `BEGIN`, a `ROLLBACK` discards the changes of the inner transaction and leaves the outer one open. Each level keeps its own record of what it changed."
+commit-closes-all:
+  title: "`COMMIT` ends every open transaction"
+  text: "Unlike `ROLLBACK`, which undoes one level, `COMMIT` makes all open levels permanent and closes them. Test a commit after two `BEGIN`s."
+count-after-overwrite:
+  title: "`COUNT` must follow overwrites"
+  text: "If you keep a count of values in a separate index, overwriting a key must decrement the count of the old value as well as increment the new one. Update the index in the same place as the data."
+count-after-rollback:
+  title: "`COUNT` must follow rollbacks"
+  text: "A rollback changes values back, so the value index has to change back too. Route every change, including undo, through one function that updates both."
+range-bounds-inclusive:
+  title: "Are range bounds inclusive?"
+  text: "Decide whether `RANGE a c` includes the keys `a` and `c`, and what happens when `a > c`. Write it down, and test the keys exactly at the bounds."
+range-bytewise-order:
+  title: "Keys are ordered bytewise"
+  text: "Strings compare byte by byte, so \"B\" comes before \"a\", and \"10\" before \"9\". Use the ordering of `std::string`, and do not fold case or compare numerically unless the specification says so."
+incr-not-an-integer:
+  title: "`INCR` on a value that is not an integer"
+  text: "If the value is \"abc\", or \"12abc\", `INCR` must report an error and leave it unchanged. Parse the whole value, and check that nothing is left over."
+  demo:
+    bad:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            std::cout << (r.ec == std::errc() ? "ok " : "bad ") << value << "\n";   // 12, with junk left over
+        }
+      out: "ok 12\n"
+    fix:
+      code: |
+        #include <charconv>
+        #include <iostream>
+        #include <string_view>
+
+        int main() {
+            std::string_view text = "12abc";
+            int value = 0;
+            auto r = std::from_chars(text.data(), text.data() + text.size(), value);
+            bool whole = r.ec == std::errc() && r.ptr == text.data() + text.size();   // all of it was a number
+            std::cout << (whole ? "ok " : "rejected") << (whole ? value : 0) << "\n";
+        }
+      out: "rejected0\n"
+incr-overflow:
+  title: "`INCR` can overflow"
+  text: "Incrementing `9223372036854775807` overflows a `long long`, which is undefined behavior. Check before adding, and report an error."
+  demo:
+    sanitize: true
+    bad:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;   // INT_MAX
+            stock += 1;                       // one more
+            std::cout << stock << "\n";
+        }
+      reports: "signed integer overflow"
+    fix:
+      code: |
+        #include <climits>
+        #include <iostream>
+
+        int main(int argc, char**) {
+            int stock = INT_MAX - 1 + argc;
+            if (stock > INT_MAX - 1) {        // would not fit: say so instead of adding
+                std::cout << "too many items\n";
+            } else {
+                stock += 1;
+                std::cout << stock << "\n";
+            }
+        }
+      out: "too many items\n"
+snapshot-on-begin:
+  title: "`BEGIN` should not copy the whole database"
+  text: "Copying every key on `BEGIN` makes a transaction O(n). Record only the old values of the keys the transaction touches, as an undo log, so `BEGIN` is O(1)."
+linear-count:
+  title: "`COUNT` by scanning is O(n)"
+  text: "Counting the keys with a given value by scanning all keys is too slow for a big database. Keep an index from value to count, and update it on every change."
+linear-range:
+  title: "`RANGE` by scanning is O(n)"
+  text: "Finding the keys between two bounds by testing every key is O(n). Keep the keys in a `std::map`, and use `lower_bound` and `upper_bound` for O(log n + k)."
+copying-keys-and-values:
+  title: "Copying keys and values at every step"
+  text: "Taking `std::string` parameters by value, or copying the value into the undo log twice, doubles the work. Use `const&` and `std::move` where the data is handed over."
+  demo:
+    bad:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(Noisy n) { (void)n; }   // by value
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: "copy\n"
+    fix:
+      code: |
+        #include <iostream>
+
+        struct Noisy {
+            Noisy() = default;
+            Noisy(const Noisy&) { std::cout << "copy\n"; }
+        };
+
+        void inspect(const Noisy& n) { (void)n; }   // by const reference
+
+        int main() {
+            Noisy n;
+            inspect(n);
+        }
+      out: ""
+errors-must-not-change-state:
+  title: "A failing command must not change anything"
+  text: "If `INCR` fails after it has already changed the transaction log, the database is left half-updated. Validate first, then change state."
+  demo:
+    server: true
+    bad:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            balance -= amount;                                  // changed first ...
+            if (balance < 0) throw std::runtime_error("no");    // ... checked afterwards
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";   // the failed call left its mark
+        }
+      out: "-10\n"
+    fix:
+      code: |
+        #include <iostream>
+        #include <stdexcept>
+
+        void withdraw(int& balance, int amount) {
+            if (balance < amount) throw std::runtime_error("no");   // check first
+            balance -= amount;
+        }
+
+        int main() {
+            int balance = 10;
+            try { withdraw(balance, 20); } catch (const std::exception&) {}
+            std::cout << balance << "\n";
+        }
+      out: "10\n"
