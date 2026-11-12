@@ -55,6 +55,26 @@ describe("lesson-complete / lesson-count", () => {
   });
 });
 
+describe("lesson-tier", () => {
+  const rule: Rule = { type: "lesson-tier", lesson: "m1.b", tier: "fast" };
+  it("is met only when that tier of that lesson is earned", () => {
+    expect(ev(rule, emptyProgress()).met).toBe(false);
+    expect(ev(rule, withLessons({ "m1.b": complete({ bestTiers: T(true, true, false) }) })).met).toBe(false);
+    expect(ev(rule, withLessons({ "m1.b": complete() }))).toMatchObject({ met: true, lessons: ["m1.b"] });
+    expect(ev(rule, withLessons({ "m1.a": complete() })).met).toBe(false);
+  });
+  it("can never be met for a tier the lesson does not declare, or a lesson that does not exist", () => {
+    expect(ev({ type: "lesson-tier", lesson: "m1.a", tier: "fast" }, withLessons({ "m1.a": complete() })).met).toBe(false);
+    expect(ev({ type: "lesson-tier", lesson: "nope", tier: "works" }, withLessons({ nope: complete() })).met).toBe(false);
+  });
+  it("is available only when the lesson declares the tier, and its shape is checked", () => {
+    expect(isAvailable(rule, catalog)).toBe(true);
+    expect(isAvailable({ type: "lesson-tier", lesson: "m1.a", tier: "fast" }, catalog)).toBe(false);
+    expect(checkRule(rule)).toEqual([]);
+    expect(checkRule({ type: "lesson-tier", lesson: "m1.b" })).not.toEqual([]);
+  });
+});
+
 describe("module-complete", () => {
   it("is complete when every non-test-out lesson is complete", () => {
     const s = withLessons({ "m1.a": complete(), "m1.b": complete(), "m1.cap": complete() });

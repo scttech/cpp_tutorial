@@ -12,6 +12,7 @@ import { withFriendly } from "../diagnostics/friendly";
 import type { Lesson } from "../content/types";
 import { RunnerError, runner } from "../runner";
 import type { CompileDiagnostic, RunResult, Tier } from "../runner";
+import { countCodeLines } from "../state/recorder";
 import { update, recordRun, revealHint, revealSolution, useAllProgress, useProgress } from "../state/store";
 import { isRunnable, unrunnableReason } from "./Home";
 import { useToolchain } from "../runner/useToolchain";
@@ -105,7 +106,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
         const shown: RunResult = { ...res, diagnostics: withFriendly(res.diagnostics) };
         setResult(shown);
         setKind(mode);
-        recordRun({ lessonId: meta.id, mode, declaredTiers: declared, result: shown });
+        recordRun({ lessonId: meta.id, mode, declaredTiers: declared, result: shown, userLines: countCodeLines(filesRef.current, meta.files.editable) });
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") setError("Run cancelled.");
         else setError(e instanceof RunnerError ? e.message : `Unexpected error: ${String(e)}`);

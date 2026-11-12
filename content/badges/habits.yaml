@@ -73,3 +73,10 @@
   icon: "🏅"
   description: "Reach a 30-day streak."
   rule: { type: streak-days, atLeast: 30 }
+
+- id: refactorer
+  name: "Refactorer"
+  category: habits
+  icon: "✂️"
+  description: "After a lesson is complete, pass its tests again with fewer lines of code (blank lines and comments do not count)."
+  rule: { type: custom-event, event: refactor, atLeast: 1 }

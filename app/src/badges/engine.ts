@@ -19,6 +19,7 @@ export interface Where {
 export type Rule =
   | { type: "lesson-complete"; lesson: string }
   | { type: "lesson-count"; where: Where; atLeast: number }
+  | { type: "lesson-tier"; lesson: string; tier: Tier }
   | { type: "module-complete"; module: string }
   | { type: "track-complete"; module: string; tier?: Tier }
   | { type: "tier-complete"; tier: Tier; atLeast: number }
@@ -104,6 +105,12 @@ export function evaluate(rule: Rule, state: Progress, catalog: Catalog): Evaluat
       const ids = catalog.lessons.filter((l) => matches(l, prog(state, l.id), rule.where)).map((l) => l.id);
       return count(ids, rule.atLeast);
     }
+    case "lesson-tier": {
+      // one named lesson, one tier (only a tier the lesson declares can be earned)
+      const l = catalog.lessons.find((x) => x.id === rule.lesson);
+      const ok = l !== undefined && l.tiers[rule.tier] && prog(state, l.id).bestTiers[rule.tier];
+      return { met: ok, lessons: ok ? [rule.lesson] : [] };
+    }
     case "module-complete": {
       const ok = isModuleComplete(state, catalog, rule.module);
       return { met: ok, lessons: ok ? catalog.lessons.filter((l) => l.module === rule.module).map((l) => l.id) : [] };
@@ -173,6 +180,8 @@ export function isAvailable(rule: Rule, catalog: Catalog): boolean {
   switch (rule.type) {
     case "lesson-complete":
       return catalog.lessons.some((l) => l.id === rule.lesson);
+    case "lesson-tier":
+      return catalog.lessons.some((l) => l.id === rule.lesson && l.tiers[rule.tier]);
     case "module-complete":
     case "track-complete":
       return catalog.lessons.some((l) => l.module === rule.module) && !catalog.inProgressModules?.includes(rule.module);
@@ -198,7 +207,7 @@ export function awardBadges(state: Progress, earned: { id: string; lessons: stri
   return { ...state, badges };
 }
 
-const RULE_TYPES = new Set(["lesson-complete", "lesson-count", "module-complete", "track-complete", "tier-complete", "first-try", "persistence", "streak-days", "custom-event", "same-day-count", "all"]);
+const RULE_TYPES = new Set(["lesson-complete", "lesson-count", "lesson-tier", "module-complete", "track-complete", "tier-complete", "first-try", "persistence", "streak-days", "custom-event", "same-day-count", "all"]);
 
 /** Structural check of a rule from YAML; returns a list of problems (empty when fine). */
 export function checkRule(rule: unknown, path = "rule"): string[] {
@@ -209,6 +218,8 @@ export function checkRule(rule: unknown, path = "rule"): string[] {
   switch (r.type) {
     case "lesson-complete":
       return need("lesson", "string");
+    case "lesson-tier":
+      return [...need("lesson", "string"), ...need("tier", "string")];
     case "module-complete":
     case "track-complete":
       return need("module", "string");

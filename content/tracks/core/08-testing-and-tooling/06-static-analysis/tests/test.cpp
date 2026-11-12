@@ -68,7 +68,7 @@ ZTH_TEST("robust", "average of zero items is 0, and negative totals work") {
     ZTH_EXPECT_NEAR(average(5, 0), 0.0, 1e-12);
     ZTH_EXPECT_NEAR(average(-7, 2), -3.5, 1e-9);
 }
-ZTH_TEST("robust", "unit_price at the boundary: 9 units full price, 10 units discounted") {
+ZTH_TEST("robust", "unit_price at the boundary: 9 units full price, 10 units discounted (off-by-one)") {
     ZTH_EXPECT_NEAR(unit_price(10.0, 9), 10.0, 1e-9);
     ZTH_EXPECT_NEAR(unit_price(10.0, 10), 9.0, 1e-9);
     ZTH_EXPECT_NEAR(unit_price(10.0, 0), 10.0, 1e-9);

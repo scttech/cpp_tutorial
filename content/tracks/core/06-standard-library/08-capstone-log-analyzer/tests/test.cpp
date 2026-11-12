@@ -364,7 +364,7 @@ ZTH_TEST("robust", "analyze: the Report owns its strings (the log text may be de
     ZTH_EXPECT_EQ(r.top_errors.size(), std::size_t{1});
     if (!r.top_errors.empty()) ZTH_EXPECT_EQ(r.top_errors[0].message, S("a message that is long enough to need the heap"));
 }
-ZTH_TEST("robust", "analyze: the peak error hour - the boundary between hours, and ties go to the earlier hour") {
+ZTH_TEST("robust", "analyze: the peak error hour - the boundary between hours, and ties go to the earlier hour (off-by-one)") {
     const Report a = analyze(
         "2024-03-05T13:59:59 ERROR a 1 x\n"
         "2024-03-05T14:00:00 ERROR a 1 x\n"

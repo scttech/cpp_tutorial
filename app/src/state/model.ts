@@ -13,6 +13,8 @@ export interface LessonProgress {
   hintsUsed: number;
   aiHelpUsed: number;
   explainUsed: boolean; // asked the tutor to explain or discuss (for the Good Question badge)
+  bestLines?: number; // fewest code lines of a passing version (for the Refactorer badge)
+  lastWarnings?: number; // compiler warnings in the latest successful build (for the Wall of Warnings badge)
   solutionRevealed: boolean;
   lastCode: Record<string, string>;
   firstCompleteAt?: string; // ISO
@@ -94,6 +96,8 @@ function normalizeLesson(raw: unknown): LessonProgress {
     lastCode: code,
   };
   if (typeof raw.runsToFirstPass === "number") out.runsToFirstPass = num(raw.runsToFirstPass);
+  if (typeof raw.bestLines === "number") out.bestLines = num(raw.bestLines);
+  if (typeof raw.lastWarnings === "number") out.lastWarnings = num(raw.lastWarnings);
   const done = str(raw.firstCompleteAt);
   if (done) out.firstCompleteAt = done;
   return out;

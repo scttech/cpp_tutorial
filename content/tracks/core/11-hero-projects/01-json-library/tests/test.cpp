@@ -197,7 +197,7 @@ ZTH_TEST("works", "writing and parsing again gives the same value") {
 }
 
 // ================================================ Robust ======================================================
-ZTH_TEST("robust", "errors: the text ends too early (UnexpectedEnd, position just after the last character)") {
+ZTH_TEST("robust", "errors: the text ends too early (UnexpectedEnd, position just after the last character) (off-by-one)") {
     expect_error("", Error::UnexpectedEnd, 1, 1);
     expect_error("   \n ", Error::UnexpectedEnd, 2, 2);
     expect_error("[1,2", Error::UnexpectedEnd, 1, 5);

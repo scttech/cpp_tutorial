@@ -125,3 +125,51 @@
   icon: "🐛"
   description: "Complete a debug challenge."
   rule: { type: lesson-count, where: { type: [debug], status: complete }, atLeast: 1 }
+
+- id: raii-master
+  name: "RAII Master"
+  category: mastery
+  icon: "🔐"
+  description: "Earn Clean on the Module 4 capstone: your own int vector, with no raw memory outside its internals."
+  rule: { type: lesson-tier, lesson: core.ownership.capstone-vector, tier: clean }
+
+- id: move-semantics-ninja
+  name: "Move Semantics Ninja"
+  category: mastery
+  icon: "🥷"
+  description: "Earn Fast on the move-semantics lesson, which counts every allocation a copy would have made."
+  rule: { type: lesson-tier, lesson: core.ownership.rule-of-five, tier: fast }
+
+- id: template-wizard
+  name: "Template Wizard"
+  category: mastery
+  icon: "🧙"
+  description: "Earn Fast and Clean on both Module 5 capstones: the ring buffer and the static vector."
+  rule:
+    type: all
+    rules:
+      - { type: lesson-tier, lesson: core.generics.capstone-ring-buffer, tier: fast }
+      - { type: lesson-tier, lesson: core.generics.capstone-ring-buffer, tier: clean }
+      - { type: lesson-tier, lesson: core.generics.capstone-static-vector, tier: fast }
+      - { type: lesson-tier, lesson: core.generics.capstone-static-vector, tier: clean }
+
+- id: const-correct
+  name: "Const Correct"
+  category: mastery
+  icon: "🔒"
+  description: "Earn Clean on the const-correctness lesson: no const_cast, and `mutable` only on a cache."
+  rule: { type: lesson-tier, lesson: core.classes.const-correctness, tier: clean }
+
+- id: zero-alloc
+  name: "Zero-Alloc"
+  category: mastery
+  icon: "0️⃣"
+  description: "Complete an embedded challenge. Every one of them is checked for heap allocations, and none is allowed any."
+  rule: { type: lesson-count, where: { module: domain.embedded, status: complete }, atLeast: 1 }
+
+- id: standard-bearer
+  name: "Standard Bearer"
+  category: mastery
+  icon: "📚"
+  description: "Earn Clean on the algorithms lesson: a whole data-cleaning pipeline with no hand-written loop."
+  rule: { type: lesson-tier, lesson: core.stdlib.algorithms, tier: clean }

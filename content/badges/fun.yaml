@@ -37,3 +37,19 @@
   icon: "🐦"
   description: "Complete a lesson between 4am and 6am."
   rule: { type: custom-event, event: completed-early-morning, atLeast: 1 }
+
+- id: off-by-one
+  name: "Off By One"
+  category: fun
+  hidden: true
+  icon: "1️⃣"
+  description: "Fail a test that exists to catch an off-by-one error. A rite of passage."
+  rule: { type: custom-event, event: off-by-one, atLeast: 1 }
+
+- id: wall-of-warnings
+  name: "Wall of Warnings"
+  category: fun
+  hidden: true
+  icon: "🧱"
+  description: "Fix 20 compiler warnings: each time a rebuild has fewer warnings than the one before, the difference counts."
+  rule: { type: custom-event, event: warnings-fixed, atLeast: 20 }

@@ -171,7 +171,7 @@ ZTH_TEST("robust", "find_max: empty range returns `last`") {
     ZTH_EXPECT_TRUE(find_max(end, end) == end);
     ZTH_EXPECT_TRUE(find_max(g.a, g.a) == g.a);
 }
-ZTH_TEST("robust", "find_max never looks at `last` (one past the end)") {
+ZTH_TEST("robust", "find_max never looks at `last` (one past the end) (off-by-one)") {
     Guarded g{{1, 2, 3, 4, 5}};
     ZTH_EXPECT_TRUE(find_max(g.a, g.a + 5) == &g.a[4]);  // not the sentinel (1000) that follows
 }

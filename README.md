@@ -14,7 +14,7 @@ Full product spec: [project_assets/CPP_From_Zero_to_Hero_SPEC.md](project_assets
 | Runner (Docker sandbox + API) | Working, with attack tests |
 | Front end (lesson page, editor, tiers, hints) | Working |
 | Progress persistence | IndexedDB (localStorage fallback), export/import JSON, migration from the first release, streaks |
-| Badges | 44 declarative badges (progress, mastery, habits, consistency, hidden), Profile page, toasts |
+| Badges | 63 declarative badges (progress, mastery, skills such as RAII Master and Const Correct, habits such as Refactorer and Good Question, consistency, hidden), Profile page, toasts |
 | Friendly compiler errors | 91 rules (14 for template errors, 11 for inheritance and virtual functions, 9 for warnings such as `-Wconversion` and `-Wshadow`, 3 for threads, 4 for `constexpr`/`consteval`/`constinit`), each verified against real Clang output; raw message always one click away |
 | Module 1 Foundations | **Complete**: test-out, 7 lessons, capstone (9 items, 51 mutant solutions that must fail) |
 | Module 2 Data and Memory | **Complete**: test-out, 7 lessons (arrays, vector, strings, references, pointers and the heap, structs, a Find-the-Bug debug set) and the Inventory Tracker capstone: 9 items, 130 mutant solutions in total that must fail. Uses all four tiers: Fast = counted heap allocations, Clean = leak/double-free detection and no raw `new` |
@@ -109,7 +109,7 @@ The validator and e2e need the runner (`docker compose up -d runner`); e2e also 
 
 ## Authoring content
 
-- **A badge**: add an entry to a file in [content/badges/](content/badges/). Rules are data (`lesson-count`, `module-complete`, `tier-complete`, `streak-days`, ...), so no code change is needed. Badges whose rules refer to content that does not exist yet appear under "coming soon".
+- **A badge**: add an entry to a file in [content/badges/](content/badges/). Rules are data (`lesson-count`, `lesson-tier`, `module-complete`, `tier-complete`, `streak-days`, ...), so no code change is needed. Badges whose rules refer to content that does not exist yet appear under "coming soon".
 - **A friendly error**: add a rule to [content/diagnostics/friendly.yaml](content/diagnostics/friendly.yaml) with a `trigger` program. `npm run validate` compiles every trigger with real Clang and fails if the rule does not fire, or if an earlier rule shadows it.
 - **A lesson**: see [content/tracks/](content/tracks/); every lesson needs a starter, solution, hidden tests, hints and ideally a list of **mutants**: plausible wrong solutions that the tests must reject.
   - **Mutants**: write them in the lesson's `mutants.json` (the source of truth): `{ "name", "why", "edits": [{ "old", "new" }] }`, where `old` must appear exactly once in the solution file. Then run `npm run mutants` in `tools/validate-content` to generate the `mutants/` directories (commit both; CI and `npm run validate` check that they match). Never edit a file in `mutants/` by hand. Changing a solution? Run `npm run mutants` and the validator: an `old` that no longer matches is reported by name.

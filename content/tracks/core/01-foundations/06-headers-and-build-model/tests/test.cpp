@@ -38,7 +38,7 @@ ZTH_TEST("works", "the program output mentions the total area") {
 }
 
 // ---- Robust --------------------------------------------------------------------------------------
-ZTH_TEST("robust", "contains includes points exactly on the boundary") {
+ZTH_TEST("robust", "contains includes points exactly on the boundary (off-by-one)") {
     const Circle c{5.0};
     ZTH_EXPECT_TRUE(contains(c, 3.0, 4.0));  // distance exactly 5
     ZTH_EXPECT_TRUE(contains(c, 5.0, 0.0));

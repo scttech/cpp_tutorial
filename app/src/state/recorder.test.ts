@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyProgress, normalize } from "./model";
-import { applyRun } from "./recorder";
+import { applyRun, countCodeLines } from "./recorder";
 import type { RunInput } from "./recorder";
 
 const NOON = new Date(2026, 4, 5, 12, 0, 0);
@@ -103,6 +103,76 @@ describe("applyRun: streak and events", () => {
     // a later re-run at night does not count again
     const rerun = applyRun(day, input({ tests: all }), new Date(2026, 4, 6, 2, 0)).state;
     expect(rerun.events["completed-at-night"]).toBeUndefined();
+  });
+});
+
+describe("applyRun: Off By One, Wall of Warnings, Refactorer", () => {
+  const warn = (n: number) => Array.from({ length: n }, (_, i) => ({ severity: "warning" as const, file: "main.cpp", line: i + 1, column: 1, message: `w${i}` }));
+  const solved = [pass("works"), pass("robust")];
+  const build = (s: ReturnType<typeof emptyProgress>, n: number, mode: "run" | "test" = "run", compiled = true) =>
+    applyRun(s, input({ mode, compiled, result: { diagnostics: warn(n) } as never }), NOON).state;
+  it("Off By One: a failing test carrying the tag fires the event, a passing one or an untagged failure does not", () => {
+    const tagged = { name: "index_of checks the last element too (off-by-one)", status: "fail" as const, tier: "works" as const, message: "x" };
+    expect(applyRun(emptyProgress(), input({ tests: [tagged] }), NOON).state.events["off-by-one"]?.count).toBe(1);
+    expect(applyRun(emptyProgress(), input({ tests: [{ ...tagged, status: "pass" as const }] }), NOON).state.events["off-by-one"]).toBeUndefined();
+    expect(applyRun(emptyProgress(), input({ tests: [fail()] }), NOON).state.events["off-by-one"]).toBeUndefined();
+  });
+  it("Wall of Warnings: only a DROP between two successful builds of a lesson counts, by the size of the drop", () => {
+    let s = build(emptyProgress(), 5);
+    expect(s.events["warnings-fixed"]).toBeUndefined(); // the first build only sets the baseline
+    s = build(s, 2);
+    expect(s.events["warnings-fixed"]?.count).toBe(3);
+    s = build(s, 4); // more warnings: nothing
+    expect(s.events["warnings-fixed"]?.count).toBe(3);
+    s = build(s, 0, "test");
+    expect(s.events["warnings-fixed"]?.count).toBe(7);
+    expect(s.lessons.l1?.lastWarnings).toBe(0);
+  });
+  it("Wall of Warnings: a failed build neither counts nor resets the baseline", () => {
+    let s = build(emptyProgress(), 6);
+    s = build(s, 0, "run", false);
+    expect(s.lessons.l1?.lastWarnings).toBe(6);
+    expect(s.events["warnings-fixed"]).toBeUndefined();
+  });
+  it("Refactorer: needs a passing run AFTER completion with fewer code lines than the best passing version", () => {
+    let s = applyRun(emptyProgress(), input({ tests: solved, userLines: 30 }), NOON).state;
+    expect(s.lessons.l1).toMatchObject({ status: "complete", bestLines: 30 });
+    expect(s.events.refactor).toBeUndefined();
+    s = applyRun(s, input({ tests: solved, userLines: 30 }), NOON).state; // the same size: nothing
+    s = applyRun(s, input({ tests: solved, userLines: 35 }), NOON).state; // bigger: nothing
+    expect(s.events.refactor).toBeUndefined();
+    s = applyRun(s, input({ tests: [pass("works"), fail("robust")], userLines: 10 }), NOON).state; // shorter but failing: nothing
+    expect(s.events.refactor).toBeUndefined();
+    expect(s.lessons.l1?.bestLines).toBe(30);
+    s = applyRun(s, input({ tests: solved, userLines: 22 }), NOON).state;
+    expect(s.events.refactor?.count).toBe(1);
+    expect(s.lessons.l1?.bestLines).toBe(22);
+    s = applyRun(s, input({ tests: solved, userLines: 20 }), NOON).state;
+    expect(s.events.refactor?.count).toBe(2);
+  });
+  it("Refactorer: lines before completion are not a refactor, and a lesson completed before the feature just gets a baseline", () => {
+    let s = applyRun(emptyProgress(), input({ tests: [pass("works"), fail("robust")], userLines: 50 }), NOON).state;
+    s = applyRun(s, input({ tests: solved, userLines: 20 }), NOON).state;
+    expect(s.events.refactor).toBeUndefined();
+    expect(s.lessons.l1?.bestLines).toBe(20);
+    const old = normalize({ lessons: { l1: { status: "complete", bestTiers: { works: true, robust: true } } } });
+    const after = applyRun(old, input({ tests: solved, userLines: 40 }), NOON).state;
+    expect(after.events.refactor).toBeUndefined();
+    expect(after.lessons.l1?.bestLines).toBe(40);
+  });
+  it("without userLines nothing about refactoring is tracked, and the new fields survive normalize", () => {
+    expect(applyRun(emptyProgress(), input({ tests: solved }), NOON).state.lessons.l1?.bestLines).toBeUndefined();
+    const n = normalize({ lessons: { l1: { bestLines: 12, lastWarnings: 3 } } }).lessons.l1;
+    expect(n).toMatchObject({ bestLines: 12, lastWarnings: 3 });
+    expect(normalize({ lessons: { l1: { bestLines: -4, lastWarnings: "x" } } }).lessons.l1?.lastWarnings).toBeUndefined();
+  });
+});
+
+describe("countCodeLines", () => {
+  it("counts code lines of the editable files only: blank lines and whole-line comments do not count", () => {
+    const files = { "a.cpp": "int x;\n\n  // note\nint y; // trailing comment still counts\n", "b.hpp": "#pragma once\n", "main.cpp": "int main() {}\n" };
+    expect(countCodeLines(files, ["a.cpp", "b.hpp"])).toBe(3);
+    expect(countCodeLines(files, ["missing.cpp"])).toBe(0);
   });
 });
 

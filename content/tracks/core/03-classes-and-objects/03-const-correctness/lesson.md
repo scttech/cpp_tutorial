@@ -95,3 +95,8 @@ starter every call inside it is rejected. Then make the class const-correct:
 | `row_sum(const Grid&, r)` | A free function that takes the grid by **const reference**. |
 
 The tests check the *shape* of your class (what a `const Grid&` can and cannot do) as well as its behavior.
+
+## Tiers
+
+- **Works** and **Robust**: the class is const-correct (the shape tests above), behaves correctly, checks its bounds and caches the total.
+- **Clean**: no `const_cast` anywhere in `grid.hpp`; only the cache and the call counter are `mutable` (real data never is); all the data members are `private`; and no `using namespace` in the header.

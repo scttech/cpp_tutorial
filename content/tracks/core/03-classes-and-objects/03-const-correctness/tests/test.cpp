@@ -254,3 +254,46 @@ ZTH_TEST("robust", "a long random sequence of writes, fills and reads always agr
         }
     }
 }
+
+// ================================================ Clean =======================================================
+// Source checks of grid.hpp (comments and string literals are blanked first) and one access check.
+namespace {
+
+std::string grid_code() { return ::zth::strip_comments_and_literals(::zth::read_file("grid.hpp")); }
+
+// What each `mutable` declares: the text from the keyword up to the `;`.
+std::vector<std::string> mutable_declarations() {
+    const std::string code = grid_code();
+    std::vector<std::string> out;
+    for (std::size_t p : ::zth::find_word(code, "mutable")) out.push_back(code.substr(p, code.find(';', p) - p));
+    return out;
+}
+
+// The data members must not be reachable from outside (in a requires-expression an inaccessible name is simply false).
+template <class G> constexpr bool reachable_rows = requires(G& g) { g.rows_; };
+template <class G> constexpr bool reachable_cols = requires(G& g) { g.cols_; };
+template <class G> constexpr bool reachable_cells = requires(G& g) { g.cells_; };
+template <class G> constexpr bool reachable_cache = requires(G& g) { g.cache_; };
+template <class G> constexpr bool reachable_recomputations = requires(G& g) { g.recomputations_; };
+
+}  // namespace
+
+ZTH_TEST("clean", "grid.hpp does not use const_cast: a const function never casts its promise away") {
+    ZTH_EXPECT_TRUE(::zth::find_word(grid_code(), "const_cast").empty());
+}
+ZTH_TEST("clean", "only the cache and the call counter are `mutable`: real data never is") {
+    const auto decls = mutable_declarations();
+    for (const std::string& d : decls) {
+        if (d.find("cache_") == std::string::npos && d.find("recomputations_") == std::string::npos) {
+            ::zth::fail("`" + d.substr(0, 60) + "` is mutable, but it is real data. `mutable` is only for hidden detail such as a cache.");
+            return;
+        }
+    }
+    ZTH_EXPECT_TRUE(decls.size() <= 2);
+}
+ZTH_TEST("clean", "all the data members are private") {
+    ZTH_EXPECT_FALSE(reachable_rows<Grid> || reachable_cols<Grid> || reachable_cells<Grid> || reachable_cache<Grid> || reachable_recomputations<Grid>);
+}
+ZTH_TEST("clean", "grid.hpp has no `using namespace` directive (every file that includes it would inherit it)") {
+    ZTH_EXPECT_FALSE(::zth::source_layout_of("grid.hpp").using_directive);
+}

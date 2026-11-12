@@ -26,4 +26,6 @@ This lesson is a data-cleaning pipeline over a `std::vector<Record>`, one algori
 
 ## Your task
 
-Fill in `cleaning.hpp`. The tiers: **Works** (the pipeline), **Robust** (empty input, many equal records, stability, bytes above 127, bounds outside the data), **Fast** (200000 records through the erase-remove idiom, `count_between` with about `2 * log2(n)` comparisons, a hundred thousand records sorted and partitioned).
+Fill in `cleaning.hpp`. The tiers: **Works** (the pipeline), **Robust** (empty input, many equal records, stability, bytes above 127, bounds outside the data), **Fast** (200000 records through the erase-remove idiom, `count_between` with about `2 * log2(n)` comparisons, a hundred thousand records sorted and partitioned), **Clean** (the lesson's own advice, checked: no hand-written loop at all, so no `for`, `while` or `do` in `cleaning.hpp`, and predicates and comparators take a `Record` by const reference).
+
+`std::for_each` is the algorithm for "do this to every element": `std::for_each(v.begin(), v.end(), [](Record& r) { ... });`. A range-`for` is a loop too, so the Clean tier asks for it by name.

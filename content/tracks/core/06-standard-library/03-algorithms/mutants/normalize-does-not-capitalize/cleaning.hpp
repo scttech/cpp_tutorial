@@ -32,9 +32,9 @@ inline void remove_invalid(std::vector<Record>& records) {
 // Capitalizes each name: first letter upper case, the rest lower case ("aDA" -> "Ada"). ASCII letters only.
 // (std::tolower and std::toupper need an unsigned char value.)
 inline void normalize_names(std::vector<Record>& records) {
-    for (Record& r : records) {
+    std::for_each(records.begin(), records.end(), [](Record& r) {
         std::transform(r.name.begin(), r.name.end(), r.name.begin(), [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
-    }
+    });
 }
 
 // ---- 3. std::sort with a comparator -------------------------------------------------------------------------------------------

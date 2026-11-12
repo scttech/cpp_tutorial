@@ -80,7 +80,7 @@ ZTH_TEST("robust", "pad_left leaves long text alone and pads the empty string") 
     ZTH_EXPECT_EQ(pad_left("", 3, '-'), std::string("---"));
     ZTH_EXPECT_EQ(pad_left("a", 4, '*'), std::string("***a"));
 }
-ZTH_TEST("robust", "grade_points is 0 below 70, also for 0 and negative scores, and exact at every boundary") {
+ZTH_TEST("robust", "grade_points is 0 below 70, also for 0 and negative scores, and exact at every boundary (off-by-one)") {
     ZTH_EXPECT_EQ(grade_points(69), 0);
     ZTH_EXPECT_EQ(grade_points(0), 0);
     ZTH_EXPECT_EQ(grade_points(-5), 0);

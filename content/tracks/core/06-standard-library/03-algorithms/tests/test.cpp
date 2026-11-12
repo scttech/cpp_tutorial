@@ -152,7 +152,7 @@ ZTH_TEST("robust", "sort_records orders a long random list correctly") {
         }
     }
 }
-ZTH_TEST("robust", "partition_adults: nobody is an adult, everybody is, and the boundary at 18") {
+ZTH_TEST("robust", "partition_adults: nobody is an adult, everybody is, and the boundary at 18 (off-by-one)") {
     Rs minors = {rec("a", 5, 1), rec("b", 17, 1)};
     ZTH_EXPECT_EQ(partition_adults(minors), std::size_t{0});
     Rs adults = {rec("a", 18, 1), rec("b", 90, 1)};
@@ -228,4 +228,41 @@ ZTH_TEST("fast", "sorting and partitioning 100000 records finishes quickly") {
     const std::size_t adults = partition_adults(rs);
     ZTH_EXPECT_TRUE(adults > 50000);
     ZTH_EXPECT_TRUE(rs.front().score >= rs[1].score || rs.front().score == rs[1].score);
+}
+
+// ================================================ Clean =======================================================
+// Source checks of cleaning.hpp (comments and string literals are blanked first).
+namespace {
+
+std::string cleaning_code() { return ::zth::strip_comments_and_literals(::zth::read_file("cleaning.hpp")); }
+
+// Parameters of type Record taken BY VALUE, as in `(Record r)` or `, Record b)`: a silent copy of two strings per call.
+std::size_t record_by_value_params(const std::string& code) {
+    auto is_word = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+    std::size_t n = 0;
+    for (std::size_t p : ::zth::find_word(code, "Record")) {
+        std::size_t b = p;
+        while (b > 0 && std::isspace(static_cast<unsigned char>(code[b - 1]))) --b;
+        const bool after_open = b > 0 && (code[b - 1] == '(' || code[b - 1] == ',');
+        std::size_t a = p + 6;
+        while (a < code.size() && std::isspace(static_cast<unsigned char>(code[a]))) ++a;
+        const bool named = a < code.size() && is_word(code[a]) && a > p + 6;
+        if (after_open && named) ++n;
+    }
+    return n;
+}
+
+}  // namespace
+
+ZTH_TEST("clean", "cleaning.hpp has no hand-written loop: no `for`, `while` or `do` (every step is a named algorithm)") {
+    const std::string code = cleaning_code();
+    for (const char* kw : {"for", "while", "do"}) {
+        if (!::zth::find_word(code, kw).empty()) {
+            ::zth::fail(std::string("found a `") + kw + "` loop. Use a named algorithm instead (std::for_each, std::transform, std::accumulate, std::find_if, ...).");
+            return;
+        }
+    }
+}
+ZTH_TEST("clean", "predicates and comparators take a Record by const reference, not by value (no silent copies)") {
+    ZTH_EXPECT_EQ(record_by_value_params(cleaning_code()), std::size_t{0});
 }

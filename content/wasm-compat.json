@@ -15,7 +15,7 @@
       "details": [
         "solution does not build: In file included from main.cpp:4: | ./grid.hpp:14:37: error: cannot use 'throw' with exceptions disabled |    14 |         if (rows == 0 || cols == 0) throw std::invalid_argument(\"Grid: rows and cols must each be at least 1\"); |       |                                     ^"
       ],
-      "hash": "024260148de72b22"
+      "hash": "3df23542a9407495"
     },
     "core.classes.constructors": {
       "wasm": false,
@@ -118,7 +118,7 @@
     "core.data-and-memory.arrays": {
       "wasm": true,
       "mutants": 10,
-      "hash": "6ab9ef9cd8065cf5"
+      "hash": "70fb569e5cbe93d2"
     },
     "core.data-and-memory.capstone-inventory": {
       "wasm": false,
@@ -136,7 +136,7 @@
     "core.data-and-memory.pointers": {
       "wasm": true,
       "mutants": 17,
-      "hash": "0e2217faa09984c6"
+      "hash": "c26a5c5feabb587f"
     },
     "core.data-and-memory.references": {
       "wasm": true,
@@ -187,7 +187,7 @@
     "core.foundations.headers-and-build-model": {
       "wasm": true,
       "mutants": 4,
-      "hash": "c8cdf42fe6e1305b"
+      "hash": "0553e4408a96a254"
     },
     "core.foundations.hello-world": {
       "wasm": true,
@@ -217,7 +217,7 @@
     "core.generics.capstone-ring-buffer": {
       "wasm": true,
       "mutants": 30,
-      "hash": "77b2608ba93ec5f9"
+      "hash": "96a4e5057904463e"
     },
     "core.generics.capstone-static-vector": {
       "wasm": true,
@@ -291,7 +291,7 @@
     "core.heroes.json": {
       "wasm": true,
       "mutants": 51,
-      "hash": "1c5fd6837d946111"
+      "hash": "1ff3794c36a3d6b5"
     },
     "core.heroes.mini-database": {
       "wasm": true,
@@ -459,8 +459,8 @@
     },
     "core.stdlib.algorithms": {
       "wasm": true,
-      "mutants": 27,
-      "hash": "6b2fbc6905e57a61"
+      "mutants": 33,
+      "hash": "fdfc1cf382d94648"
     },
     "core.stdlib.capstone-log-analyzer": {
       "wasm": false,
@@ -468,7 +468,7 @@
       "details": [
         "solution fails \"analyze handles 200000 lines quickly\" [timeout]: test did not finish in 2s (infinite loop?)"
       ],
-      "hash": "5191964548ea37a5"
+      "hash": "058188119e1ca92b"
     },
     "core.stdlib.containers": {
       "wasm": false,
@@ -562,7 +562,7 @@
       "wasm": false,
       "reason": "needs testing-tools",
       "declared": true,
-      "hash": "bb530e814f2aa75b"
+      "hash": "4de6a393e800c90b"
     },
     "core.testing.test-out": {
       "wasm": false,
@@ -573,7 +573,7 @@
     "core.testing.warnings": {
       "wasm": true,
       "mutants": 11,
-      "hash": "76c6cf0c44aa8d41"
+      "hash": "cf50dbb7ac250dab"
     },
     "core.testing.why-test": {
       "wasm": true,

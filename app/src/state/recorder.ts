@@ -3,6 +3,21 @@ import { emptyLesson } from "./model";
 import type { LessonProgress, Progress } from "./model";
 import { localDate, touchStreak } from "./streak";
 
+/** A test whose name carries this tag fails on a classic off-by-one bug (the hidden "Off By One" badge). */
+export const OFF_BY_ONE_TAG = "(off-by-one)";
+
+/** Code lines of the learner's own files: blank lines and whole-line // comments do not count (for the Refactorer badge). */
+export function countCodeLines(files: Record<string, string>, editable: string[]): number {
+  let n = 0;
+  for (const name of editable) {
+    for (const line of (files[name] ?? "").split("\n")) {
+      const t = line.trim();
+      if (t !== "" && !t.startsWith("//")) n += 1;
+    }
+  }
+  return n;
+}
+
 export interface RunInput {
   lessonId: string;
   mode: "run" | "test";
@@ -10,6 +25,8 @@ export interface RunInput {
   result: Pick<RunResult, "compiled" | "tests" | "signal" | "timedOut" | "diagnostics">;
   /** Compiler errors seen since the last clean compile this session (for the "It Compiles!" badge). */
   sessionCompileErrors: number;
+  /** Code lines of the learner's editable files in this run (countCodeLines). Optional: without it nothing about refactoring is tracked. */
+  userLines?: number;
 }
 
 export interface RunOutcome {
@@ -18,9 +35,9 @@ export interface RunOutcome {
   becameComplete: boolean;
 }
 
-function bumpEvent(state: Progress, name: string, nowIso: string): Progress {
+function bumpEvent(state: Progress, name: string, nowIso: string, by = 1): Progress {
   const cur = state.events[name]?.count ?? 0;
-  return { ...state, events: { ...state.events, [name]: { count: cur + 1, lastAt: nowIso } } };
+  return { ...state, events: { ...state.events, [name]: { count: cur + by, lastAt: nowIso } } };
 }
 
 /**
@@ -44,6 +61,14 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
     }
   }
 
+  // Wall of Warnings: warnings that disappeared between two successful builds of this lesson count as fixed
+  const warnings = result.diagnostics.filter((d) => d.severity === "warning").length;
+  let fixedWarnings = 0;
+  if (result.compiled) {
+    if (before.lastWarnings !== undefined && warnings < before.lastWarnings) fixedWarnings = before.lastWarnings - warnings;
+    p.lastWarnings = warnings;
+  }
+
   const wasComplete = before.status === "complete";
   const complete = wasComplete || (declaredTiers.length > 0 && declaredTiers.every((t) => p.bestTiers[t]));
   if (mode === "test" && !wasComplete && !allPass) p.failedRuns += 1;
@@ -54,7 +79,20 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
     p.runsToFirstPass = p.testRuns;
   }
 
+  // Refactorer: a passing run of an already-completed lesson with fewer code lines than any passing version before
+  let refactored = false;
+  if (input.userLines !== undefined && mode === "test" && allPass) {
+    if (p.bestLines === undefined) p.bestLines = input.userLines; // the first passing version is the baseline
+    else if (input.userLines < p.bestLines) {
+      p.bestLines = input.userLines;
+      refactored = wasComplete;
+    }
+  }
+
   let next: Progress = { ...state, lessons: { ...state.lessons, [input.lessonId]: p } };
+  if (refactored) next = bumpEvent(next, "refactor", nowIso);
+  if (fixedWarnings > 0) next = bumpEvent(next, "warnings-fixed", nowIso, fixedWarnings);
+  if (mode === "test" && result.compiled && result.tests.some((t) => t.status !== "pass" && t.name.includes(OFF_BY_ONE_TAG))) next = bumpEvent(next, "off-by-one", nowIso);
   next = { ...next, streak: touchStreak(next.streak, localDate(now)) };
 
   // Fun events (hidden badges)

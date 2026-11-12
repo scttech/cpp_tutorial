@@ -89,7 +89,7 @@ ZTH_TEST("robust", "at_or can return a fallback equal to a real element") {
     ZTH_EXPECT_EQ(at_or(a, 2, 3), 3);
     ZTH_EXPECT_EQ(at_or(a, 6, 3), 3);
 }
-ZTH_TEST("robust", "index_of checks the last element too") {
+ZTH_TEST("robust", "index_of checks the last element too (off-by-one)") {
     const std::array<int, 6> a{1, 2, 3, 4, 5, 6};
     ZTH_EXPECT_EQ(index_of(a, 6), std::size_t{5});
 }

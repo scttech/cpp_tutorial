@@ -190,7 +190,7 @@ ZTH_TEST("works", "iteration follows the logical order after the buffer has wrap
     b.push(6);
     ZTH_EXPECT_TRUE((by_iterator(b) == V{3, 4, 5, 6}));
 }
-ZTH_TEST("works", "begin() == end() for an empty buffer, and end() is one past the last element") {
+ZTH_TEST("works", "begin() == end() for an empty buffer, and end() is one past the last element (off-by-one)") {
     IntRing<3> b;
     ZTH_EXPECT_TRUE(b.begin() == b.end());
     b.push(1);
