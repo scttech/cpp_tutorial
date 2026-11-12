@@ -21,6 +21,7 @@ import { getState, update, recordResolve, recordRun, revealHint, revealSolution,
 import { describeInterval, isClean, isResolveDue, passedAll, resolveFor } from "../state/resolves";
 import type { ResolveOutcome } from "../state/resolves";
 import { localDate } from "../state/streak";
+import { useActiveTime } from "../state/useActiveTime";
 import { isRunnable, unrunnableReason } from "./Home";
 import { useToolchain } from "../runner/useToolchain";
 
@@ -70,6 +71,7 @@ function LessonView({ lesson, resolving }: { lesson: Lesson; resolving: boolean 
   const [kind, setKind] = useState<"run" | "test" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeTime = useActiveTime(meta.id);
   const all = useAllProgress();
   const pace = all.settings.pace;
   // Re-solve session: nothing here touches the saved solution, the hint counter or the attempt statistics.
@@ -137,6 +139,7 @@ function LessonView({ lesson, resolving }: { lesson: Lesson; resolving: boolean 
         const shown: RunResult = { ...res, diagnostics: withFriendly(res.diagnostics) };
         setResult(shown);
         setKind(mode);
+        activeTime.flush(); // so the time to the first pass includes everything up to this run
         if (!resolving) recordRun({ lessonId: meta.id, mode, declaredTiers: declared, result: shown, userLines: countCodeLines(filesRef.current, meta.files.editable) });
         else if (mode === "test" && !outcomeRef.current && passedAll(shown)) finishRef.current(true);
       } catch (e) {
@@ -147,7 +150,7 @@ function LessonView({ lesson, resolving }: { lesson: Lesson; resolving: boolean 
         setBusy(false);
       }
     },
-    [lesson, meta, declared, stdin, resolving],
+    [lesson, meta, declared, stdin, resolving, activeTime],
   );
 
   const onJump = (d: CompileDiagnostic) => {

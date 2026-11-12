@@ -21,14 +21,14 @@ const runTests = async (expected) => {
 try {
   // --- course map ---
   await page.goto(`${APP}/#/`);
-  await page.getByRole("link", { name: /Hello, World/ }).waitFor();
+  await page.getByRole("link", { name: /^1. Hello, World/ }).waitFor();
   check(true, "course map lists the Hello World lesson");
   await page.getByText(/Docker runner: online/).waitFor({ timeout: 15000 });
   check(true, "runner status shows online");
   await shot(page, "1-home");
 
   // --- starter fails ---
-  await page.getByRole("link", { name: /Hello, World/ }).click();
+  await page.getByRole("link", { name: /^1. Hello, World/ }).click();
   await page.locator(".monaco-editor").first().waitFor({ timeout: 30000 });
   check((await page.locator(".md h1").textContent())?.includes("Hello, World"), "lesson text renders");
   await runTests(/tests passed/);
@@ -77,7 +77,7 @@ try {
   await shot(page, "5-home-complete");
 
   // --- hints ladder counts reveals ---
-  await page.getByRole("link", { name: /Hello, World/ }).click();
+  await page.getByRole("link", { name: /^1. Hello, World/ }).click();
   await page.getByRole("tab", { name: "Hints" }).click();
   await page.getByRole("button", { name: /Reveal level 1/ }).click();
   check((await page.getByText(/Run the tests and read the failure message/).count()) === 1, "hint level 1 reveals on demand");

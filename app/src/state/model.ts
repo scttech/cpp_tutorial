@@ -25,6 +25,10 @@ export interface LessonProgress {
   solutionRevealed: boolean;
   lastCode: Record<string, string>;
   firstCompleteAt?: string; // ISO
+  /** Time spent on the lesson page (open, visible and in use), in milliseconds. */
+  timeMs: number;
+  /** timeMs at the moment the lesson was first completed. */
+  msToFirstPass?: number;
 }
 
 export interface Streak {
@@ -60,6 +64,8 @@ export interface Progress {
   /** What was done on each recent day (see state/activity.ts), and the plan chosen for the current day (state/plan.ts). */
   activity: Record<string, Activity>;
   plan: DailyPlan | null;
+  /** How often each kind of problem was hit: "compile:<rule id>" (or "compile:other") and "runtime:<sanitizer summary>". */
+  errors: Record<string, { count: number; lastAt: string }>;
   settings: Settings;
 }
 
@@ -74,6 +80,7 @@ export const emptyLesson = (): LessonProgress => ({
   explainUsed: false,
   solutionRevealed: false,
   lastCode: {},
+  timeMs: 0,
 });
 
 export const emptyProgress = (): Progress => ({
@@ -87,6 +94,7 @@ export const emptyProgress = (): Progress => ({
   resolves: {},
   activity: {},
   plan: null,
+  errors: {},
   settings: { pace: "full", weakClear: DEFAULT_CLEAR },
 });
 
@@ -117,10 +125,12 @@ function normalizeLesson(raw: unknown): LessonProgress {
     explainUsed: raw.explainUsed === true,
     solutionRevealed: raw.solutionRevealed === true,
     lastCode: code,
+    timeMs: num(raw.timeMs),
   };
   if (typeof raw.runsToFirstPass === "number") out.runsToFirstPass = num(raw.runsToFirstPass);
   if (typeof raw.bestLines === "number") out.bestLines = num(raw.bestLines);
   if (typeof raw.lastWarnings === "number") out.lastWarnings = num(raw.lastWarnings);
+  if (typeof raw.msToFirstPass === "number") out.msToFirstPass = num(raw.msToFirstPass);
   const done = str(raw.firstCompleteAt);
   if (done) out.firstCompleteAt = done;
   return out;
@@ -182,11 +192,16 @@ export function normalize(raw: unknown): Progress {
   }
   if (isObj(raw.activity)) {
     for (const [date, v] of Object.entries(raw.activity)) {
-      if (isObj(v) && /^\d{4}-\d{2}-\d{2}$/.test(date)) out.activity[date] = { warmups: num(v.warmups), resolves: num(v.resolves), lessons: num(v.lessons), runs: num(v.runs) };
+      if (isObj(v) && /^\d{4}-\d{2}-\d{2}$/.test(date)) out.activity[date] = { warmups: num(v.warmups), resolves: num(v.resolves), lessons: num(v.lessons), runs: num(v.runs), ms: num(v.ms) };
     }
   }
   if (isObj(raw.plan) && typeof raw.plan.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.plan.date)) {
     out.plan = { date: raw.plan.date, ...(str(raw.plan.lessonId) ? { lessonId: str(raw.plan.lessonId) as string } : {}), ...(str(raw.plan.resolveId) ? { resolveId: str(raw.plan.resolveId) as string } : {}) };
+  }
+  if (isObj(raw.errors)) {
+    for (const [key, v] of Object.entries(raw.errors)) {
+      if (isObj(v) && /^(compile|runtime):.+/.test(key)) out.errors[key] = { count: num(v.count), lastAt: str(v.lastAt) ?? "" };
+    }
   }
   if (isObj(raw.settings)) {
     if (raw.settings.pace === "fast" || raw.settings.pace === "full") out.settings.pace = raw.settings.pace;

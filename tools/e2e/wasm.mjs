@@ -24,7 +24,7 @@ const runTests = (expected) => t.runTests(page, expected);
 try {
   // ---------------- the course map greys out what cannot run here ----------------
   await page.goto(`${APP}/#/`);
-  await page.getByRole("link", { name: /Hello, World/ }).waitFor();
+  await page.getByRole("link", { name: /^1. Hello, World/ }).waitFor();
   check(((await page.locator(".status, header").first().textContent()) ?? "").includes("In-browser compiler"), "the runner is named in the header");
   const locked = page.locator(".lesson-list li.locked");
   const names = (await locked.locator("span:first-child").allTextContents()).map((t) => t.trim());
@@ -33,7 +33,7 @@ try {
   check((await locked.locator(".badge", { hasText: "Server needed" }).count()) === NOT_IN_BROWSER, "each shows a 'Server needed' badge");
   const tip = (await locked.first().getAttribute("title")) ?? "";
   check(/Not available in this version: .+Docker/.test(tip), `the tooltip says why (${tip.slice(0, 90)})`);
-  check((await page.getByRole("link", { name: /Hello, World/ }).count()) === 1, "compatible lessons stay clickable");
+  check((await page.getByRole("link", { name: /^1. Hello, World/ }).count()) === 1, "compatible lessons stay clickable");
   await shot("w-home");
 
   // a greyed-out lesson opened by URL explains itself

@@ -19,9 +19,9 @@ describe("activity", () => {
     p = bumpActivity(p, today, "warmups");
     p = bumpActivity(p, today, "runs", 3);
     p = bumpActivity(p, "2026-05-09", "lessons");
-    expect(activityOn(p, today)).toEqual({ warmups: 2, resolves: 0, lessons: 0, runs: 3 });
+    expect(activityOn(p, today)).toEqual({ warmups: 2, resolves: 0, lessons: 0, runs: 3, ms: 0 });
     expect(activityOn(p, "2026-05-09").lessons).toBe(1);
-    expect(activityOn(p, "2020-01-01")).toEqual({ warmups: 0, resolves: 0, lessons: 0, runs: 0 });
+    expect(activityOn(p, "2020-01-01")).toEqual({ warmups: 0, resolves: 0, lessons: 0, runs: 0, ms: 0 });
   });
   it("forgets days older than the window", () => {
     let p = bumpActivity(emptyProgress(), "2026-01-01", "runs");
@@ -38,7 +38,7 @@ describe("activity", () => {
   });
   it("normalize keeps good days and drops bad ones", () => {
     const n = normalize({ activity: { "2026-05-10": { warmups: 2, runs: -1, lessons: "x" }, tomorrow: { warmups: 1 }, "2026-05-09": 5 } });
-    expect(n.activity).toEqual({ "2026-05-10": { warmups: 2, resolves: 0, lessons: 0, runs: 0 } });
+    expect(n.activity).toEqual({ "2026-05-10": { warmups: 2, resolves: 0, lessons: 0, runs: 0, ms: 0 } });
   });
 });
 

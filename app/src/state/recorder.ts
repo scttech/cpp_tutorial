@@ -23,7 +23,7 @@ export interface RunInput {
   lessonId: string;
   mode: "run" | "test";
   declaredTiers: Tier[];
-  result: Pick<RunResult, "compiled" | "tests" | "signal" | "timedOut" | "diagnostics">;
+  result: Pick<RunResult, "compiled" | "tests" | "signal" | "timedOut" | "diagnostics"> & Partial<Pick<RunResult, "report">>;
   /** Compiler errors seen since the last clean compile this session (for the "It Compiles!" badge). */
   sessionCompileErrors: number;
   /** Code lines of the learner's editable files in this run (countCodeLines). Optional: without it nothing about refactoring is tracked. */
@@ -34,6 +34,21 @@ export interface RunOutcome {
   state: Progress;
   sessionCompileErrors: number;
   becameComplete: boolean;
+}
+
+/** The most kinds of problem remembered (the least frequent are forgotten first). */
+const MAX_ERROR_KINDS = 100;
+
+/** Count one more hit of each of `keys`. */
+export function tallyErrors(state: Progress, keys: string[], nowIso: string): Progress {
+  const errors = { ...state.errors };
+  for (const k of keys) errors[k] = { count: (errors[k]?.count ?? 0) + 1, lastAt: nowIso };
+  const all = Object.entries(errors);
+  if (all.length > MAX_ERROR_KINDS) {
+    all.sort((a, b) => b[1].count - a[1].count || b[1].lastAt.localeCompare(a[1].lastAt));
+    return { ...state, errors: Object.fromEntries(all.slice(0, MAX_ERROR_KINDS)) };
+  }
+  return { ...state, errors };
 }
 
 export function bumpEvent(state: Progress, name: string, nowIso: string, by = 1): Progress {
@@ -78,6 +93,7 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
   if (becameComplete) {
     p.firstCompleteAt = nowIso;
     p.runsToFirstPass = p.testRuns;
+    p.msToFirstPass = p.timeMs;
   }
 
   // Refactorer: a passing run of an already-completed lesson with fewer code lines than any passing version before
@@ -102,6 +118,12 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
   const crashed = result.signal === "SIGSEGV" || result.tests.some((t) => t.status === "error" && /segmentation fault/i.test(t.message ?? ""));
   if (crashed) next = bumpEvent(next, "segfault", nowIso);
   if (result.timedOut || result.tests.some((t) => t.status === "timeout")) next = bumpEvent(next, "timeout", nowIso);
+
+  // What went wrong, for the learning stats: each kind of compiler error once per run, and the sanitizer's finding.
+  const kinds = new Set<string>();
+  if (!result.compiled) for (const d of result.diagnostics) if (d.severity === "error") kinds.add(`compile:${d.ruleId ?? "other"}`);
+  if (result.report?.summary) kinds.add(`runtime:${result.report.summary}`);
+  if (kinds.size > 0) next = tallyErrors(next, [...kinds], nowIso);
 
   let sessionCompileErrors = input.sessionCompileErrors;
   if (!result.compiled) {

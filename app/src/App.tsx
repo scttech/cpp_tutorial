@@ -7,6 +7,7 @@ import { ToastHost } from "./components/ToastHost";
 import { Home } from "./pages/Home";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
+import { Stats } from "./pages/Stats";
 import { WarmupPage } from "./pages/Warmup";
 import { allCards } from "./warmup/bank";
 import { counts } from "./warmup/session";
@@ -49,6 +50,7 @@ function Nav() {
       <Link to="/profile">
         Profile{earned > 0 && <span className="count" aria-label={`${earned} badges earned`}>{earned}</span>}
       </Link>
+      <Link to="/stats">Stats</Link>
       <Link to="/settings">Settings</Link>
     </nav>
   );
@@ -65,6 +67,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/$/, "Course map"],
   [/^\/profile/, "Profile"],
   [/^\/settings/, "Settings"],
+  [/^\/stats/, "Learning stats"],
   [/^\/warmup/, "Warm-up"],
 ];
 
@@ -112,6 +115,7 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/stats" element={<Stats />} />
         <Route path="/warmup" element={<WarmupPage />} />
         <Route
           path="/lesson/:id"

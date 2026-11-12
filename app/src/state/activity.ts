@@ -11,10 +11,12 @@ export interface Activity {
   lessons: number;
   /** Runs and test runs pressed. */
   runs: number;
+  /** Milliseconds spent working on lessons (the page open and in use). */
+  ms: number;
 }
 
 export const KEEP_DAYS = 120;
-export const emptyActivity = (): Activity => ({ warmups: 0, resolves: 0, lessons: 0, runs: 0 });
+export const emptyActivity = (): Activity => ({ warmups: 0, resolves: 0, lessons: 0, runs: 0, ms: 0 });
 
 /** Add `by` to one counter of `date`, and forget days older than KEEP_DAYS. */
 export function bumpActivity(state: Progress, date: string, field: keyof Activity, by = 1): Progress {
