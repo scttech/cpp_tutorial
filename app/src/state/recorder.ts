@@ -1,4 +1,5 @@
 import type { RunResult, Tier } from "../runner/types";
+import { bumpActivity } from "./activity";
 import { emptyLesson } from "./model";
 import type { LessonProgress, Progress } from "./model";
 import { localDate, touchStreak } from "./streak";
@@ -93,6 +94,8 @@ export function applyRun(state: Progress, input: RunInput, now: Date): RunOutcom
   if (refactored) next = bumpEvent(next, "refactor", nowIso);
   if (fixedWarnings > 0) next = bumpEvent(next, "warnings-fixed", nowIso, fixedWarnings);
   if (mode === "test" && result.compiled && result.tests.some((t) => t.status !== "pass" && t.name.includes(OFF_BY_ONE_TAG))) next = bumpEvent(next, "off-by-one", nowIso);
+  next = bumpActivity(next, localDate(now), "runs");
+  if (becameComplete) next = bumpActivity(next, localDate(now), "lessons");
   next = { ...next, streak: touchStreak(next.streak, localDate(now)) };
 
   // Fun events (hidden badges)

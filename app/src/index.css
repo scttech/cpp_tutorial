@@ -352,3 +352,14 @@ kbd { border: 1px solid var(--field-edge); border-radius: 4px; padding: 0 5px; f
 .resolve-bar { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--tint-gold); border-bottom: 1px solid var(--gold); flex-wrap: wrap; flex: none; }
 .resolve-bar .btn { text-decoration: none; white-space: nowrap; }
 .due-chip { color: var(--fg); border: 1px solid var(--gold); background: var(--tint-gold); }
+.plan-card { background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; margin: 0 0 16px; }
+.plan-card h2 { margin: 0; font-size: 1.1rem; }
+.plan-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.plan-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--edge); }
+.plan-list li:first-child { border-top: 0; }
+.plan-list li.done { color: var(--muted); }
+.plan-check { width: 1.4em; text-align: center; color: var(--gold); }
+.plan-list li.done .plan-check { color: var(--ok); }
+.plan-main { flex: 1; }
+.plan-card .btn { text-decoration: none; white-space: nowrap; }
+.plan-card .banner { margin: 8px 0 0; }

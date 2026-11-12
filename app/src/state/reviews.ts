@@ -1,6 +1,7 @@
 import { answer } from "../warmup/schedule";
 import { recordAnswer } from "../warmup/weak";
 import type { Progress } from "./model";
+import { bumpActivity } from "./activity";
 import { bumpEvent } from "./recorder";
 import { localDate, touchStreak } from "./streak";
 
@@ -14,6 +15,7 @@ export function applyReview(state: Progress, cardId: string, correct: boolean, n
   const iso = now.toISOString();
   let next: Progress = { ...state, reviews: { ...state.reviews, [cardId]: answer(state.reviews[cardId], correct, today) } };
   if (unit) next = { ...next, weak: recordAnswer(state.weak, unit, correct, today) };
+  next = bumpActivity(next, today, "warmups");
   next = bumpEvent(next, "warmup-answered", iso);
   if (correct) next = bumpEvent(next, "warmup-correct", iso);
   return { ...next, streak: touchStreak(next.streak, today) };

@@ -1,6 +1,7 @@
 import type { RunResult } from "../runner/types";
 import { addDays } from "../warmup/schedule";
 import { recordAnswer } from "../warmup/weak";
+import { bumpActivity } from "./activity";
 import type { Progress } from "./model";
 import { bumpEvent } from "./recorder";
 import { daysBetween, localDate, touchStreak } from "./streak";
@@ -84,6 +85,7 @@ export function applyResolve(state: Progress, lessonId: string, outcome: Resolve
     ...(clean ? { bestMs: prev.bestMs === undefined ? outcome.ms : Math.min(prev.bestMs, outcome.ms) } : prev.bestMs !== undefined ? { bestMs: prev.bestMs } : {}),
   };
   let next: Progress = { ...state, resolves: { ...state.resolves, [lessonId]: entry }, weak: recordAnswer(state.weak, `lesson:${lessonId}`, clean, today) };
+  next = bumpActivity(next, today, "resolves");
   next = bumpEvent(next, "resolve-done", iso);
   if (clean) next = bumpEvent(next, "resolve-clean", iso);
   return { ...next, streak: touchStreak(next.streak, today) };

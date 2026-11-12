@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { allLessons, modules } from "../content/loader";
 import { indexLessons, searchEntries } from "../content/search";
@@ -12,7 +12,8 @@ import { wasmProblem } from "../content/wasmCompat";
 import { catalog } from "../badges/catalog";
 import { isModuleComplete } from "../badges/engine";
 import type { LessonProgress, Progress } from "../state/model";
-import { useAllProgress } from "../state/store";
+import { ensureDailyPlan, useAllProgress } from "../state/store";
+import { planComplete, planItems } from "../state/plan";
 import { weakSpotsFor } from "../warmup/weakView";
 import { dueResolves } from "../state/resolves";
 
@@ -203,6 +204,58 @@ function WarmupCard({ progress }: { progress: Progress }) {
   );
 }
 
+/** Today's plan: review first (a warm-up set, a lesson to re-solve), then one new lesson. Each step ticks off as it is done. */
+function PlanCard({ progress }: { progress: Progress }) {
+  const today = localDate(new Date());
+  const next = nextLesson(progress);
+  useEffect(() => {
+    ensureDailyPlan(next?.lesson.meta.id ?? null); // the first visit of a day chooses the plan
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const completed = new Set(Object.entries(progress.lessons).filter(([, p]) => p.status === "complete").map(([id]) => id));
+  const { due, fresh } = counts({ cards: allCards, reviews: progress.reviews, completed, today });
+  const items = planItems(progress, today, due + fresh > 0);
+  if (items.length === 0) return null;
+  const done = items.filter((i) => i.done).length;
+  const title = (id?: string) => (id ? (lessonById.get(id)?.meta.title ?? id) : "");
+  const LABEL = { warmup: "Warm-up", resolve: "Re-solve", lesson: "New lesson" } as const;
+  const verb = (i: (typeof items)[number]) => (i.id === "lesson" && progress.lessons[i.lessonId ?? ""]?.status === "in_progress" ? "Continue" : "Start");
+  const target = (i: (typeof items)[number]) => (i.id === "warmup" ? "/warmup" : i.id === "resolve" ? `/lesson/${i.lessonId}?resolve=1` : `/lesson/${i.lessonId}`);
+  return (
+    <section className="plan-card" aria-labelledby="plan-h">
+      <div className="weak-head">
+        <h2 id="plan-h">Today&rsquo;s plan</h2>
+        <span className="muted small">
+          {done} of {items.length} done{progress.streak.current > 0 ? ` · ${progress.streak.current} day streak` : ""}
+        </span>
+      </div>
+      <ol className="plan-list">
+        {items.map((i) => (
+          <li key={i.id} className={i.done ? "done" : undefined}>
+            <span className="plan-check" aria-hidden="true">
+              {i.done ? "✔" : "○"}
+            </span>
+            <div className="plan-main">
+              <strong>{LABEL[i.id]}</strong> <span className="sr">{i.done ? "(done)" : "(to do)"} </span>
+              <span className="muted small">{[title(i.lessonId), i.detail].filter(Boolean).join(" · ")}</span>
+            </div>
+            {!i.done && (
+              <Link className="btn" to={target(i)} aria-label={`${verb(i)}: ${LABEL[i.id]}${i.lessonId ? `, ${title(i.lessonId)}` : ""}`}>
+                {verb(i)}
+              </Link>
+            )}
+          </li>
+        ))}
+      </ol>
+      {planComplete(items) && (
+        <p className="banner ok" role="status">
+          Today&rsquo;s plan is done. Anything more is a bonus.
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** The lessons and topics the learner keeps missing, with one click to practise them. Hidden when there are none. */
 function WeakSpotsPanel({ progress }: { progress: Progress }) {
   const spots = useMemo(() => weakSpotsFor(progress), [progress]);
@@ -333,6 +386,7 @@ export function Home() {
   return (
     <main className="home">
       <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
+      <PlanCard progress={progress} />
       <ContinueCard progress={progress} />
       <WeakSpotsPanel progress={progress} />
       <WarmupCard progress={progress} />

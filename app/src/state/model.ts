@@ -3,6 +3,8 @@ import { MAX_BOX } from "../warmup/schedule";
 import type { Review } from "../warmup/schedule";
 import { CLEAR_RANGE, DEFAULT_CLEAR } from "../warmup/weak";
 import type { WeakEntry } from "../warmup/weak";
+import type { Activity } from "./activity";
+import type { DailyPlan } from "./plan";
 import type { ResolveEntry } from "./resolves";
 
 // The persisted progress model (spec section 2.4). Every field added after the first release has a
@@ -55,6 +57,9 @@ export interface Progress {
   weak: Record<string, WeakEntry>;
   /** Re-solve schedule per completed lesson (see state/resolves.ts). A lesson without an entry is due 3 days after it was first completed. */
   resolves: Record<string, ResolveEntry>;
+  /** What was done on each recent day (see state/activity.ts), and the plan chosen for the current day (state/plan.ts). */
+  activity: Record<string, Activity>;
+  plan: DailyPlan | null;
   settings: Settings;
 }
 
@@ -80,6 +85,8 @@ export const emptyProgress = (): Progress => ({
   reviews: {},
   weak: {},
   resolves: {},
+  activity: {},
+  plan: null,
   settings: { pace: "full", weakClear: DEFAULT_CLEAR },
 });
 
@@ -172,6 +179,14 @@ export function normalize(raw: unknown): Progress {
         ...(typeof v.bestMs === "number" ? { bestMs: num(v.bestMs) } : {}),
       };
     }
+  }
+  if (isObj(raw.activity)) {
+    for (const [date, v] of Object.entries(raw.activity)) {
+      if (isObj(v) && /^\d{4}-\d{2}-\d{2}$/.test(date)) out.activity[date] = { warmups: num(v.warmups), resolves: num(v.resolves), lessons: num(v.lessons), runs: num(v.runs) };
+    }
+  }
+  if (isObj(raw.plan) && typeof raw.plan.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.plan.date)) {
+    out.plan = { date: raw.plan.date, ...(str(raw.plan.lessonId) ? { lessonId: str(raw.plan.lessonId) as string } : {}), ...(str(raw.plan.resolveId) ? { resolveId: str(raw.plan.resolveId) as string } : {}) };
   }
   if (isObj(raw.settings)) {
     if (raw.settings.pace === "fast" || raw.settings.pace === "full") out.settings.pace = raw.settings.pace;

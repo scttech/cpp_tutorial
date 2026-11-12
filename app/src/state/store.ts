@@ -8,6 +8,8 @@ import type { LessonProgress, Progress } from "./model";
 import { cardById } from "../warmup/bank";
 import { unitOf } from "../warmup/weak";
 import { applyResolve } from "./resolves";
+import { makePlan } from "./plan";
+import { localDate } from "./streak";
 import type { ResolveOutcome } from "./resolves";
 import { applyReview } from "./reviews";
 import { applyRun } from "./recorder";
@@ -156,6 +158,13 @@ export function recordRun(input: Omit<RunInput, "sessionCompileErrors">, now = n
   const defs = earned.map((e) => badgeDefs.find((b) => b.id === e.id)).filter((b): b is BadgeDef => b !== undefined);
   for (const b of defs) pushToast({ kind: "badge", title: `Badge earned: ${b.name}${b.tier ? ` (${b.tier})` : ""}`, body: b.description, icon: b.icon, badgeId: b.id });
   return defs;
+}
+
+/** Make sure today has a plan; the first call of a day chooses it. `nextLessonId` is the lesson that would come next. */
+export function ensureDailyPlan(nextLessonId: string | null, now = new Date()): void {
+  const today = localDate(now);
+  if (state.plan?.date === today) return;
+  commit({ ...state, plan: makePlan(state, today, nextLessonId) });
 }
 
 /** Record a finished re-solve of a completed lesson (it never touches the saved solution). */
