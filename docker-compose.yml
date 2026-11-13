@@ -1,6 +1,7 @@
 # CPP: Zero to Hero - full-fidelity backend (exceptions, threads, sanitizers).
 #   docker compose build          # builds the sandbox image and the runner service
 #   docker compose up -d runner   # starts the API on http://localhost:8080
+#   docker compose up -d --build  # the whole thing: the API and the site on http://localhost:5173
 #
 # Security model: the runner service never touches the Docker socket directly. It talks to a
 # socket proxy that only permits the handful of API calls needed to create, run and delete
@@ -31,6 +32,25 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks: [control]
+    restart: unless-stopped
+
+  # The site itself (the production build, served by nginx), so no dev server is needed.
+  #   docker compose up -d --build web   # (re)builds it and serves http://localhost:5173
+  # Port 5173 is the same address as `npm run dev`, so the CORS setting of the runner below and your saved progress stay as they are:
+  # stop one before starting the other.
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        VITE_RUNNER_URL: ${VITE_RUNNER_URL:-http://localhost:8080}
+    image: zth-web
+    ports:
+      - "127.0.0.1:5173:8080"   # localhost only
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
 
   runner:

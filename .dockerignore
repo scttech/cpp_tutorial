@@ -1,0 +1,12 @@
+# Keep the build context small: dependencies are installed inside the image.
+**/node_modules
+**/dist
+**/dist-wasm
+**/*.tsbuildinfo
+**/*.log
+**/*.err
+.git
+spike
+project_assets
+tools
+runner-service

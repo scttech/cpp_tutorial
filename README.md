@@ -77,7 +77,8 @@ still completes it. All of Module 4 needs the sanitizers, so the static build sh
 | `runner-image/` | The sandbox image (Clang, GCC, GoogleTest/GoogleMock, Catch2, doctest, clang-tidy, clang-format, cppcheck, and the in-container job runner) |
 | `wasm-runner/` | In-browser runner (Clang/LLD as WebAssembly via browsercc + WASI); also runs in Node for the compatibility check |
 | `spike/` | M0 feasibility spike (superseded by `wasm-runner/`) |
-| `docker-compose.yml` | Runner service + Docker socket proxy |
+| `docker-compose.yml` | The site (`web`, nginx), the runner service and the Docker socket proxy |
+| `web/` | Dockerfile and nginx config for serving the production build |
 
 ## Run the backend
 
@@ -95,6 +96,20 @@ VITE_RUNNER=wasm npm run build        # or: VITE_RUNNER=wasm npx vite build --ou
 npx vite preview --port 4173          # serves app/dist; the first visit downloads ~90 MB of compiler
 cd ../tools/e2e && node wasm.mjs      # drives it in a browser (APP_URL defaults to http://localhost:4173)
 ```
+
+## Run everything in Docker (no dev server)
+
+```bash
+docker compose --profile build-only build   # once: the code sandbox image
+docker compose up -d --build                # the site on http://localhost:5173 and the runner on http://localhost:8080
+docker compose up -d --build web            # after changing code or content: rebuild just the site
+docker compose down                         # stop it
+```
+
+The `web` service is the production build served by nginx (non-root, read-only, localhost only). Both services restart on their own
+(`restart: unless-stopped`), so they come back after a reboot. It uses the same address as `npm run dev` (port 5173), so your saved
+progress is shared and only one of the two can run at a time. The site in the container is a frozen copy: rebuild it to see changes.
+`VITE_RUNNER_URL` (default `http://localhost:8080`) sets where the browser looks for the runner when the image is built.
 
 ## Run the front end
 
@@ -117,7 +132,7 @@ cd wasm-runner && npm install && npm test            # the in-browser (WASM) run
 cd tools/validate-content && npm run compat          # which lessons run in the browser? (incremental; writes content/wasm-compat.json)
 ```
 
-The validator and e2e need the runner (`docker compose up -d runner`); e2e also needs the dev server. Set `SHOTS=<dir>` to save screenshots.
+The validator and e2e need the runner (`docker compose up -d runner`); e2e also needs the site on http://localhost:5173 (the dev server or the `web` container). Set `SHOTS=<dir>` to save screenshots.
 
 ## Authoring content
 
