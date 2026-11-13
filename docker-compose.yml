@@ -44,7 +44,6 @@ services:
       dockerfile: web/Dockerfile
       args:
         VITE_RUNNER_URL: ${VITE_RUNNER_URL:-http://localhost:8080}
-    image: zth-web
     ports:
       - "127.0.0.1:5173:8080"   # localhost only
     read_only: true

@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # The site, built once and served by nginx: no dev server (and no VS Code) needed.
 #   docker compose up -d --build        # the site on http://localhost:5173 and the runner on http://localhost:8080
 #   docker compose up -d --build web    # after changing code or content: rebuild just the site
