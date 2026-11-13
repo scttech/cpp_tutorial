@@ -12,10 +12,11 @@ import { wasmProblem } from "../content/wasmCompat";
 import { catalog } from "../badges/catalog";
 import { isModuleComplete } from "../badges/engine";
 import type { LessonProgress, Progress } from "../state/model";
-import { ensureDailyPlan, useAllProgress } from "../state/store";
+import { ensureDailyPlan, exportProgress, useAllProgress } from "../state/store";
 import { planComplete, planItems } from "../state/plan";
 import { weakSpotsFor } from "../warmup/weakView";
 import { dueResolves } from "../state/resolves";
+import { afterSnooze, backupStatus, downloadProgress, loadBackup, saveBackup } from "../state/backup";
 
 /** Why this lesson cannot run with the current runner, or null if it can. */
 export function unrunnableReason(l: Lesson): string | null {
@@ -204,6 +205,44 @@ function WarmupCard({ progress }: { progress: Progress }) {
   );
 }
 
+/** A reminder to export progress when it has been a week (or more) and something changed. */
+function BackupCard({ progress }: { progress: Progress }) {
+  const [backup, setBackup] = useState(loadBackup);
+  const status = backupStatus(progress, backup, localDate(new Date()));
+  if (!status.due) return null;
+  return (
+    <section className="warmup-card backup-card" aria-label="Back up your progress">
+      <div>
+        <strong>Back up your progress</strong>{" "}
+        <span className="muted small">{status.daysSince === null ? "You have not exported it yet." : `The last export was ${status.daysSince} days ago.`} It is stored only in this browser.</span>
+      </div>
+      <span className="row">
+        <button
+          className="btn primary"
+          type="button"
+          onClick={() => {
+            downloadProgress(exportProgress());
+            setBackup(loadBackup());
+          }}
+        >
+          Export now
+        </button>
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            const next = afterSnooze(backup, localDate(new Date()));
+            saveBackup(next);
+            setBackup(next);
+          }}
+        >
+          Remind me in a week
+        </button>
+      </span>
+    </section>
+  );
+}
+
 /** Today's plan: review first (a warm-up set, a lesson to re-solve), then one new lesson. Each step ticks off as it is done. */
 function PlanCard({ progress }: { progress: Progress }) {
   const today = localDate(new Date());
@@ -386,6 +425,7 @@ export function Home() {
   return (
     <main className="home">
       <img src={`${import.meta.env.BASE_URL}logo-banner.webp`} alt="CPP: Zero to Hero. Learn C++, build skills, become a hero." className="logo" width={960} height={640} />
+      <BackupCard progress={progress} />
       <PlanCard progress={progress} />
       <ContinueCard progress={progress} />
       <WeakSpotsPanel progress={progress} />

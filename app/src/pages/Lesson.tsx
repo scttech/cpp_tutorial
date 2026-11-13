@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { CodeEditor } from "../components/CodeEditor";
 import { CompareView } from "../components/CompareView";
+import { FlagButton } from "../components/FlagButton";
+import { summarizeResult } from "../state/flags";
 import { GotchaList } from "../components/GotchaList";
 import { HintLadder } from "../components/HintLadder";
 import { TutorPanel } from "../components/TutorPanel";
@@ -290,6 +292,14 @@ ${d.file}:${d.line}:${d.column}: ${d.severity}: ${d.message}`,
           <button className="btn" onClick={reset} disabled={busy}>
             Reset
           </button>
+          <FlagButton
+            target={{ type: "lesson", id: meta.id }}
+            collect={() => ({
+              code: Object.fromEntries(Object.entries(filesRef.current).filter(([n]) => meta.files.editable.includes(n))),
+              result: summarizeResult(result, kind),
+              context: `${runner.label}${resolving ? ", re-solve" : ""}`,
+            })}
+          />
           {progress.status === "complete" && !resolving && (
             <>
               <button className="btn" type="button" aria-pressed={comparing} onClick={() => void openCompare()}>

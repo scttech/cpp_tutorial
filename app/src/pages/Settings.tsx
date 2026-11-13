@@ -1,8 +1,13 @@
 import { useRef, useState } from "react";
 import { CLEAR_RANGE } from "../warmup/weak";
+import { getLesson } from "../content/loader";
+import { downloadProgress, loadBackup } from "../state/backup";
+import { flagsToMarkdown } from "../state/flags";
+import type { Flag } from "../state/flags";
+import { cardById } from "../warmup/bank";
 import { EDITOR_FONT, TEXT_SCALE, resetPrefs, savePrefs, usePrefs } from "../prefs/prefs";
 import type { KeyMode, LayoutPref, ThemePref } from "../prefs/prefs";
-import { applyImport, exportProgress, parseImport, resetAll, setPace, setWeakClear, summarize, useAllProgress, useStorageKind } from "../state/store";
+import { applyImport, clearFlags, exportProgress, parseImport, removeFlag, resetAll, setPace, setWeakClear, summarize, useAllProgress, useStorageKind } from "../state/store";
 import type { ImportSummary } from "../state/store";
 import type { Progress } from "../state/model";
 import { MODELS, MAX_TOKENS_LIMIT, clearApiKey, clearLeaks, looksLikeKey, readLeaks, saveTutorSettings, useTutorSettings } from "../tutor/settings";
@@ -113,6 +118,74 @@ const LAYOUT_CHOICES: { id: LayoutPref; label: string; hint: string }[] = [
   { id: "normal", label: "Always stacked", hint: "Results below the editor." },
 ];
 
+const flagTitle = (t: Flag["target"]): string => (t.type === "lesson" ? (getLesson(t.id)?.meta.title ?? t.id) : `Warm-up card: ${cardById.get(t.id)?.prompt.slice(0, 70) ?? t.id}`);
+
+function FlagsSection({ flags }: { flags: Flag[] }) {
+  const [copied, setCopied] = useState(false);
+  const markdown = () => flagsToMarkdown(flags, flagTitle, new Date());
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([markdown()], { type: "text/markdown" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zth-flags-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(markdown());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      /* clipboard blocked: the download still works */
+    }
+  };
+  return (
+    <section aria-labelledby="flags-h">
+      <h2 id="flags-h">Flagged issues</h2>
+      <p className="muted">
+        Use <b>Flag</b> on a lesson or a warm-up card to note something wrong or confusing. Each flag keeps what is needed to reproduce it (your code and the last result). Export them all as one Markdown file.
+      </p>
+      {flags.length === 0 ? (
+        <p className="muted">No flags yet.</p>
+      ) : (
+        <>
+          <ul className="flag-list">
+            {flags.map((f) => (
+              <li key={f.id}>
+                <div className="flag-main">
+                  <strong>{flagTitle(f.target)}</strong> <span className="muted small">{f.at.slice(0, 16).replace("T", " ")}</span>
+                  <div>{f.note.length > 160 ? `${f.note.slice(0, 157)}…` : f.note}</div>
+                </div>
+                <button className="btn" type="button" onClick={() => removeFlag(f.id)} aria-label={`Delete the flag on ${flagTitle(f.target)}`}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="row">
+            <button className="btn primary" type="button" onClick={download}>
+              Export flags (.md)
+            </button>
+            <button className="btn" type="button" onClick={() => void copy()}>
+              {copied ? "Copied" : "Copy as Markdown"}
+            </button>
+            <button
+              className="btn danger"
+              type="button"
+              onClick={() => {
+                if (confirm(`Delete all ${flags.length} flags?`)) clearFlags();
+              }}
+            >
+              Delete all
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function AppearanceSection() {
   const p = usePrefs();
   return (
@@ -186,14 +259,10 @@ export function Settings() {
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const mine = summarize(state);
 
+  const [lastExport, setLastExport] = useState(() => loadBackup().lastExport);
   const download = () => {
-    const blob = new Blob([exportProgress()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `zth-progress-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadProgress(exportProgress());
+    setLastExport(loadBackup().lastExport);
     setMessage({ kind: "ok", text: "Progress exported." });
   };
 
@@ -250,12 +319,15 @@ export function Settings() {
 
       <TutorSettingsSection />
 
+      <FlagsSection flags={state.flags} />
+
       <section>
         <h2>Your data</h2>
         <p>
           {mine.complete} lessons complete · {mine.badges} badges · {mine.lessons} lessons started
         </p>
         <p className="muted small">{STORAGE_TEXT[storage]}</p>
+        <p className="muted small">Last exported: {lastExport ?? "never"}. Your progress lives only in this browser, so an export is your backup.</p>
         <div className="row">
           <button className="btn" onClick={download}>
             Export progress (.json)

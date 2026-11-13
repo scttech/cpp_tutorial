@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { FlagButton } from "../components/FlagButton";
 import { DemoBlock } from "../components/GotchaList";
 import { Markdown } from "../components/Markdown";
 import { getState, recordReview, useAllProgress } from "../state/store";
@@ -177,6 +178,7 @@ export function WarmupPage() {
           <button className="btn" onClick={() => check(null)}>
             I don&rsquo;t know
           </button>
+          <FlagButton target={{ type: "card", id: card.id }} label="Flag this card" align="left" collect={() => ({ context: `${card.topic}: ${card.prompt.slice(0, 120)}` })} />
         </div>
       ) : (
         <>
@@ -196,6 +198,7 @@ export function WarmupPage() {
             <button className="btn primary" onClick={next}>
               {index + 1 < session.length ? "Next card" : "Finish"}
             </button>
+            <FlagButton target={{ type: "card", id: card.id }} label="Flag this card" align="left" collect={() => ({ context: `${card.topic}: ${card.prompt.slice(0, 120)}` })} />
           </div>
         </>
       )}

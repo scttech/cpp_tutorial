@@ -103,6 +103,7 @@ try {
   check(/2 of 3 done/.test((await plan.textContent()) ?? ""), "2 of 3 done");
 
   // ---- finish the new lesson: it stays in the plan, now done, and the plan is complete
+  await page.waitForTimeout(1500); // let any pending save finish, so it cannot overwrite the seed below
   const lessonId = (await readIdb(page)).plan.lessonId;
   const lessonText = (await plan.locator("li", { hasText: "New lesson" }).textContent()) ?? "";
   await editIdb(page, () => {

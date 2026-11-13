@@ -4,6 +4,8 @@ import type { Review } from "../warmup/schedule";
 import { CLEAR_RANGE, DEFAULT_CLEAR } from "../warmup/weak";
 import type { WeakEntry } from "../warmup/weak";
 import type { Activity } from "./activity";
+import { MAX_FLAGS, MAX_NOTE } from "./flags";
+import type { Flag } from "./flags";
 import type { DailyPlan } from "./plan";
 import type { ResolveEntry } from "./resolves";
 
@@ -66,6 +68,8 @@ export interface Progress {
   plan: DailyPlan | null;
   /** How often each kind of problem was hit: "compile:<rule id>" (or "compile:other") and "runtime:<sanitizer summary>". */
   errors: Record<string, { count: number; lastAt: string }>;
+  /** Notes left while working through the course (see state/flags.ts), newest first. */
+  flags: Flag[];
   settings: Settings;
 }
 
@@ -95,6 +99,7 @@ export const emptyProgress = (): Progress => ({
   activity: {},
   plan: null,
   errors: {},
+  flags: [],
   settings: { pace: "full", weakClear: DEFAULT_CLEAR },
 });
 
@@ -201,6 +206,23 @@ export function normalize(raw: unknown): Progress {
   if (isObj(raw.errors)) {
     for (const [key, v] of Object.entries(raw.errors)) {
       if (isObj(v) && /^(compile|runtime):.+/.test(key)) out.errors[key] = { count: num(v.count), lastAt: str(v.lastAt) ?? "" };
+    }
+  }
+  if (Array.isArray(raw.flags)) {
+    for (const f of raw.flags.slice(0, MAX_FLAGS)) {
+      if (!isObj(f) || typeof f.id !== "string" || typeof f.at !== "string" || typeof f.note !== "string" || !isObj(f.target)) continue;
+      if ((f.target.type !== "lesson" && f.target.type !== "card") || typeof f.target.id !== "string") continue;
+      const code: Record<string, string> = {};
+      if (isObj(f.code)) for (const [k, v] of Object.entries(f.code)) if (typeof v === "string") code[k] = v;
+      out.flags.push({
+        id: f.id,
+        at: f.at,
+        target: { type: f.target.type, id: f.target.id },
+        note: f.note.slice(0, MAX_NOTE),
+        ...(Object.keys(code).length ? { code } : {}),
+        ...(str(f.result) ? { result: str(f.result) as string } : {}),
+        ...(str(f.context) ? { context: str(f.context) as string } : {}),
+      });
     }
   }
   if (isObj(raw.settings)) {

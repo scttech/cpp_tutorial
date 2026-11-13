@@ -10,6 +10,8 @@ import { unitOf } from "../warmup/weak";
 import { applyResolve } from "./resolves";
 import { makePlan } from "./plan";
 import { applyTime } from "./time";
+import { addFlag } from "./flags";
+import type { NewFlag } from "./flags";
 import { localDate } from "./streak";
 import type { ResolveOutcome } from "./resolves";
 import { applyReview } from "./reviews";
@@ -160,6 +162,13 @@ export function recordRun(input: Omit<RunInput, "sessionCompileErrors">, now = n
   for (const b of defs) pushToast({ kind: "badge", title: `Badge earned: ${b.name}${b.tier ? ` (${b.tier})` : ""}`, body: b.description, icon: b.icon, badgeId: b.id });
   return defs;
 }
+
+/** Save a flag (a note about a lesson or card, with what is needed to reproduce it). */
+export function addFlagNote(input: NewFlag, now = new Date()): void {
+  commit({ ...state, flags: addFlag(state.flags, input, now) });
+}
+export const removeFlag = (id: string) => commit({ ...state, flags: state.flags.filter((f) => f.id !== id) });
+export const clearFlags = () => commit({ ...state, flags: [] });
 
 /** Add working time (milliseconds) to a lesson and to today. */
 export function addLessonTime(lessonId: string, ms: number, now = new Date()): void {
